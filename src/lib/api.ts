@@ -2,14 +2,24 @@ import api from './config';
 
 // Auth API
 export const authApi = {
-  login: (credentials: { email?: string; phone?: string; password: string }) =>
+  // Đăng nhập truyền thống (Email/SĐT & Mật khẩu)
+  login: (credentials: { identifier: string; password: string }) =>
     api.post('/api/auth/login', credentials),
+  
+  // Đăng nhập Google (Google OAuth2)
+  googleLogin: (data: { code: string }) =>
+    api.post('/api/auth/google/token', data),
+  
+  // Làm mới token (Refresh Token)
+  refreshToken: (data: { refreshToken: string }) =>
+    api.post('/api/auth/refresh', data),
+  
+  // Lấy thông tin người dùng (Me)
+  getMe: () =>
+    api.get('/api/auth/me'),
   
   logout: () =>
     api.post('/api/auth/logout'),
-  
-  refreshToken: () =>
-    api.post('/api/auth/refresh'),
 };
 
 // Register API
