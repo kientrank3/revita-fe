@@ -96,6 +96,7 @@ export default function LoginPage() {
         }
       }, 1000);
       
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Không thể mở cửa sổ đăng nhập Google");
       setGoogleLoading(false);

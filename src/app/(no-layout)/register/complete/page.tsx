@@ -49,6 +49,7 @@ export default function CompleteRegistration() {
     setLoading(true);
     setError("");
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const response = await registerApi.complete({
         sessionId,
         fullName: form.fullName,

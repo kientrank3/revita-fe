@@ -57,6 +57,7 @@ export default function VerifyOtp() {
     setLoading(true);
     setError("");
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const response = await registerApi.verifyOtp({
         sessionId,
         otp: otpString
