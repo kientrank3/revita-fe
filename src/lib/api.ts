@@ -4,34 +4,34 @@ import api from './config';
 export const authApi = {
   // Đăng nhập truyền thống (Email/SĐT & Mật khẩu)
   login: (credentials: { identifier: string; password: string }) =>
-    api.post('/api/auth/login', credentials),
+    api.post('/auth/login', credentials),
   
   // Đăng nhập Google (Google OAuth2)
   googleLogin: (data: { code: string }) =>
-    api.post('/api/auth/google/token', data),
+    api.post('/auth/google/token', data),
   
   // Làm mới token (Refresh Token)
   refreshToken: (data: { refreshToken: string }) =>
-    api.post('/api/auth/refresh', data),
+    api.post('/auth/refresh', data),
   
   // Lấy thông tin người dùng (Me)
   getMe: () =>
-    api.get('/api/auth/me'),
+    api.get('/auth/me'),
   
   logout: () =>
-    api.post('/api/auth/logout'),
+    api.post('/auth/logout'),
 };
 
 // Register API
 export const registerApi = {
   step1: (data: { phone?: string; email?: string }) =>
-    api.post('/api/register/step1', data),
+    api.post('/register/step1', data),
   
   verifyOtp: (data: { sessionId: string; otp: string }) =>
-    api.post('/api/register/verify-otp', data),
+    api.post('/register/verify-otp', data),
   
   resendOtp: (data: { sessionId: string }) =>
-    api.post('/api/register/resend-otp', data),
+    api.post('/register/resend-otp', data),
   
   complete: (data: { 
     sessionId: string; 
@@ -39,45 +39,45 @@ export const registerApi = {
     password: string; 
     confirmPassword: string;
   }) =>
-    api.post('/api/register/complete', data),
+    api.post('/register/complete', data),
 };
 
 // User API
 export const userApi = {
   getProfile: () =>
-    api.get('/api/user/profile'),
+    api.get('/user/profile'),
   
   updateProfile: (data: Record<string, unknown>) =>
-    api.put('/api/user/profile', data),
+    api.put('/user/profile', data),
   
   changePassword: (data: { 
     currentPassword: string; 
     newPassword: string; 
     confirmPassword: string;
   }) =>
-    api.put('/api/user/change-password', data),
+    api.put('/user/change-password', data),
 };
 
 // Medical Services API
 export const medicalApi = {
   getFacilities: () =>
-    api.get('/api/medical/facilities'),
+    api.get('/medical/facilities'),
   
   getServices: () =>
-    api.get('/api/medical/services'),
+    api.get('/medical/services'),
   
   bookAppointment: (data: Record<string, unknown>) =>
-    api.post('/api/medical/appointments', data),
+    api.post('/medical/appointments', data),
   
   getAppointments: () =>
-    api.get('/api/medical/appointments'),
+    api.get('/medical/appointments'),
 };
 
 // News API
 export const newsApi = {
   getNews: (params?: { category?: string; page?: number; limit?: number }) =>
-    api.get('/api/news', { params }),
+    api.get('/news', { params }),
   
   getNewsById: (id: string) =>
-    api.get(`/api/news/${id}`),
+    api.get(`/news/${id}`),
 };
