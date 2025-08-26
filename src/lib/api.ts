@@ -1,4 +1,41 @@
 import api from './config';
+import { CreateMedicalRecordDto, UpdateMedicalRecordDto } from '@/lib/types/medical-record';
+
+// Patient Profile Types
+export interface PatientProfile {
+  id: string;
+  patientId: string;
+  name: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  occupation: string;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  healthInsurance: string;
+  relationship: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePatientProfileDto {
+  patientId: string;
+  name: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  occupation: string;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  healthInsurance: string;
+  relationship: string;
+}
 
 // Auth API
 export const authApi = {
@@ -73,6 +110,45 @@ export const medicalApi = {
     api.get('/medical/appointments'),
 };
 
+// Medical Records API
+export const medicalRecordApi = {
+  // Get all medical records
+  getAll: () =>
+    api.get('/medical-records'),
+  
+  // Get medical records by patient profile
+  getByPatientProfile: (patientProfileId: string) =>
+    api.get(`/medical-records/patient-profile/${patientProfileId}`),
+  
+  // Get medical records by doctor
+  getByDoctor: (doctorId: string) =>
+    api.get(`/medical-records/doctor/${doctorId}`),
+  
+  // Get single medical record
+  getById: (id: string) =>
+    api.get(`/medical-records/${id}`),
+  
+  // Create medical record
+  create: (data: CreateMedicalRecordDto) =>
+    api.post('/medical-records', data),
+  
+  // Update medical record
+  update: (id: string, data: UpdateMedicalRecordDto) =>
+    api.patch(`/medical-records/${id}`, data),
+  
+  // Delete medical record
+  delete: (id: string) =>
+    api.delete(`/medical-records/${id}`),
+  
+  // Get templates
+  getTemplates: () =>
+    api.get('/medical-records/templates'),
+  
+  // Get template by ID
+  getTemplateById: (templateId: string) =>
+    api.get(`/medical-records/templates/${templateId}`),
+};
+
 // News API
 export const newsApi = {
   getNews: (params?: { category?: string; page?: number; limit?: number }) =>
@@ -80,4 +156,41 @@ export const newsApi = {
   
   getNewsById: (id: string) =>
     api.get(`/news/${id}`),
+};
+
+// Patient Profile API
+export const patientProfileApi = {
+  // Lấy patient profile theo patient ID
+  getByPatientId: (patientId: string) =>
+    api.get(`/patient-profiles/patient/${patientId}`),
+  
+  // Lấy patient profile theo ID
+  getById: (patientProfileId: string) =>
+    api.get(`/patient-profiles/${patientProfileId}`),
+  
+  // Tạo patient profile mới
+  create: (data: {
+    patientId: string;
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    occupation: string;
+    emergencyContact: {
+      name: string;
+      phone: string;
+      relationship: string;
+    };
+    healthInsurance: string;
+    relationship: string;
+  }) =>
+    api.post('/patient-profiles', data),
+  
+  // Cập nhật patient profile
+  update: (patientProfileId: string, data: Partial<CreatePatientProfileDto>) =>
+    api.put(`/patient-profiles/${patientProfileId}`, data),
+  
+  // Xóa patient profile
+  delete: (patientProfileId: string) =>
+    api.delete(`/patient-profiles/${patientProfileId}`),
 };
