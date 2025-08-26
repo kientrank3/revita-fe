@@ -38,7 +38,7 @@ export default function CreateMedicalRecordPage() {
   const [formData, setFormData] = useState<Partial<CreateMedicalRecordDto>>({
     patientProfileId: patientProfileId || '',
     templateId: '',
-    doctorId: user?.id || '',
+    doctorId: user?.id ,
     appointmentId: '',
     status: MedicalRecordStatus.DRAFT,
     content: {},
@@ -77,6 +77,7 @@ export default function CreateMedicalRecordPage() {
     setFormData(prev => ({
       ...prev,
       templateId,
+      doctorId: user?.id ,
       content: {}, // Reset content when template changes
     }));
   };
@@ -115,7 +116,11 @@ export default function CreateMedicalRecordPage() {
 
     try {
       setIsCreating(true);
-      await medicalRecordService.create(formData as CreateMedicalRecordDto);
+      const payload: any = { ...formData };
+      if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
+        delete payload.appointmentId;
+      }
+      await medicalRecordService.create(payload as CreateMedicalRecordDto);
       toast.success('Tạo bệnh án thành công');
       router.push('/medical-records');
     } catch (error) {

@@ -67,6 +67,7 @@ class MedicalRecordService {
 
   // Create new medical record
   async create(data: CreateMedicalRecordDto): Promise<MedicalRecord> {
+    console.log('data', data);
     return this.request<MedicalRecord>('', {
       method: 'POST',
       body: JSON.stringify(data),
