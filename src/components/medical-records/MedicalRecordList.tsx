@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,18 +22,50 @@ import {
   Trash2,
   Calendar,
   User,
+  // ExternalLink,
 } from 'lucide-react';
 import { 
   MedicalRecord, 
   Template, 
   MedicalRecordStatus 
 } from '@/lib/types/medical-record';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
+import { medicalRecordService } from '@/lib/services/medical-record.service';
+import { userService } from '@/lib/services/user.service';
+
+interface PatientProfileData {
+  id: string;
+  profileCode: string;
+  name: string;
+  patient?: {
+    user?: {
+      phone?: string;
+    };
+  };
+}
+
+interface TemplateData {
+  id: string;
+  templateCode: string;
+  name: string;
+  specialtyName: string;
+}
+
+interface DoctorData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  doctor?: {
+    doctorCode: string;
+    specialty: string;
+  };
+}
 
 interface MedicalRecordListProps {
   medicalRecords: MedicalRecord[];
   templates: Template[];
   onView: (record: MedicalRecord) => void;
-  onEdit: (record: MedicalRecord) => void;
   onDelete: (record: MedicalRecord) => void;
   onCreate: () => void;
   isLoading?: boolean;
@@ -43,7 +75,6 @@ export function MedicalRecordList({
   medicalRecords,
   templates,
   onView,
-  onEdit,
   onDelete,
   isLoading = false,
 }: MedicalRecordListProps) {
@@ -51,6 +82,10 @@ export function MedicalRecordList({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [patientProfiles, setPatientProfiles] = useState<Record<string, PatientProfileData>>({});
+  const [templateData, setTemplateData] = useState<Record<string, TemplateData>>({});
+  const [doctorData, setDoctorData] = useState<Record<string, DoctorData>>({});
+  const [, setLoadingProfiles] = useState(false);
   const itemsPerPage = 10;
 
   const getStatusColor = (status: MedicalRecordStatus) => {
@@ -59,7 +94,7 @@ export function MedicalRecordList({
         return 'bg-green-100 text-green-800';
       case MedicalRecordStatus.DRAFT:
         return 'bg-yellow-100 text-yellow-800';
-      case MedicalRecordStatus.ARCHIVED:
+      case MedicalRecordStatus.IN_PROGRESS:
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-blue-100 text-blue-800';
@@ -72,8 +107,8 @@ export function MedicalRecordList({
         return 'Hoàn thành';
       case MedicalRecordStatus.DRAFT:
         return 'Nháp';
-      case MedicalRecordStatus.ARCHIVED:
-        return 'Lưu trữ';
+      case MedicalRecordStatus.IN_PROGRESS:
+        return 'Đang điều trị';
       default:
         return status;
     }
@@ -90,8 +125,97 @@ export function MedicalRecordList({
   };
 
   const getTemplateName = (templateId: string) => {
-    const template = templates.find(t => t.templateCode === templateId);
-    return template ? template.name : templateId;
+    // First try to get from loaded template data
+    const template = templateData[templateId];
+    if (template) {
+      return template.name;
+    }
+    
+    // Fallback to templates prop
+    const templateFromProp = templates.find(t => t.templateCode === templateId);
+    return templateFromProp ? templateFromProp.name : templateId;
+  };
+
+  const getDoctorInfo = (doctorId: string) => {
+    const doctor = doctorData[doctorId];
+    if (!doctor) {
+      return {
+        name: 'Đang tải...',
+        specialty: 'N/A',
+        code: doctorId.slice(0, 8) + '...'
+      };
+    }
+    
+    return {
+      name: doctor.name,
+      specialty: doctor.doctor?.specialty || 'N/A',
+      code: doctor.doctor?.doctorCode || 'N/A'
+    };
+  };
+
+  // Load additional data for medical records
+  useEffect(() => {
+    const loadAdditionalData = async () => {
+      if (medicalRecords.length === 0) return;
+
+      try {
+        setLoadingProfiles(true);
+        
+        // Load patient profiles
+        const uniquePatientIds = [...new Set(medicalRecords.map(record => record.patientProfileId))];
+        const profiles = await patientProfileService.getByIds(uniquePatientIds);
+        setPatientProfiles(profiles);
+
+        // Load templates
+        const uniqueTemplateIds = [...new Set(medicalRecords.map(record => record.templateId))];
+        const templatePromises = uniqueTemplateIds.map(async (templateId) => {
+          try {
+            return await medicalRecordService.getTemplateById(templateId);
+          } catch (error) {
+            console.error(`Error loading template ${templateId}:`, error);
+            return null;
+          }
+        });
+        
+        const templateResults = await Promise.all(templatePromises);
+        const templateMap: Record<string, TemplateData> = {};
+        templateResults.forEach(template => {
+          if (template) {
+            templateMap[template.id] = template;
+          }
+        });
+        setTemplateData(templateMap);
+
+        // Load doctors
+        const uniqueDoctorIds = [...new Set(medicalRecords.map(record => record.doctorId).filter((id): id is string => !!id))];
+        const doctors = await userService.getDoctorsByIds(uniqueDoctorIds);
+        setDoctorData(doctors as Record<string, DoctorData>);
+
+      } catch (error) {
+        console.error('Error loading additional data:', error);
+      } finally {
+        setLoadingProfiles(false);
+      }
+    };
+
+    loadAdditionalData();
+  }, [medicalRecords]);
+
+  const getPatientInfo = (patientProfileId: string) => {
+    const profile = patientProfiles[patientProfileId];
+    if (!profile) {
+      return {
+        name: 'Đang tải...',
+        code: patientProfileId.slice(0, 8) + '...',
+        phone: 'N/A'
+      };
+    }
+    
+    return {
+      name: profile.name,
+      code: profile.profileCode,
+      phone: profile.patient?.user?.phone || 'N/A'
+    };
   };
 
   const filteredRecords = useMemo(() => {
@@ -150,7 +274,7 @@ export function MedicalRecordList({
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
                 <SelectItem value={MedicalRecordStatus.DRAFT}>Nháp</SelectItem>
                 <SelectItem value={MedicalRecordStatus.COMPLETED}>Hoàn thành</SelectItem>
-                <SelectItem value={MedicalRecordStatus.ARCHIVED}>Lưu trữ</SelectItem>
+                <SelectItem value={MedicalRecordStatus.IN_PROGRESS}>Đang điều trị</SelectItem>
               </SelectContent>
             </Select>
 
@@ -161,7 +285,7 @@ export function MedicalRecordList({
               <SelectContent>
                 <SelectItem value="all">Tất cả loại</SelectItem>
                 {templates.map(template => (
-                  <SelectItem key={template.templateCode} value={template.templateCode}>
+                  <SelectItem key={template.id} value={template.id}>
                     {template.name}
                   </SelectItem>
                 ))}
@@ -213,16 +337,30 @@ export function MedicalRecordList({
                     <TableCell className="font-mono text-sm">
                       {record.id.slice(0, 8)}...
                     </TableCell>
-                    <TableCell className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <span className="font-mono text-sm">
-                        {record.patientProfileId.slice(0, 8)}...
-                      </span>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-500" />
+                          <span className="font-medium text-sm">
+                            {getPatientInfo(record.patientProfileId).name}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 ml-6">
+                          {getPatientInfo(record.patientProfileId).code} • {getPatientInfo(record.patientProfileId).phone}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {getTemplateName(record.templateId)}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline">
+                          {getTemplateName(record.templateId)}
+                        </Badge>
+                        {record.doctorId && (
+                          <div className="text-xs text-gray-500">
+                            Bác sĩ: {getDoctorInfo(record.doctorId).name}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(record.status)}>
@@ -246,10 +384,12 @@ export function MedicalRecordList({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEdit(record)}
+                          asChild
                           title="Chỉnh sửa"
                         >
-                          <Edit className="h-4 w-4" />
+                          <a href={`/medical-records/${record.id}/edit`}>
+                            <Edit className="h-4 w-4" />
+                          </a>
                         </Button>
                         <Button
                           variant="ghost"
@@ -260,6 +400,16 @@ export function MedicalRecordList({
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        {/* <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          title="Mở trong tab mới"
+                        >
+                          <a href={`/medical-records/${record.id}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button> */}
                       </div>
                     </TableCell>
                   </TableRow>

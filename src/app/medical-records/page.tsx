@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -16,19 +14,19 @@ import {
 } from 'lucide-react';
 import { MedicalRecordManager } from '@/components/medical-records/MedicalRecordManager';
 import { PatientProfileCard } from '@/components/patient/PatientProfileCard';
+import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { PatientProfile } from '@/lib/types/user';
 import Link from 'next/link';
 
 export default function MedicalRecordsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [patientId, setPatientId] = useState('');
+  const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
   const [activeTab, setActiveTab] = useState('medical-records');
 
-  const handlePatientSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (patientId.trim()) {
-      setActiveTab('patient-search');
-    }
+  const handlePatientProfileSelect = (patientProfile: PatientProfile) => {
+    setSelectedPatientProfile(patientProfile);
+    setActiveTab('patient-search');
   };
 
   // Kiểm tra quyền bác sĩ
@@ -149,41 +147,17 @@ export default function MedicalRecordsPage() {
 
         <TabsContent value="patient-search" className="space-y-6">
           {/* Patient Search */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Tìm kiếm bệnh nhân
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePatientSearch} className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="patientId">ID Bệnh nhân</Label>
-                  <Input
-                    id="patientId"
-                    value={patientId}
-                    onChange={(e) => setPatientId(e.target.value)}
-                    placeholder="Nhập ID bệnh nhân để tìm kiếm"
-                    required
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button type="submit" className="flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    Tìm kiếm
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          <PatientSearch 
+            onPatientProfileSelect={handlePatientProfileSelect}
+            selectedPatientProfile={selectedPatientProfile}
+          />
 
-          {patientId && (
+          {selectedPatientProfile && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Thông tin bệnh nhân</h2>
-                  <p className="text-gray-600">ID: {patientId}</p>
+                  <p className="text-gray-600">{selectedPatientProfile.name} • {selectedPatientProfile.profileCode}</p>
                 </div>
                 <Badge variant="outline" className="flex items-center gap-1">
                   <User className="h-3 w-3" />
@@ -192,31 +166,31 @@ export default function MedicalRecordsPage() {
               </div>
               
               <PatientProfileCard 
-                patientId={patientId}
+                patientId={selectedPatientProfile.id}
                 showActions={false}
               />
 
-                              <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Bệnh án của bệnh nhân</h2>
-                    <p className="text-gray-600">Bệnh nhân ID: {patientId}</p>
-                  </div>
-                  <Link href={`/medical-records/create?patientId=${patientId}`}>
-                    <Button className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      Tạo bệnh án cho bệnh nhân này
-                    </Button>
-                  </Link>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Bệnh án của bệnh nhân</h2>
+                  <p className="text-gray-600">{selectedPatientProfile.name}</p>
                 </div>
-                
-                <MedicalRecordManager 
-                  patientProfileId={patientId}
-                  doctorId={user?.id}
-                />
+                <Link href={`/medical-records/create?patientId=${selectedPatientProfile.id}`}>
+                  <Button className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Tạo bệnh án cho bệnh nhân này
+                  </Button>
+                </Link>
+              </div>
+              
+              <MedicalRecordManager 
+                patientProfileId={selectedPatientProfile.id}
+                doctorId={user?.id}
+              />
             </div>
           )}
 
-          {!patientId && (
+          {!selectedPatientProfile && (
             <Card>
               <CardContent className="p-12 text-center">
                 <div className="max-w-md mx-auto">
@@ -227,12 +201,12 @@ export default function MedicalRecordsPage() {
                     Tìm kiếm bệnh nhân
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Nhập ID bệnh nhân ở trên để xem thông tin và quản lý bệnh án
+                    Sử dụng công cụ tìm kiếm ở trên để tìm và chọn bệnh nhân
                   </p>
                   <div className="space-y-2 text-sm text-gray-500">
+                    <p>• Tìm kiếm theo tên, số điện thoại hoặc email</p>
                     <p>• Xem thông tin cá nhân bệnh nhân</p>
                     <p>• Tạo và quản lý hồ sơ bệnh án</p>
-                    <p>• Theo dõi lịch sử khám bệnh</p>
                   </div>
                 </div>
               </CardContent>

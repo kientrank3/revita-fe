@@ -36,7 +36,7 @@ export interface MedicalRecord {
 export enum MedicalRecordStatus {
   DRAFT = 'DRAFT',
   COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED',
+  IN_PROGRESS = 'IN_PROGRESS',
 }
 
 export interface CreateMedicalRecordDto {

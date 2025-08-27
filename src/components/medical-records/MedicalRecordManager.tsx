@@ -80,24 +80,14 @@ export function MedicalRecordManager({
   };
 
   const handleView = (record: MedicalRecord) => {
-    const template = templates.find(t => t.templateCode === record.templateId);
-    if (template) {
-      setSelectedRecord(record);
-      setSelectedTemplate(template);
-      setCurrentView('view');
-      setIsDialogOpen(true);
-    }
+    // Navigate to the detail page instead of opening dialog
+    window.open(`/medical-records/${record.id}`, '_blank');
   };
 
-  const handleEdit = (record: MedicalRecord) => {
-    const template = templates.find(t => t.templateCode === record.templateId);
-    if (template) {
-      setSelectedRecord(record);
-      setSelectedTemplate(template);
-      setCurrentView('edit');
-      setIsDialogOpen(true);
-    }
-  };
+  // Edit functionality moved to dedicated edit page
+  // const handleEdit = (record: MedicalRecord) => {
+  //   window.open(`/medical-records/${record.id}/edit`, '_blank');
+  // };
 
   const handleDelete = async (record: MedicalRecord) => {
     if (confirm('Bạn có chắc chắn muốn xóa bệnh án này?')) {
@@ -117,7 +107,7 @@ export function MedicalRecordManager({
       // Add doctor ID if not provided
       const recordData = {
         ...data,
-        doctorId: data.doctorId || currentDoctorId,
+        doctorId: data.doctorId || currentDoctorId || '',
       };
       
       const newRecord = await medicalRecordService.create(recordData);
@@ -256,7 +246,6 @@ export function MedicalRecordManager({
         medicalRecords={medicalRecords}
         templates={templates}
         onView={handleView}
-        onEdit={handleEdit}
         onDelete={handleDelete}
         onCreate={handleCreate}
         isLoading={isLoading}

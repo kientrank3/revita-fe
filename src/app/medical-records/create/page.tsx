@@ -24,6 +24,8 @@ import { Template, CreateMedicalRecordDto, MedicalRecordStatus } from '@/lib/typ
 import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { toast } from 'sonner';
+import { PatientSearch } from '@/components/medical-records/PatientSearch';
+import { PatientProfile } from '@/lib/types/user';
 
 export default function CreateMedicalRecordPage() {
   const router = useRouter();
@@ -44,6 +46,7 @@ export default function CreateMedicalRecordPage() {
     content: {},
   });
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
 
   // Load templates
   useEffect(() => {
@@ -82,6 +85,14 @@ export default function CreateMedicalRecordPage() {
     }));
   };
 
+  const handlePatientProfileSelect = (patientProfile: PatientProfile) => {
+    setSelectedPatientProfile(patientProfile);
+    setFormData(prev => ({
+      ...prev,
+      patientProfileId: patientProfile.id,
+    }));
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -109,13 +120,14 @@ export default function CreateMedicalRecordPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.templateId || !formData.patientProfileId) {
-      toast.error('Vui lòng chọn template và nhập ID bệnh nhân');
+    if (!formData.templateId || !selectedPatientProfile) {
+      toast.error('Vui lòng chọn template và bệnh nhân');
       return;
     }
 
     try {
       setIsCreating(true);
+
       const payload: any = { ...formData };
       if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
         delete payload.appointmentId;
@@ -170,13 +182,10 @@ export default function CreateMedicalRecordPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="patientProfileId">ID Bệnh nhân *</Label>
-                <Input
-                  id="patientProfileId"
-                  value={formData.patientProfileId}
-                  onChange={(e) => handleInputChange('patientProfileId', e.target.value)}
-                  placeholder="Nhập ID bệnh nhân"
-                  required
+                <Label>Bệnh nhân *</Label>
+                <PatientSearch 
+                  onPatientProfileSelect={handlePatientProfileSelect}
+                  selectedPatientProfile={selectedPatientProfile}
                 />
               </div>
               
@@ -492,6 +501,7 @@ export default function CreateMedicalRecordPage() {
             </Button>
             <p className="text-sm text-gray-500">
               {selectedTemplate ? `${selectedTemplate.fields?.fields?.length || 0} trường cần điền` : 'Chưa chọn template'}
+              {selectedPatientProfile && ` • ${selectedPatientProfile.name}`}
             </p>
           </div>
           <Button 

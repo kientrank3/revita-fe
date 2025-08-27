@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +12,8 @@ import {
   MedicalRecordStatus,
   Attachment 
 } from '@/lib/types/medical-record';
+import { userService } from '@/lib/services/user.service';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { 
   FileText, 
   Calendar, 
@@ -37,6 +39,41 @@ export function MedicalRecordViewer({
   onPrint,
   onDownload,
 }: MedicalRecordViewerProps) {
+  const [doctor, setDoctor] = useState<any>(null);
+  const [patientProfile, setPatientProfile] = useState<any>(null);
+  const [loadingDoctor, setLoadingDoctor] = useState(false);
+  const [loadingPatient, setLoadingPatient] = useState(false);
+
+  // Load doctor and patient information
+  useEffect(() => {
+    const loadAdditionalData = async () => {
+      // Load patient profile
+      try {
+        setLoadingPatient(true);
+        const profileData = await patientProfileService.getById(medicalRecord.patientProfileId);
+        setPatientProfile(profileData);
+      } catch (error) {
+        console.error('Error loading patient profile:', error);
+      } finally {
+        setLoadingPatient(false);
+      }
+
+      // Load doctor information if available
+      if (medicalRecord.doctorId) {
+        try {
+          setLoadingDoctor(true);
+          const doctorData = await userService.getDoctorById(medicalRecord.doctorId);
+          setDoctor(doctorData);
+        } catch (error) {
+          console.error('Error loading doctor:', error);
+        } finally {
+          setLoadingDoctor(false);
+        }
+      }
+    };
+
+    loadAdditionalData();
+  }, [medicalRecord.doctorId, medicalRecord.patientProfileId]);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -53,7 +90,7 @@ export function MedicalRecordViewer({
         return 'bg-green-100 text-green-800';
       case MedicalRecordStatus.DRAFT:
         return 'bg-yellow-100 text-yellow-800';
-      case MedicalRecordStatus.ARCHIVED:
+      case MedicalRecordStatus.IN_PROGRESS:
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-blue-100 text-blue-800';
@@ -66,8 +103,8 @@ export function MedicalRecordViewer({
         return 'Hoàn thành';
       case MedicalRecordStatus.DRAFT:
         return 'Nháp';
-      case MedicalRecordStatus.ARCHIVED:
-        return 'Lưu trữ';
+      case MedicalRecordStatus.IN_PROGRESS:
+        return 'Đang điều trị';
       default:
         return status;
     }
@@ -257,13 +294,39 @@ export function MedicalRecordViewer({
               <div className="text-gray-600 font-mono">{medicalRecord.id}</div>
             </div>
             <div>
-              <div className="font-medium text-gray-700">ID bệnh nhân</div>
-              <div className="text-gray-600 font-mono">{medicalRecord.patientProfileId}</div>
+              <div className="font-medium text-gray-700">Bệnh nhân</div>
+              <div className="text-gray-600">
+                {loadingPatient ? (
+                  <span className="text-gray-400">Đang tải...</span>
+                ) : patientProfile ? (
+                  <div>
+                    <div className="font-medium">{patientProfile.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {patientProfile.profileCode} • {patientProfile.patient?.user?.phone || 'N/A'}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="font-mono text-sm">{medicalRecord.patientProfileId}</span>
+                )}
+              </div>
             </div>
             {medicalRecord.doctorId && (
               <div>
-                <div className="font-medium text-gray-700">ID bác sĩ</div>
-                <div className="text-gray-600 font-mono">{medicalRecord.doctorId}</div>
+                <div className="font-medium text-gray-700">Bác sĩ</div>
+                <div className="text-gray-600">
+                  {loadingDoctor ? (
+                    <span className="text-gray-400">Đang tải...</span>
+                  ) : doctor ? (
+                    <div>
+                      <div className="font-medium">{doctor.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {doctor.doctor?.doctorCode || 'N/A'} • {doctor.doctor?.specialty || 'N/A'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="font-mono text-sm">{medicalRecord.doctorId}</span>
+                  )}
+                </div>
               </div>
             )}
             {medicalRecord.appointmentId && (
