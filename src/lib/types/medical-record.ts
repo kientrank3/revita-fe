@@ -22,6 +22,7 @@ export interface Template {
 }
 
 export interface MedicalRecord {
+  patientProfile: any;
   id: string;
   patientProfileId: string;
   templateId: string;
@@ -42,7 +43,7 @@ export enum MedicalRecordStatus {
 export interface CreateMedicalRecordDto {
   patientProfileId: string;
   templateId: string;
-  doctorId: string;
+  doctorId?: string;
   appointmentId?: string;
   status?: MedicalRecordStatus;
   content: Record<string, any>;

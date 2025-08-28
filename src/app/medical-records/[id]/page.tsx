@@ -10,7 +10,7 @@ import {
   Edit, 
   FileText,
 } from 'lucide-react';
-import { MedicalRecord, Template, MedicalRecordStatus } from '@/lib/types/medical-record';
+import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service'; 
 import { userService } from '@/lib/services/user.service';
 import { patientProfileService } from '@/lib/services/patient-profile.service';
@@ -52,6 +52,11 @@ export default function MedicalRecordDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [, setIsSaving] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Debug dialog state
+  useEffect(() => {
+    console.log('Dialog state changed:', isEditDialogOpen);
+  }, [isEditDialogOpen]);
 
   // Load medical record and template
   useEffect(() => {
@@ -99,20 +104,34 @@ export default function MedicalRecordDetailPage() {
   }, [recordId, router]);
 
   const handleEdit = () => {
+    console.log('Opening edit dialog...');
+    console.log('Current state:', { medicalRecord, template, isEditDialogOpen });
     setIsEditDialogOpen(true);
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSave = async (content: Record<string, any>) => {
+  const handleSave = async (data: Record<string, any> | CreateMedicalRecordDto) => {
     if (!medicalRecord) return;
 
     try {
       setIsSaving(true);
       
-      const updatedRecord = await medicalRecordService.update(medicalRecord.id, {
-        content,
-        status: MedicalRecordStatus.COMPLETED, // Auto-complete when saving
-      });
+      let updateData;
+      if ('content' in data) {
+        // This is a CreateMedicalRecordDto from create form
+        updateData = {
+          content: data.content,
+          status: data.status || MedicalRecordStatus.COMPLETED,
+        };
+      } else {
+        // This is just content from edit form
+        updateData = {
+          content: data,
+          status: MedicalRecordStatus.COMPLETED, // Auto-complete when saving
+        };
+      }
+      
+      const updatedRecord = await medicalRecordService.update(medicalRecord.id, updateData);
 
       setMedicalRecord(updatedRecord);
       setIsEditDialogOpen(false);
@@ -126,6 +145,7 @@ export default function MedicalRecordDetailPage() {
   };
 
   const handleCancel = () => {
+    console.log('Closing edit dialog...');
     setIsEditDialogOpen(false);
   };
 
@@ -227,24 +247,24 @@ export default function MedicalRecordDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-3">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleBack}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
             Quay lại
           </Button>
-          <div className="h-6 w-px bg-gray-300" />
+          <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900">Chi tiết bệnh án</h1>
-            <p className="text-gray-600">
-              {template.name} • ID: {medicalRecord.id}
+            <h1 className="text-2xl font-bold text-gray-900">Chi tiết bệnh án</h1>
+            <p className="text-sm text-gray-600">
+              {template.name} • {template.specialtyName}
               {patientProfile && (
                 <span className="ml-2 text-blue-600">
                   • {patientProfile.name}
@@ -264,14 +284,23 @@ export default function MedicalRecordDetailPage() {
       <MedicalRecordViewer
         medicalRecord={medicalRecord}
         template={template}
+        patientProfile={patientProfile}
+        doctor={doctor}
         onEdit={handleEdit}
         onPrint={handlePrint}
         onDownload={handleDownload}
       />
 
+      {/* Test Button */}
+      <div className="mt-4 text-center">
+        <Button onClick={handleEdit} variant="outline">
+          Test Edit Dialog
+        </Button>
+      </div>
+
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5" />
@@ -279,7 +308,7 @@ export default function MedicalRecordDetailPage() {
             </DialogTitle>
           </DialogHeader>
           
-          {medicalRecord && template && (
+          {medicalRecord && template ? (
             <DynamicMedicalRecordForm
               template={template}
               patientProfileId={medicalRecord.patientProfileId}
@@ -290,6 +319,10 @@ export default function MedicalRecordDetailPage() {
               initialData={medicalRecord.content}
               isEditing={true}
             />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Đang tải form...</p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

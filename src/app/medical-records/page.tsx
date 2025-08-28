@@ -24,7 +24,7 @@ export default function MedicalRecordsPage() {
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
   const [activeTab, setActiveTab] = useState('medical-records');
 
-  const handlePatientProfileSelect = (patientProfile: PatientProfile) => {
+  const handlePatientProfileSelect = (patientProfile: PatientProfile | null) => {
     setSelectedPatientProfile(patientProfile);
     setActiveTab('patient-search');
   };
@@ -148,7 +148,7 @@ export default function MedicalRecordsPage() {
         <TabsContent value="patient-search" className="space-y-6">
           {/* Patient Search */}
           <PatientSearch 
-            onPatientProfileSelect={handlePatientProfileSelect}
+            onPatientProfileSelect={handlePatientProfileSelect} 
             selectedPatientProfile={selectedPatientProfile}
           />
 
@@ -166,7 +166,7 @@ export default function MedicalRecordsPage() {
               </div>
               
               <PatientProfileCard 
-                patientId={selectedPatientProfile.id}
+                patientProfileId={selectedPatientProfile.id}
                 showActions={false}
               />
 

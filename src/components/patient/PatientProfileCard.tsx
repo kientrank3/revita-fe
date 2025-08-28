@@ -13,7 +13,6 @@ import {
   Calendar, 
   MapPin, 
   Phone, 
-  Mail, 
   Edit, 
   Save, 
   X,
@@ -21,7 +20,8 @@ import {
   UserCheck
 } from 'lucide-react';
 import { usePatientProfile } from '@/lib/hooks/usePatientProfile';
-import { CreatePatientProfileDto } from '@/lib/api';
+import { CreatePatientProfileDto } from '@/lib/services/patient-profile.service';
+import { toast } from 'sonner';
 
 interface PatientProfileCardProps {
   patientId?: string;
@@ -37,13 +37,14 @@ export function PatientProfileCard({
   const { 
     patientProfile, 
     isLoading, 
-    error, 
-    createPatientProfile, 
-    updatePatientProfile 
+    error,
+    createPatientProfile,
+    updatePatientProfile
   } = usePatientProfile({ patientId, patientProfileId });
   
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CreatePatientProfileDto>({
     patientId: patientId || '',
     name: '',
@@ -69,11 +70,12 @@ export function PatientProfileCard({
         gender: patientProfile.gender,
         address: patientProfile.address,
         occupation: patientProfile.occupation,
-        emergencyContact: patientProfile.emergencyContact,
+        emergencyContact: patientProfile.emergencyContact || { name: '', phone: '', relationship: '' },
         healthInsurance: patientProfile.healthInsurance,
         relationship: patientProfile.relationship,
       });
     }
+    setIsCreating(false);
     setIsEditing(true);
   };
 
@@ -93,6 +95,7 @@ export function PatientProfileCard({
       healthInsurance: '',
       relationship: '',
     });
+    setIsEditing(false);
     setIsCreating(true);
   };
 
@@ -102,16 +105,34 @@ export function PatientProfileCard({
   };
 
   const handleSave = async () => {
+    console.log('handleSave');
+    console.log('isCreating', isCreating);
+    if (isSubmitting) return;
     try {
-      if (isCreating) {
+      setIsSubmitting(true);
+      const shouldCreate = isCreating || (!isEditing && !patientProfile);
+      if (shouldCreate) {
+        if (!formData.patientId || String(formData.patientId).trim() === '') {
+          toast.error('Thiếu patientId. Vui lòng chọn bệnh nhân trước khi tạo hồ sơ.');
+          return;
+        }
         await createPatientProfile(formData);
+        toast.success('Tạo hồ sơ thành công');
         setIsCreating(false);
-      } else if (isEditing) {
+      } else if (isEditing || patientProfile?.id) {
+        if (!patientProfile?.id) {
+          toast.error('Không tìm thấy ID hồ sơ để cập nhật');
+          return;
+        }
         await updatePatientProfile(formData);
+        toast.success('Cập nhật hồ sơ thành công');
         setIsEditing(false);
       }
     } catch (error) {
       console.error('Error saving patient profile:', error);
+      toast.error('Lưu hồ sơ thất bại. Vui lòng kiểm tra dữ liệu và thử lại.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -182,7 +203,7 @@ export function PatientProfileCard({
               <Label htmlFor="name">Họ và tên *</Label>
               <Input
                 id="name"
-                value={formData.name}
+                value={formData.name ?? ''}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Nhập họ và tên"
                 required
@@ -194,7 +215,7 @@ export function PatientProfileCard({
               <Input
                 id="dateOfBirth"
                 type="date"
-                value={formData.dateOfBirth}
+                value={formData.dateOfBirth ?? ''}
                 onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                 required
               />
@@ -202,7 +223,7 @@ export function PatientProfileCard({
             
             <div className="space-y-2">
               <Label htmlFor="gender">Giới tính *</Label>
-              <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+              <Select value={formData.gender ?? ''} onValueChange={(value) => handleInputChange('gender', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Chọn giới tính" />
                 </SelectTrigger>
@@ -218,7 +239,7 @@ export function PatientProfileCard({
               <Label htmlFor="occupation">Nghề nghiệp</Label>
               <Input
                 id="occupation"
-                value={formData.occupation}
+                value={formData.occupation ?? ''}
                 onChange={(e) => handleInputChange('occupation', e.target.value)}
                 placeholder="Nhập nghề nghiệp"
               />
@@ -229,7 +250,7 @@ export function PatientProfileCard({
             <Label htmlFor="address">Địa chỉ *</Label>
             <Input
               id="address"
-              value={formData.address}
+              value={formData.address ?? ''}
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Nhập địa chỉ đầy đủ"
               required
@@ -240,7 +261,7 @@ export function PatientProfileCard({
             <Label htmlFor="healthInsurance">Số bảo hiểm y tế</Label>
             <Input
               id="healthInsurance"
-              value={formData.healthInsurance}
+              value={formData.healthInsurance ?? ''}
               onChange={(e) => handleInputChange('healthInsurance', e.target.value)}
               placeholder="Nhập số BHYT"
             />
@@ -248,7 +269,7 @@ export function PatientProfileCard({
           
           <div className="space-y-2">
             <Label htmlFor="relationship">Quan hệ với chủ thẻ</Label>
-            <Select value={formData.relationship} onValueChange={(value) => handleInputChange('relationship', value)}>
+            <Select value={formData.relationship ?? ''} onValueChange={(value) => handleInputChange('relationship', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Chọn quan hệ" />
               </SelectTrigger>
@@ -271,7 +292,7 @@ export function PatientProfileCard({
                 <Label htmlFor="emergencyName">Họ và tên *</Label>
                 <Input
                   id="emergencyName"
-                  value={formData.emergencyContact.name}
+                  value={formData.emergencyContact?.name || ''}
                   onChange={(e) => handleEmergencyContactChange('name', e.target.value)}
                   placeholder="Họ và tên người liên hệ"
                   required
@@ -282,7 +303,7 @@ export function PatientProfileCard({
                 <Label htmlFor="emergencyPhone">Số điện thoại *</Label>
                 <Input
                   id="emergencyPhone"
-                  value={formData.emergencyContact.phone}
+                  value={formData.emergencyContact?.phone || ''}
                   onChange={(e) => handleEmergencyContactChange('phone', e.target.value)}
                   placeholder="Số điện thoại"
                   required
@@ -293,7 +314,7 @@ export function PatientProfileCard({
                 <Label htmlFor="emergencyRelationship">Quan hệ *</Label>
                 <Input
                   id="emergencyRelationship"
-                  value={formData.emergencyContact.relationship}
+                  value={formData.emergencyContact?.relationship || ''}
                   onChange={(e) => handleEmergencyContactChange('relationship', e.target.value)}
                   placeholder="Quan hệ"
                   required
@@ -397,15 +418,15 @@ export function PatientProfileCard({
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <User className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">{patientProfile.emergencyContact.name}</span>
+              <span className="font-medium">{patientProfile.emergencyContact?.name || '—'}</span>
             </div>
             <div className="flex items-center gap-2 mb-1">
               <Phone className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-700">{patientProfile.emergencyContact.phone}</span>
+              <span className="text-gray-700">{patientProfile.emergencyContact?.phone || '—'}</span>
             </div>
             <div className="flex items-center gap-2">
               <UserCheck className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-700">{patientProfile.emergencyContact.relationship}</span>
+              <span className="text-gray-700">{patientProfile.emergencyContact?.relationship || '—'}</span>
             </div>
           </div>
         </div>

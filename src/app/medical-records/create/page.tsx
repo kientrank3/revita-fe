@@ -85,11 +85,11 @@ export default function CreateMedicalRecordPage() {
     }));
   };
 
-  const handlePatientProfileSelect = (patientProfile: PatientProfile) => {
+  const handlePatientProfileSelect = (patientProfile: PatientProfile | null) => {
     setSelectedPatientProfile(patientProfile);
     setFormData(prev => ({
       ...prev,
-      patientProfileId: patientProfile.id,
+      patientProfileId: patientProfile ? patientProfile.id : '',
     }));
   };
 
@@ -132,6 +132,7 @@ export default function CreateMedicalRecordPage() {
       if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
         delete payload.appointmentId;
       }
+      console.log('formData', formData);
       await medicalRecordService.create(payload as CreateMedicalRecordDto);
       toast.success('Tạo bệnh án thành công');
       router.push('/medical-records');
@@ -169,84 +170,71 @@ export default function CreateMedicalRecordPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Template Selection */}
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Column - Basic Info & Template Selection */}
+        <div className="lg:col-span-1 space-y-4">
           {/* Basic Information */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-5 w-5" />
                 Thông tin cơ bản
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Bệnh nhân *</Label>
-                <PatientSearch 
+                <Label className="text-sm font-medium">Bệnh nhân *</Label>
+                <div className="relative">
+                                  <PatientSearch 
                   onPatientProfileSelect={handlePatientProfileSelect}
                   selectedPatientProfile={selectedPatientProfile}
+                  compact={true}
                 />
+                </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="appointmentId">ID Lịch hẹn</Label>
+                <Label htmlFor="appointmentId" className="text-sm font-medium">ID Lịch hẹn</Label>
                 <Input
                   id="appointmentId"
                   value={formData.appointmentId}
                   onChange={(e) => handleInputChange('appointmentId', e.target.value)}
                   placeholder="Nhập ID lịch hẹn (tùy chọn)"
+                  className="text-sm"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Trạng thái</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value) => handleInputChange('status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DRAFT">Nháp</SelectItem>
-                    <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
-                    <SelectItem value="ARCHIVED">Đã lưu trữ</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
 
-                    {/* Template Selection */}
+          {/* Template Selection */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <FileText className="h-5 w-5" />
                 Chọn template
               </CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="text-center py-6">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">Đang tải templates...</p>
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <p className="text-xs text-gray-500">Đang tải mẫu bệnh án...</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <Select 
                     value={formData.templateId} 
                     onValueChange={handleTemplateSelect}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chọn template bệnh án" />
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Chọn mẫu bệnh án" />
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((template) => (
                         <SelectItem key={template.id} value={template.id}>
                           <div className="flex items-center justify-between w-full">
                             <div className="flex flex-col">
-                              <span className="font-medium">{template.name}</span>
+                              <span className="font-medium text-sm">{template.name}</span>
                               <span className="text-xs text-gray-500">{template.specialtyName}</span>
                             </div>
                             <Badge variant="outline" className="text-xs ml-2">
@@ -259,20 +247,17 @@ export default function CreateMedicalRecordPage() {
                   </Select>
                   
                   {selectedTemplate && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-blue-600" />
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-blue-600" />
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{selectedTemplate.name}</h4>
-                          <p className="text-sm text-gray-600">{selectedTemplate.specialtyName}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 text-sm truncate">{selectedTemplate.name}</h4>
+                          <p className="text-xs text-gray-600">{selectedTemplate.specialtyName}</p>
+                          <div className="flex items-center gap-1 mt-1">
                             <Badge variant="outline" className="text-xs">
                               {selectedTemplate.fields?.fields?.length || 0} trường
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              Template
                             </Badge>
                           </div>
                         </div>
@@ -280,9 +265,9 @@ export default function CreateMedicalRecordPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleTemplateSelect('')}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-gray-400 hover:text-gray-600 p-1 h-6 w-6"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -294,27 +279,27 @@ export default function CreateMedicalRecordPage() {
         </div>
 
         {/* Right Column - Template Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           {selectedTemplate ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-5 w-5" />
                   {selectedTemplate.name}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {Array.isArray(selectedTemplate.fields?.fields) ? (
                     <>
                       {/* Dynamic Fields */}
-                      <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {selectedTemplate.fields.fields.map((field) => (
-                          <div key={field.name} className="bg-gray-50 rounded-lg p-6 border border-gray-100">
-                            <div className="space-y-4">
+                          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                            <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <Label htmlFor={field.name} className="text-base font-semibold text-gray-900">
+                                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900">
                                   {field.label}
                                   {field.required && <span className="text-red-500 ml-1">*</span>}
                                 </Label>
@@ -327,7 +312,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="min-h-[120px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                                  className="min-h-[100px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 />
                               )}
                               
@@ -338,7 +323,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 />
                               )}
                               
@@ -350,7 +335,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, parseFloat(e.target.value) || 0)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 />
                               )}
                               
@@ -361,7 +346,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 />
                               )}
                               
@@ -370,7 +355,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name]?.toString() || ''}
                                   onValueChange={(value) => handleContentChange(field.name, value === 'true')}
                                 >
-                                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
                                     <SelectValue placeholder="Chọn..." />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -385,18 +370,18 @@ export default function CreateMedicalRecordPage() {
                       </div>
 
                       {/* File Attachments */}
-                      <div className="bg-gray-50 rounded-lg p-6 border border-gray-100">
-                        <div className="space-y-4">
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+                        <div className="space-y-3">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <Label className="text-base font-semibold text-gray-900">
+                            <Label className="text-sm font-semibold text-gray-900">
                               Tệp đính kèm
                             </Label>
                           </div>
                           
-                          <div className="space-y-4">
+                          <div className="space-y-3">
                             {/* File Upload */}
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
                               <input
                                 type="file"
                                 multiple
@@ -407,8 +392,8 @@ export default function CreateMedicalRecordPage() {
                               />
                               <label htmlFor="file-upload" className="cursor-pointer">
                                 <div className="flex flex-col items-center gap-2">
-                                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Paperclip className="h-6 w-6 text-blue-600" />
+                                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <Paperclip className="h-5 w-5 text-blue-600" />
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-900">
@@ -427,13 +412,13 @@ export default function CreateMedicalRecordPage() {
                               <div className="space-y-2">
                                 <p className="text-sm font-medium text-gray-700">Tệp đã chọn:</p>
                                 {attachments.map((file, index) => (
-                                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                        <Paperclip className="h-4 w-4 text-gray-600" />
+                                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-2 border border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
+                                        <Paperclip className="h-3 w-3 text-gray-600" />
                                       </div>
-                                      <div>
-                                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
                                         <p className="text-xs text-gray-500">
                                           {(file.size / 1024 / 1024).toFixed(2)} MB
                                         </p>
@@ -443,9 +428,9 @@ export default function CreateMedicalRecordPage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleRemoveFile(index)}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash2 className="h-3 w-3" />
                                     </Button>
                                   </div>
                                 ))}
@@ -457,7 +442,7 @@ export default function CreateMedicalRecordPage() {
                     </>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-500">Template này không có fields để điền</p>
+                      <p className="text-gray-500">Mẫu này không có trường để điền</p>
                       <p className="text-sm text-gray-400 mt-2">
                         Cấu trúc fields: {selectedTemplate.fields ? 'Có' : 'Không có'} fields object
                       </p>
@@ -474,15 +459,15 @@ export default function CreateMedicalRecordPage() {
                     <FileText className="h-8 w-8 text-blue-600" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Chọn template
+                    Chọn mẫu bệnh án
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Vui lòng chọn một template từ danh sách bên trái để bắt đầu tạo bệnh án
+                    Vui lòng chọn một mẫu từ danh sách bên trái để bắt đầu tạo bệnh án
                   </p>
                   <div className="space-y-2 text-sm text-gray-500">
-                    <p>• Template sẽ định nghĩa các trường cần điền</p>
-                    <p>• Mỗi template phù hợp với loại bệnh án khác nhau</p>
-                    <p>• Bạn có thể chọn template khác bất cứ lúc nào</p>
+                    <p>• Mẫu bệnh án sẽ định nghĩa các trường cần điền</p>
+                    <p>• Mỗi mẫu bệnh án phù hợp với loại bệnh án khác nhau</p>
+                    <p>• Bạn có thể chọn mẫu bệnh án khác bất cứ lúc nào</p>
                   </div>
                 </div>
               </CardContent>
@@ -492,22 +477,22 @@ export default function CreateMedicalRecordPage() {
       </div>
 
       {/* Footer Actions */}
-      <div className="mt-8 pt-6 border-t bg-white rounded-lg p-6 shadow-sm">
+      <div className="mt-6 pt-4 border-t bg-white rounded-lg p-4 shadow-sm">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleCancel} className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleCancel} className="flex items-center gap-2 text-sm">
               <X className="h-4 w-4" />
               Hủy
             </Button>
-            <p className="text-sm text-gray-500">
-              {selectedTemplate ? `${selectedTemplate.fields?.fields?.length || 0} trường cần điền` : 'Chưa chọn template'}
+            <p className="text-xs text-gray-500">
+              {selectedTemplate ? `${selectedTemplate.fields?.fields?.length || 0} trường cần điền` : 'Chưa chọn mẫu'}
               {selectedPatientProfile && ` • ${selectedPatientProfile.name}`}
             </p>
           </div>
           <Button 
             onClick={handleSubmit} 
             disabled={!selectedTemplate || isCreating}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-sm"
           >
             {isCreating ? (
               <>

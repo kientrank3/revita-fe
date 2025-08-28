@@ -89,18 +89,18 @@ export function MedicalRecordManager({
   //   window.open(`/medical-records/${record.id}/edit`, '_blank');
   // };
 
-  const handleDelete = async (record: MedicalRecord) => {
-    if (confirm('Bạn có chắc chắn muốn xóa bệnh án này?')) {
-      try {
-        await medicalRecordService.delete(record.id);
-        setMedicalRecords(prev => prev.filter(r => r.id !== record.id));
-        toast.success('Xóa bệnh án thành công');
-      } catch (error) {
-        console.error('Error deleting record:', error);
-        toast.error('Có lỗi xảy ra khi xóa bệnh án');
-      }
-    }
-  };
+  // const handleDelete = async (record: MedicalRecord) => {
+  //   if (confirm('Bạn có chắc chắn muốn xóa bệnh án này?')) {
+  //     try {
+  //       await medicalRecordService.delete(record.id);
+  //       setMedicalRecords(prev => prev.filter(r => r.id !== record.id));
+  //       toast.success('Xóa bệnh án thành công');
+  //     } catch (error) {
+  //       console.error('Error deleting record:', error);
+  //       toast.error('Có lỗi xảy ra khi xóa bệnh án');
+  //     }
+  //   }
+  // };
 
   const handleSubmitCreate = async (data: CreateMedicalRecordDto) => {
     try {
@@ -192,7 +192,7 @@ export function MedicalRecordManager({
                   patientProfileId={patientProfileId || ''}
                   doctorId={currentDoctorId}
                   appointmentId={appointmentId}
-                  onSubmit={handleSubmitCreate}
+                  onSubmit={(data) => handleSubmitCreate(data as CreateMedicalRecordDto)}
                   onCancel={handleCancel}
                 />
               )}
@@ -246,7 +246,7 @@ export function MedicalRecordManager({
         medicalRecords={medicalRecords}
         templates={templates}
         onView={handleView}
-        onDelete={handleDelete}
+        // onDelete={handleDelete}
         onCreate={handleCreate}
         isLoading={isLoading}
       />

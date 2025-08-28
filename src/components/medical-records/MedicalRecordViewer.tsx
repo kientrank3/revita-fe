@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { 
   MedicalRecord, 
@@ -13,7 +12,6 @@ import {
   Attachment 
 } from '@/lib/types/medical-record';
 import { userService } from '@/lib/services/user.service';
-import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { 
   FileText, 
   Calendar, 
@@ -27,6 +25,8 @@ import {
 interface MedicalRecordViewerProps {
   medicalRecord: MedicalRecord;
   template: Template;
+  patientProfile?: any;
+  doctor?: any;
   onEdit?: () => void;
   onPrint?: () => void;
   onDownload?: () => void;
@@ -35,31 +35,36 @@ interface MedicalRecordViewerProps {
 export function MedicalRecordViewer({
   medicalRecord,
   template,
+  patientProfile: propPatientProfile,
+  doctor: propDoctor,
   onEdit,
   onPrint,
   onDownload,
 }: MedicalRecordViewerProps) {
-  const [doctor, setDoctor] = useState<any>(null);
-  const [patientProfile, setPatientProfile] = useState<any>(null);
+  const [doctor, setDoctor] = useState<any>(propDoctor);
+  const [patientProfile, setPatientProfile] = useState<any>(propPatientProfile);
   const [loadingDoctor, setLoadingDoctor] = useState(false);
   const [loadingPatient, setLoadingPatient] = useState(false);
 
-  // Load doctor and patient information
+  // Load doctor and patient information if not provided
   useEffect(() => {
     const loadAdditionalData = async () => {
-      // Load patient profile
-      try {
-        setLoadingPatient(true);
-        const profileData = await patientProfileService.getById(medicalRecord.patientProfileId);
-        setPatientProfile(profileData);
-      } catch (error) {
-        console.error('Error loading patient profile:', error);
-      } finally {
-        setLoadingPatient(false);
+      // Load patient profile if not provided
+      if (!propPatientProfile) {
+        try {
+          setLoadingPatient(true);
+          const profileData = medicalRecord.patientProfile;
+          console.log('profileData', profileData);
+          setPatientProfile(profileData);
+        } catch (error) {
+          console.error('Error loading patient profile:', error);
+        } finally {
+          setLoadingPatient(false);
+        }
       }
 
-      // Load doctor information if available
-      if (medicalRecord.doctorId) {
+      // Load doctor information if not provided and available
+      if (!propDoctor && medicalRecord.doctorId) {
         try {
           setLoadingDoctor(true);
           const doctorData = await userService.getDoctorById(medicalRecord.doctorId);
@@ -73,7 +78,17 @@ export function MedicalRecordViewer({
     };
 
     loadAdditionalData();
-  }, [medicalRecord.doctorId, medicalRecord.patientProfileId]);
+  }, [medicalRecord.doctorId, medicalRecord.patientProfileId, propPatientProfile, propDoctor, medicalRecord.patientProfile]);
+
+  // Update state when props change
+  useEffect(() => {
+    if (propPatientProfile) {
+      setPatientProfile(propPatientProfile);
+    }
+    if (propDoctor) {
+      setDoctor(propDoctor);
+    }
+  }, [propPatientProfile, propDoctor]);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -116,10 +131,10 @@ export function MedicalRecordViewer({
     switch (field.type) {
       case 'string':
       case 'text':
-        return <p className="whitespace-pre-wrap">{value}</p>;
+        return <p className="whitespace-pre-wrap text-sm leading-relaxed">{value}</p>;
 
       case 'number':
-        return <span className="font-medium">{value}</span>;
+        return <span className="font-medium text-sm">{value}</span>;
 
       case 'boolean':
         return (
@@ -129,15 +144,15 @@ export function MedicalRecordViewer({
         );
 
       case 'date':
-        return <span>{formatDate(value)}</span>;
+        return <span className="text-sm">{formatDate(value)}</span>;
 
       case 'object':
         if (field.name === 'vital_signs') {
           return (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white rounded-lg border border-gray-200">
               {Object.entries(value).map(([key, val]: [string, any]) => (
-                <div key={key} className="text-center">
-                  <div className="text-sm text-gray-600 font-medium">
+                <div key={key} className="text-center p-2 bg-gray-50 rounded">
+                  <div className="text-xs text-gray-600 font-medium mb-1">
                     {key === 'temp' ? 'Nhiệt độ (°C)' :
                      key === 'bp' ? 'Huyết áp' :
                      key === 'hr' ? 'Nhịp tim (lần/phút)' :
@@ -147,7 +162,7 @@ export function MedicalRecordViewer({
                      key === 'weight' ? 'Cân nặng (kg)' :
                      key === 'height' ? 'Chiều cao (cm)' : key}
                   </div>
-                  <div className="text-lg font-bold text-blue-600">
+                  <div className="text-sm font-bold text-blue-600">
                     {val || 'N/A'}
                   </div>
                 </div>
@@ -162,11 +177,11 @@ export function MedicalRecordViewer({
           return (
             <div className="space-y-2">
               {value.map((attachment: Attachment, index: number) => (
-                <div key={index} className="flex items-center gap-2 p-2 border rounded">
-                  <FileText className="h-4 w-4 text-blue-500" />
-                  <span className="flex-1">{attachment.filename}</span>
-                  <Badge variant="outline">{attachment.filetype}</Badge>
-                  <Button variant="ghost" size="sm" asChild>
+                <div key={index} className="flex items-center gap-2 p-2 border rounded bg-white">
+                  <FileText className="h-3 w-3 text-blue-500" />
+                  <span className="flex-1 text-sm truncate">{attachment.filename}</span>
+                  <Badge variant="outline" className="text-xs">{attachment.filetype}</Badge>
+                  <Button variant="ghost" size="sm" asChild className="text-xs p-1 h-6">
                     <a href={attachment.url} target="_blank" rel="noopener noreferrer">
                       Xem
                     </a>
@@ -195,149 +210,173 @@ export function MedicalRecordViewer({
     const value = medicalRecord.content[field.name];
     
     return (
-      <div key={field.name} className="space-y-2">
-        <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-gray-900">{field.label}</h4>
-          {field.required && (
-            <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>
-          )}
-        </div>
-        <div className="pl-4 border-l-2 border-blue-200">
-          {renderFieldValue(field, value)}
+      <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              {field.label}
+              {field.required && (
+                <Badge variant="destructive" className="text-xs px-1 py-0.5 text-[10px]">Bắt buộc</Badge>
+              )}
+            </h4>
+          </div>
+          <div className="pl-4 border-l-2 border-blue-200">
+            {renderFieldValue(field, value)}
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <CardTitle className="flex items-center gap-2">
-                <Stethoscope className="h-5 w-5 text-blue-600" />
-                Bệnh án - {template.name}
-              </CardTitle>
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Tạo lúc: {formatDate(medicalRecord.createdAt)}</span>
-                </div>
-                {medicalRecord.updatedAt !== medicalRecord.createdAt && (
-                  <div className="flex items-center gap-1">
-                    <Edit className="h-4 w-4" />
-                    <span>Cập nhật: {formatDate(medicalRecord.updatedAt)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Left Column - Info & Actions */}
+      <div className="lg:col-span-1 space-y-4">
+        {/* Status & Actions */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Stethoscope className="h-5 w-5 text-blue-600" />
+              Trạng thái
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge className={getStatusColor(medicalRecord.status)}>
+              <Badge className={`${getStatusColor(medicalRecord.status)} text-sm`}>
                 {getStatusText(medicalRecord.status)}
               </Badge>
-              <div className="flex gap-2">
-                {onEdit && (
-                  <Button variant="outline" size="sm" onClick={onEdit}>
-                    <Edit className="h-4 w-4 mr-1" />
-                    Chỉnh sửa
-                  </Button>
-                )}
-                {onPrint && (
-                  <Button variant="outline" size="sm" onClick={onPrint}>
-                    <Printer className="h-4 w-4 mr-1" />
-                    In
-                  </Button>
-                )}
-                {onDownload && (
-                  <Button variant="outline" size="sm" onClick={onDownload}>
-                    <Download className="h-4 w-4 mr-1" />
-                    Tải xuống
-                  </Button>
-                )}
-              </div>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-green-600" />
-            Thông tin bệnh án
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {template.fields.fields.map((field, index) => (
-            <div key={field.name}>
-              {renderField(field)}
-              {index < template.fields.fields.length - 1 && (
-                <Separator className="my-6" />
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <Calendar className="h-3 w-3" />
+                <span>Tạo: {new Date(medicalRecord.createdAt).toLocaleDateString('vi-VN')}</span>
+              </div>
+              {medicalRecord.updatedAt !== medicalRecord.createdAt && (
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <Edit className="h-3 w-3" />
+                  <span>Cập nhật: {new Date(medicalRecord.updatedAt).toLocaleDateString('vi-VN')}</span>
+                </div>
               )}
             </div>
-          ))}
-        </CardContent>
-      </Card>
 
-      {/* Metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm text-gray-600">Thông tin hệ thống</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="font-medium text-gray-700">ID bệnh án</div>
-              <div className="text-gray-600 font-mono">{medicalRecord.id}</div>
+            <div className="flex flex-col gap-2">
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={onEdit} className="text-sm">
+                  <Edit className="h-4 w-4 mr-1" />
+                  Chỉnh sửa
+                </Button>
+              )}
+              {onPrint && (
+                <Button variant="outline" size="sm" onClick={onPrint} className="text-sm">
+                  <Printer className="h-4 w-4 mr-1" />
+                  In
+                </Button>
+              )}
+              {onDownload && (
+                <Button variant="outline" size="sm" onClick={onDownload} className="text-sm">
+                  <Download className="h-4 w-4 mr-1" />
+                  Tải xuống
+                </Button>
+              )}
             </div>
-            <div>
-              <div className="font-medium text-gray-700">Bệnh nhân</div>
-              <div className="text-gray-600">
+          </CardContent>
+        </Card>
+
+        {/* Record Info */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-green-600" />
+              Thông tin
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                  <FileText className="h-3 w-3 text-blue-600" />
+                </div>
+                <h4 className="font-medium text-blue-900 text-sm">Mẫu bệnh án</h4>
+              </div>
+              <div className="space-y-1 text-xs text-blue-800">
+                <p><span className="font-medium">Tên:</span> {template.name}</p>
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                  <User className="h-3 w-3 text-green-600" />
+                </div>
+                <h4 className="font-medium text-green-900 text-sm">Bệnh nhân</h4>
+              </div>
+              <div className="space-y-1 text-xs text-green-800">
                 {loadingPatient ? (
-                  <span className="text-gray-400">Đang tải...</span>
+                  <p className="text-green-600">Đang tải...</p>
                 ) : patientProfile ? (
-                  <div>
-                    <div className="font-medium">{patientProfile.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {patientProfile.profileCode} • {patientProfile.patient?.user?.phone || 'N/A'}
-                    </div>
-                  </div>
+                  <>
+                    <p><span className="font-medium">Tên:</span> {patientProfile.name}</p>
+                    <p><span className="font-medium">Mã:</span> {patientProfile.profileCode}</p>
+                    <p><span className="font-medium">Địa chỉ:</span> {patientProfile.address}</p>
+                    {patientProfile.patient?.user?.phone && (
+                      <p><span className="font-medium">SĐT:</span> {patientProfile.patient.user.phone}</p>
+                    )}
+                  </>
                 ) : (
-                  <span className="font-mono text-sm">{medicalRecord.patientProfileId}</span>
+                  <p className="text-green-600">Không tìm thấy thông tin</p>
                 )}
               </div>
             </div>
+
             {medicalRecord.doctorId && (
-              <div>
-                <div className="font-medium text-gray-700">Bác sĩ</div>
-                <div className="text-gray-600">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center">
+                    <User className="h-3 w-3 text-purple-600" />
+                  </div>
+                  <h4 className="font-medium text-purple-900 text-sm">Bác sĩ</h4>
+                </div>
+                <div className="space-y-1 text-xs text-purple-800">
                   {loadingDoctor ? (
-                    <span className="text-gray-400">Đang tải...</span>
+                    <p className="text-purple-600">Đang tải...</p>
                   ) : doctor ? (
-                    <div>
-                      <div className="font-medium">{doctor.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {doctor.doctor?.doctorCode || 'N/A'} • {doctor.doctor?.specialty || 'N/A'}
-                      </div>
-                    </div>
+                    <>
+                      <p><span className="font-medium">Tên:</span> {doctor.name}</p>
+                      {doctor.doctor?.doctorCode && (
+                        <p><span className="font-medium">Mã:</span> {doctor.doctor.doctorCode}</p>
+                      )}
+                      {doctor.doctor?.specialty && (
+                        <p><span className="font-medium">Chuyên khoa:</span> {doctor.doctor.specialty}</p>
+                      )}
+                    </>
                   ) : (
-                    <span className="font-mono text-sm">{medicalRecord.doctorId}</span>
+                    <p className="text-purple-600">Không tìm thấy thông tin</p>
                   )}
                 </div>
               </div>
             )}
-            {medicalRecord.appointmentId && (
-              <div>
-                <div className="font-medium text-gray-700">ID lịch hẹn</div>
-                <div className="text-gray-600 font-mono">{medicalRecord.appointmentId}</div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Column - Content */}
+      <div className="lg:col-span-3">
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="h-5 w-5 text-green-600" />
+              Nội dung bệnh án
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {template.fields.fields.map((field) => renderField(field))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

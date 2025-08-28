@@ -2,7 +2,7 @@ import { UserSearchResponse } from '@/lib/types/user';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-interface PatientProfileData {
+export interface PatientProfileData {
   id: string;
   profileCode: string;
   name: string;
@@ -25,12 +25,28 @@ interface PatientProfileData {
   };
 }
 
+export interface CreatePatientProfileDto {
+  patientId: string;
+  name: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  occupation: string;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  healthInsurance: string;
+  relationship: string;
+}
+
 class PatientProfileService {
   private async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${API_BASE_URL}/users${endpoint}`;
+    const url = `${API_BASE_URL}${endpoint}`;
     
     const config: RequestInit = {
       headers: {
@@ -63,15 +79,16 @@ class PatientProfileService {
     }
   }
 
-  // Get patient profile by ID using search
+  // Get patient profile by ID using search (fallback when direct endpoint isn't available)
   async getById(id: string): Promise<PatientProfileData | null> {
     try {
       // Try to search with the ID as query
-      const response = await this.request<UserSearchResponse>(`/search?query=${encodeURIComponent(id)}`);
+      const response = await this.request<UserSearchResponse>(`/users/search?query=${encodeURIComponent(id)}`);
       
       // Look for any user that has this patient profile ID
       for (const user of response.users) {
         if (user.patient?.patientProfiles) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const profile = user.patient.patientProfiles.find((p: any) => p.id === id);
           if (profile) {
             return {
@@ -115,7 +132,7 @@ class PatientProfileService {
     
     // For now, let's try to get all patient profiles in one search
     try {
-      const response = await this.request<UserSearchResponse>('/search?query=patient');
+      const response = await this.request<UserSearchResponse>('/users/search?query=patient');
       
       // Process all users and their patient profiles
       for (const user of response.users) {
@@ -153,6 +170,34 @@ class PatientProfileService {
     }
     
     return profilesMap;
+  }
+
+  // Get all patient profiles for a patient by patientId
+  async getByPatientId(patientId: string): Promise<PatientProfileData[]> {
+    return this.request<PatientProfileData[]>(`/patient-profiles/patient/${encodeURIComponent(patientId)}`);
+  }
+
+  // Create patient profile
+  async create(data: CreatePatientProfileDto): Promise<PatientProfileData> {
+    return this.request<PatientProfileData>(`/patient-profiles`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Update patient profile
+  async update(id: string, data: Partial<CreatePatientProfileDto>): Promise<PatientProfileData> {
+    return this.request<PatientProfileData>(`/patient-profiles/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Delete patient profile
+  async delete(id: string): Promise<void> {
+    await this.request<void>(`/patient-profiles/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   }
 }
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,13 +17,14 @@ import {
   MedicalRecordStatus,
   Attachment 
 } from '@/lib/types/medical-record';
+import { Stethoscope } from 'lucide-react';
 
 interface DynamicMedicalRecordFormProps {
   template: Template;
   patientProfileId: string;
   doctorId?: string;
   appointmentId?: string;
-  onSubmit: (data: CreateMedicalRecordDto) => Promise<void>;
+  onSubmit: (data: CreateMedicalRecordDto | Record<string, any>) => Promise<void>;
   onCancel: () => void;
   initialData?: Record<string, any>;
   isEditing?: boolean;
@@ -39,8 +40,60 @@ export function DynamicMedicalRecordForm({
   initialData = {},
   isEditing = false,
 }: DynamicMedicalRecordFormProps) {
-  const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  console.log('Component props - initialData:', initialData);
+
+  // Use useMemo to create formData from initialData
+  const initialFormData = useMemo(() => {
+    console.log('Creating initialFormData from:', initialData);
+    return initialData || {};
+  }, [initialData]);
+
+  const [formData, setFormData] = useState<Record<string, any>>(() => {
+    console.log('Initializing formData with:', initialFormData);
+    return initialFormData;
+  });
+
+  console.log('Component state - formData:', formData);
+
+  // Update formData when initialData changes (for editing mode)
+  useEffect(() => {
+    console.log('useEffect triggered - initialData:', initialData);
+    if (initialData && Object.keys(initialData).length > 0) {
+      console.log('Updating formData with initialData:', initialData);
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
+  // Reset form data when initialData changes
+  const resetFormData = useCallback(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      console.log('Resetting formData with:', initialData);
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
+  // Force update formData when initialData changes (alternative approach)
+  useEffect(() => {
+    if (isEditing && initialData && Object.keys(initialData).length > 0) {
+      console.log('Force updating formData for editing mode:', initialData);
+      setFormData(initialData);
+    }
+  }, [isEditing, initialData]);
+
+  // Call resetFormData when initialData changes
+  useEffect(() => {
+    resetFormData();
+  }, [resetFormData]);
+
+  // Initialize formData when component mounts
+  useEffect(() => {
+    if (isEditing && initialData && Object.keys(initialData).length > 0) {
+      console.log('Initializing formData on mount:', initialData);
+      setFormData(initialData);
+    }
+  }, [initialData, isEditing]); // Empty dependency array - only run once on mount
 
   const handleInputChange = (fieldName: string, value: any) => {
     setFormData(prev => ({
@@ -85,131 +138,166 @@ export function DynamicMedicalRecordForm({
   const renderField = (field: FieldDefinition) => {
     const value = formData[field.name];
     const isRequired = field.required;
+    
+    console.log(`Rendering field ${field.name}:`, value, 'formData keys:', Object.keys(formData));
 
     switch (field.type) {
       case 'string':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name} className="flex items-center gap-2">
-              {field.label}
-              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-            </Label>
-            <Input
-              id={field.name}
-              value={value || ''}
-              onChange={(e) => handleInputChange(field.name, e.target.value)}
-              placeholder={`Nhập ${field.label.toLowerCase()}`}
-              required={isRequired}
-            />
+          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {field.label}
+                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                </Label>
+              </div>
+              <Input
+                id={field.name}
+                value={value !== undefined && value !== null ? value : ''}
+                onChange={(e) => handleInputChange(field.name, e.target.value)}
+                placeholder={`Nhập ${field.label.toLowerCase()}`}
+                required={isRequired}
+                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+              />
+            </div>
           </div>
         );
 
       case 'text':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name} className="flex items-center gap-2">
-              {field.label}
-              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-            </Label>
-            <Textarea
-              id={field.name}
-              value={value || ''}
-              onChange={(e) => handleInputChange(field.name, e.target.value)}
-              placeholder={`Nhập ${field.label.toLowerCase()}`}
-              rows={4}
-              required={isRequired}
-            />
+          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {field.label}
+                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                </Label>
+              </div>
+              <Textarea
+                id={field.name}
+                value={value !== undefined && value !== null ? value : ''}
+                onChange={(e) => handleInputChange(field.name, e.target.value)}
+                placeholder={`Nhập ${field.label.toLowerCase()}`}
+                rows={4}
+                required={isRequired}
+                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+              />
+            </div>
           </div>
         );
 
       case 'number':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name} className="flex items-center gap-2">
-              {field.label}
-              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-            </Label>
-            <Input
-              id={field.name}
-              type="number"
-              value={value || ''}
-              onChange={(e) => handleInputChange(field.name, parseFloat(e.target.value) || 0)}
-              placeholder={`Nhập ${field.label.toLowerCase()}`}
-              required={isRequired}
-            />
+          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {field.label}
+                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                </Label>
+              </div>
+              <Input
+                id={field.name}
+                type="number"
+                value={value !== undefined && value !== null ? value : ''}
+                onChange={(e) => handleInputChange(field.name, parseFloat(e.target.value) || 0)}
+                placeholder={`Nhập ${field.label.toLowerCase()}`}
+                required={isRequired}
+                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+              />
+            </div>
           </div>
         );
 
       case 'boolean':
         return (
-          <div key={field.name} className="flex items-center space-x-2">
-            <Checkbox
-              id={field.name}
-              checked={value || false}
-              onCheckedChange={(checked) => handleInputChange(field.name, checked)}
-            />
-            <Label htmlFor={field.name} className="flex items-center gap-2">
-              {field.label}
-              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-            </Label>
+          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id={field.name}
+                checked={value === true}
+                onCheckedChange={(checked) => handleInputChange(field.name, checked)}
+              />
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {field.label}
+                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                </Label>
+              </div>
+            </div>
           </div>
         );
 
       case 'date':
         return (
-          <div key={field.name} className="space-y-2">
-            <Label htmlFor={field.name} className="flex items-center gap-2">
-              {field.label}
-              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-            </Label>
-            <Input
-              id={field.name}
-              type="date"
-              value={value || ''}
-              onChange={(e) => handleInputChange(field.name, e.target.value)}
-              required={isRequired}
-            />
+          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  {field.label}
+                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                </Label>
+              </div>
+              <Input
+                id={field.name}
+                type="date"
+                value={value !== undefined && value !== null ? value : ''}
+                onChange={(e) => handleInputChange(field.name, e.target.value)}
+                required={isRequired}
+                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+              />
+            </div>
           </div>
         );
 
       case 'object':
         if (field.name === 'vital_signs') {
           return (
-            <Card key={field.name} className="space-y-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {field.properties && Object.entries(field.properties).map(([key, prop]: [string, any]) => (
-                  <div key={key} className="space-y-2">
-                    <Label htmlFor={`${field.name}_${key}`}>
-                      {key === 'temp' ? 'Nhiệt độ (°C)' :
-                       key === 'bp' ? 'Huyết áp' :
-                       key === 'hr' ? 'Nhịp tim (lần/phút)' :
-                       key === 'rr' ? 'Nhịp thở (lần/phút)' :
-                       key === 'o2_sat' ? 'SpO2 (%)' :
-                       key === 'pain_score' ? 'Điểm đau (0-10)' :
-                       key === 'weight' ? 'Cân nặng (kg)' :
-                       key === 'height' ? 'Chiều cao (cm)' : key}
-                    </Label>
-                    <Input
-                      id={`${field.name}_${key}`}
-                      type={prop.type === 'number' ? 'number' : 'text'}
-                      value={value?.[key] || ''}
-                      onChange={(e) => handleObjectFieldChange(
-                        field.name, 
-                        key, 
-                        prop.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value
-                      )}
-                      placeholder={prop.type === 'number' ? '0' : ''}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    {field.label}
+                    {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                  </h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {field.properties && Object.entries(field.properties).map(([key, prop]: [string, any]) => (
+                    <div key={key} className="space-y-2">
+                      <Label htmlFor={`${field.name}_${key}`} className="text-xs font-medium">
+                        {key === 'temp' ? 'Nhiệt độ (°C)' :
+                         key === 'bp' ? 'Huyết áp' :
+                         key === 'hr' ? 'Nhịp tim (lần/phút)' :
+                         key === 'rr' ? 'Nhịp thở (lần/phút)' :
+                         key === 'o2_sat' ? 'SpO2 (%)' :
+                         key === 'pain_score' ? 'Điểm đau (0-10)' :
+                         key === 'weight' ? 'Cân nặng (kg)' :
+                         key === 'height' ? 'Chiều cao (cm)' : key}
+                      </Label>
+                      <Input
+                        id={`${field.name}_${key}`}
+                        type={prop.type === 'number' ? 'number' : 'text'}
+                        value={value?.[key] !== undefined && value?.[key] !== null ? value[key] : ''}
+                        onChange={(e) => handleObjectFieldChange(
+                          field.name, 
+                          key, 
+                          prop.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value
+                        )}
+                        placeholder={prop.type === 'number' ? '0' : ''}
+                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           );
         }
         return null;
@@ -217,61 +305,69 @@ export function DynamicMedicalRecordForm({
       case 'array':
         if (field.name === 'attachments') {
           return (
-            <Card key={field.name} className="space-y-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {(value || []).map((attachment: Attachment, index: number) => (
-                  <div key={index} className="grid grid-cols-3 gap-2 p-3 border rounded-lg">
-                    <Input
-                      placeholder="Tên file"
-                      value={attachment.filename || ''}
-                      onChange={(e) => handleArrayFieldChange(field.name, index, {
-                        ...attachment,
-                        filename: e.target.value,
-                      })}
-                    />
-                    <Input
-                      placeholder="Loại file"
-                      value={attachment.filetype || ''}
-                      onChange={(e) => handleArrayFieldChange(field.name, index, {
-                        ...attachment,
-                        filetype: e.target.value,
-                      })}
-                    />
-                    <div className="flex gap-2">
+            <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    {field.label}
+                    {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+                  </h4>
+                </div>
+                <div className="space-y-3">
+                  {(value || []).map((attachment: Attachment, index: number) => (
+                    <div key={index} className="grid grid-cols-3 gap-2 p-2 border rounded-lg bg-white">
                       <Input
-                        placeholder="URL"
-                        value={attachment.url || ''}
+                        placeholder="Tên file"
+                        value={attachment.filename !== undefined && attachment.filename !== null ? attachment.filename : ''}
                         onChange={(e) => handleArrayFieldChange(field.name, index, {
                           ...attachment,
-                          url: e.target.value,
+                          filename: e.target.value,
                         })}
+                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeArrayItem(field.name, index)}
-                      >
-                        Xóa
-                      </Button>
+                      <Input
+                        placeholder="Loại file"
+                        value={attachment.filetype !== undefined && attachment.filetype !== null ? attachment.filetype : ''}
+                        onChange={(e) => handleArrayFieldChange(field.name, index, {
+                          ...attachment,
+                          filetype: e.target.value,
+                        })}
+                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="URL"
+                          value={attachment.url !== undefined && attachment.url !== null ? attachment.url : ''}
+                          onChange={(e) => handleArrayFieldChange(field.name, index, {
+                            ...attachment,
+                            url: e.target.value,
+                          })}
+                          className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeArrayItem(field.name, index)}
+                          className="text-xs p-1 h-8 w-8"
+                        >
+                          Xóa
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => addArrayItem(field.name)}
-                >
-                  Thêm tệp đính kèm
-                </Button>
-              </CardContent>
-            </Card>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addArrayItem(field.name)}
+                    className="text-sm"
+                  >
+                    Thêm tệp đính kèm
+                  </Button>
+                </div>
+              </div>
+            </div>
           );
         }
         return null;
@@ -295,16 +391,22 @@ export function DynamicMedicalRecordForm({
 
     setIsSubmitting(true);
     try {
-      const submitData: CreateMedicalRecordDto = {
-        patientProfileId,
-        templateId: template.templateCode,
-        doctorId,
-        appointmentId,
-        status: MedicalRecordStatus.DRAFT,
-        content: formData,
-      };
-
-      await onSubmit(submitData);
+      if (isEditing) {
+        // For editing, just pass the content
+        await onSubmit(formData);
+      } else {
+        // For creating, pass the full CreateMedicalRecordDto
+        const submitData: CreateMedicalRecordDto = {
+          patientProfileId,
+          templateId: template.templateCode,
+          doctorId,
+          appointmentId,
+          status: MedicalRecordStatus.DRAFT,
+          content: formData,
+        };
+        await onSubmit(submitData);
+      }
+      
       toast.success(isEditing ? 'Cập nhật bệnh án thành công' : 'Tạo bệnh án thành công');
     } catch (error) {
       toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
@@ -317,22 +419,27 @@ export function DynamicMedicalRecordForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>{isEditing ? 'Chỉnh sửa' : 'Tạo'} bệnh án - {template.name}</span>
-            <Badge variant="secondary">{template.specialtyName}</Badge>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center justify-between text-lg">
+            <span className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-blue-600" />
+              {isEditing ? 'Chỉnh sửa' : 'Tạo'} bệnh án - {template.name}
+            </span>
+            <Badge variant="secondary" className="text-xs">{template.specialtyName}</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {template.fields.fields.map((field) => renderField(field))}
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {template.fields.fields.map((field) => renderField(field))}
+          </div>
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="outline" onClick={onCancel} className="text-sm">
           Hủy
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} className="text-sm">
           {isSubmitting ? 'Đang xử lý...' : (isEditing ? 'Cập nhật' : 'Tạo bệnh án')}
         </Button>
       </div>
