@@ -23,12 +23,14 @@ interface PatientSearchProps {
   onPatientProfileSelect: (patientProfile: PatientProfile | null) => void;
   selectedPatientProfile?: PatientProfile | null;
   compact?: boolean;
+  onPatientSelect?: (patient: UserType | null) => void;
 }
 
 export function PatientSearch({ 
   onPatientProfileSelect, 
   selectedPatientProfile,
-  compact = false 
+  compact = false,
+  onPatientSelect,
 }: PatientSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserType[]>([]);
@@ -70,6 +72,7 @@ export function PatientSearch({
     setSelectedPatient(patient);
     setSelectedProfile(null);
     setSelectedPatientProfiles(patient.patient?.patientProfiles || []);
+    if (onPatientSelect) onPatientSelect(patient);
   };
 
   const handleProfileSelect = (profile: PatientProfile) => {
@@ -93,6 +96,7 @@ export function PatientSearch({
     setSearchQuery('');
     // Notify parent to clear selected profile
     onPatientProfileSelect(null);
+    if (onPatientSelect) onPatientSelect(null);
   };
 
 

@@ -12,6 +12,11 @@ export interface PatientProfileData {
   occupation: string;
   healthInsurance: string;
   relationship: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
   isActive: boolean;
   patient: {
     id: string;
@@ -101,6 +106,7 @@ class PatientProfileService {
               occupation: profile.occupation,
               healthInsurance: profile.healthInsurance,
               relationship: profile.relationship,
+              emergencyContact: profile.emergencyContact,
               isActive: profile.isActive,
               patient: {
                 id: user.patient.id,
@@ -149,6 +155,7 @@ class PatientProfileService {
                 occupation: profile.occupation,
                 healthInsurance: profile.healthInsurance,
                 relationship: profile.relationship,
+                emergencyContact: profile.emergencyContact,
                 isActive: profile.isActive,
                 patient: {
                   id: user.patient.id,
@@ -175,6 +182,9 @@ class PatientProfileService {
   // Get all patient profiles for a patient by patientId
   async getByPatientId(patientId: string): Promise<PatientProfileData[]> {
     return this.request<PatientProfileData[]>(`/patient-profiles/patient/${encodeURIComponent(patientId)}`);
+  }
+  async getByProfileId(patientId: string): Promise<PatientProfileData> {
+    return this.request<PatientProfileData>(`/patient-profiles/${encodeURIComponent(patientId)}`);
   }
 
   // Create patient profile

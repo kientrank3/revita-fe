@@ -3,8 +3,13 @@ export interface PatientProfile {
   profileCode: string;
   name: string;
   dateOfBirth: string;
-  gender: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   address: string;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
   occupation: string;
   healthInsurance: string;
   relationship: string;
