@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { patientProfileService } from '@/lib/services/patient-profile.service';
+import { formatDateForInput } from '@/lib/utils';
 
 export default function MedicalRecordsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -75,7 +76,7 @@ export default function MedicalRecordsPage() {
     if (patientProfile) {
       setEditForm({
         name: patientProfile.name || '',
-        dateOfBirth: patientProfile.dateOfBirth || '',
+        dateOfBirth: formatDateForInput(patientProfile.dateOfBirth),
         gender: (patientProfile.gender as GenderOption) || '',
         address: patientProfile.address || '',
         occupation: patientProfile.occupation || '',
@@ -245,8 +246,16 @@ export default function MedicalRecordsPage() {
                   toast.error('Vui lòng chọn bệnh nhân hoặc hồ sơ để tạo hồ sơ mới');
                   return;
                 }
+                // Set ngày mặc định là ngày hiện tại
+                const today = new Date().toISOString().split('T')[0]; // Format: yyyy-mm-dd
                 setCreateForm({
-                  name: '', dateOfBirth: '', gender: '', address: '', occupation: '', healthInsurance: '', relationship: '',
+                  name: '', 
+                  dateOfBirth: today, 
+                  gender: '', 
+                  address: '', 
+                  occupation: '', 
+                  healthInsurance: '', 
+                  relationship: '',
                   emergencyContact: { name: '', phone: '', relationship: '' },
                 });
                 setIsCreateProfileOpen(true);
@@ -349,15 +358,24 @@ export default function MedicalRecordsPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Họ và tên</Label>
-                <Input value={editForm.name} onChange={(e)=>setEditForm({...editForm, name: e.target.value})} />
+                <Label>Họ và tên <span className="text-red-500">*</span></Label>
+                <Input 
+                  value={editForm.name} 
+                  onChange={(e)=>setEditForm({...editForm, name: e.target.value})} 
+                  required
+                />
               </div>
               <div className="space-y-1">
-                <Label>Ngày sinh</Label>
-                <Input type="date" value={editForm.dateOfBirth} onChange={(e)=>setEditForm({...editForm, dateOfBirth: e.target.value})} />
+                <Label>Ngày sinh <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="date" 
+                  value={editForm.dateOfBirth} 
+                  onChange={(e)=>setEditForm({...editForm, dateOfBirth: e.target.value})} 
+                  required
+                />
               </div>
               <div className="space-y-1">
-                <Label>Giới tính</Label>
+                <Label>Giới tính <span className="text-red-500">*</span></Label>
                 <Select value={editForm.gender} onValueChange={(v)=>setEditForm({...editForm, gender: v as GenderOption})}>
                   <SelectTrigger><SelectValue placeholder="Chọn giới tính" /></SelectTrigger>
                   <SelectContent>
@@ -373,8 +391,12 @@ export default function MedicalRecordsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Địa chỉ</Label>
-              <Input value={editForm.address} onChange={(e)=>setEditForm({...editForm, address: e.target.value})} />
+              <Label>Địa chỉ <span className="text-red-500">*</span></Label>
+              <Input 
+                value={editForm.address} 
+                onChange={(e)=>setEditForm({...editForm, address: e.target.value})} 
+                required
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
@@ -416,12 +438,48 @@ export default function MedicalRecordsPage() {
               onClick={async()=>{
                 if (!selectedPatientProfile) return;
                 if (isSubmittingEdit) return;
+                
+                // Validation
+                if (!editForm.name.trim()) {
+                  toast.error('Vui lòng nhập họ và tên');
+                  return;
+                }
+                if (!editForm.dateOfBirth) {
+                  toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (!editForm.gender) {
+                  toast.error('Vui lòng chọn giới tính');
+                  return;
+                }
+                if (!editForm.address.trim()) {
+                  toast.error('Vui lòng nhập địa chỉ');
+                  return;
+                }
+                
                 try {
                   setIsSubmittingEdit(true);
-                  await patientProfileService.update(selectedPatientProfile.id, editForm);
+                  
+                  // Convert dateOfBirth to ISO 8601 format
+                  const dateOfBirthISO = new Date(editForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
+                  
+                  await patientProfileService.update(selectedPatientProfile.id, {
+                    ...editForm,
+                    name: editForm.name.trim(),
+                    dateOfBirth: dateOfBirthISO,
+                    address: editForm.address.trim(),
+                    occupation: editForm.occupation.trim(),
+                    healthInsurance: editForm.healthInsurance.trim(),
+                    emergencyContact: {
+                      name: editForm.emergencyContact.name.trim(),
+                      phone: editForm.emergencyContact.phone.trim(),
+                      relationship: editForm.emergencyContact.relationship.trim(),
+                    },
+                  });
                   toast.success('Cập nhật hồ sơ thành công');
                   setIsEditProfileOpen(false);
-                } catch {
+                } catch (error) {
+                  console.error('Error updating profile:', error);
                   toast.error('Không thể cập nhật hồ sơ');
                 } finally {
                   setIsSubmittingEdit(false);
@@ -444,15 +502,24 @@ export default function MedicalRecordsPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Họ và tên</Label>
-                <Input value={createForm.name} onChange={(e)=>setCreateForm({...createForm, name: e.target.value})} />
+                <Label>Họ và tên <span className="text-red-500">*</span></Label>
+                <Input 
+                  value={createForm.name} 
+                  onChange={(e)=>setCreateForm({...createForm, name: e.target.value})} 
+                  required
+                />
               </div>
               <div className="space-y-1">
-                <Label>Ngày sinh</Label>
-                <Input type="date" value={createForm.dateOfBirth} onChange={(e)=>setCreateForm({...createForm, dateOfBirth: e.target.value})} />
+                <Label>Ngày sinh <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="date" 
+                  value={createForm.dateOfBirth} 
+                  onChange={(e)=>setCreateForm({...createForm, dateOfBirth: e.target.value})} 
+                  required
+                />
               </div>
               <div className="space-y-1">
-                <Label>Giới tính</Label>
+                <Label>Giới tính <span className="text-red-500">*</span></Label>
                 <Select value={createForm.gender} onValueChange={(v)=>setCreateForm({...createForm, gender: v})}>
                   <SelectTrigger><SelectValue placeholder="Chọn giới tính" /></SelectTrigger>
                   <SelectContent>
@@ -468,8 +535,12 @@ export default function MedicalRecordsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Địa chỉ</Label>
-              <Input value={createForm.address} onChange={(e)=>setCreateForm({...createForm, address: e.target.value})} />
+              <Label>Địa chỉ <span className="text-red-500">*</span></Label>
+              <Input 
+                value={createForm.address} 
+                onChange={(e)=>setCreateForm({...createForm, address: e.target.value})} 
+                required
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
@@ -509,28 +580,53 @@ export default function MedicalRecordsPage() {
             <Button variant="outline" onClick={()=>setIsCreateProfileOpen(false)}>Đóng</Button>
             <Button
               onClick={async()=>{
+                console.log('createForm', createForm);
                 if (!currentPatientId) return;
                 if (isSubmittingCreate) return;
+                
+                // Validation
+                if (!createForm.name.trim()) {
+                  toast.error('Vui lòng nhập họ và tên');
+                  return;
+                }
+                if (!createForm.dateOfBirth) {
+                  toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (!createForm.gender) {
+                  toast.error('Vui lòng chọn giới tính');
+                  return;
+                }
+                if (!createForm.address.trim()) {
+                  toast.error('Vui lòng nhập địa chỉ');
+                  return;
+                }
+                
                 try {
                   setIsSubmittingCreate(true);
+                  
+                  // Convert dateOfBirth to ISO 8601 format
+                  const dateOfBirthISO = new Date(createForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
+                  
                   await patientProfileService.create({
                     patientId: currentPatientId,
-                    name: createForm.name,
-                    dateOfBirth: createForm.dateOfBirth,
+                    name: createForm.name.trim(),
+                    dateOfBirth: dateOfBirthISO,
                     gender: createForm.gender,
-                    address: createForm.address,
-                    occupation: createForm.occupation,
+                    address: createForm.address.trim(),
+                    occupation: createForm.occupation.trim(),
                     emergencyContact: {
-                      name: createForm.emergencyContact.name,
-                      phone: createForm.emergencyContact.phone,
-                      relationship: createForm.emergencyContact.relationship,
+                      name: createForm.emergencyContact.name.trim(),
+                      phone: createForm.emergencyContact.phone.trim(),
+                      relationship: createForm.emergencyContact.relationship.trim(),
                     },
-                    healthInsurance: createForm.healthInsurance,
+                    healthInsurance: createForm.healthInsurance.trim(),
                     relationship: createForm.relationship,
                   });
                   toast.success('Tạo hồ sơ thành công');
                   setIsCreateProfileOpen(false);
-                } catch {
+                } catch (error) {
+                  console.error('Error creating profile:', error);
                   toast.error('Không thể tạo hồ sơ');
                 } finally {
                   setIsSubmittingCreate(false);

@@ -22,6 +22,7 @@ import {
 import { usePatientProfile } from '@/lib/hooks/usePatientProfile';
 import { CreatePatientProfileDto } from '@/lib/services/patient-profile.service';
 import { toast } from 'sonner';
+import { formatDateForInput, formatDateForDisplay } from '@/lib/utils';
 
 interface PatientProfileCardProps {
   patientId?: string;
@@ -66,7 +67,7 @@ export function PatientProfileCard({
       setFormData({
         patientId: patientProfile.patientId,
         name: patientProfile.name,
-        dateOfBirth: patientProfile.dateOfBirth,
+        dateOfBirth: formatDateForInput(patientProfile.dateOfBirth),
         gender: patientProfile.gender,
         address: patientProfile.address,
         occupation: patientProfile.occupation,
@@ -154,11 +155,7 @@ export function PatientProfileCard({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return formatDateForDisplay(dateString);
   };
 
   if (isLoading) {

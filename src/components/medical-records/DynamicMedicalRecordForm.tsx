@@ -18,6 +18,7 @@ import {
   Attachment 
 } from '@/lib/types/medical-record';
 import { Stethoscope } from 'lucide-react';
+import { formatDateForInput } from '@/lib/utils';
 
 interface DynamicMedicalRecordFormProps {
   template: Template;
@@ -47,8 +48,20 @@ export function DynamicMedicalRecordForm({
   // Use useMemo to create formData from initialData
   const initialFormData = useMemo(() => {
     console.log('Creating initialFormData from:', initialData);
-    return initialData || {};
-  }, [initialData]);
+    if (!initialData || Object.keys(initialData).length === 0) {
+      return {};
+    }
+    
+    // Format date fields to yyyy-mm-dd for HTML date inputs
+    const formattedData = { ...initialData };
+    template.fields.forEach((field: { type: string; name: string | number; }) => {
+      if (field.type === 'date' && formattedData[field.name]) {
+        formattedData[field.name] = formatDateForInput(formattedData[field.name]);
+      }
+    });
+    
+    return formattedData;
+  }, [initialData, template.fields]);
 
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     console.log('Initializing formData with:', initialFormData);
