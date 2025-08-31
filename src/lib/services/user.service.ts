@@ -1,54 +1,17 @@
 import { User, UserSearchResponse } from "../types/user";
-
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+import api from "../config";
 
 class UserService {
-  private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${API_BASE_URL}/users${endpoint}`;
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    // Add auth token if available
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
-    }
-  }
-
   // Search users by query (phone, email, or name)
   async searchUsers(query: string): Promise<UserSearchResponse> {
-    return this.request<UserSearchResponse>(`/search?query=${encodeURIComponent(query)}`);
+    const response = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
+    return response.data;
   }
 
   // Get user by ID
   async getUserById(id: string): Promise<User> {
-    return this.request<User>(`/${id}`);
+    const response = await api.get(`/users/${id}`);
+    return response.data;
   }
 
   // Search doctors by query

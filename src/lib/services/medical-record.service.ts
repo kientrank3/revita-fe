@@ -4,104 +4,67 @@ import {
   CreateMedicalRecordDto, 
   UpdateMedicalRecordDto 
 } from '@/lib/types/medical-record';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+import api from '../config';
 
 class MedicalRecordService {
-  private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${API_BASE_URL}/medical-records${endpoint}`;
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    // Add auth token if available
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
-    }
-  }
-
   // Get all medical records
   async getAll(): Promise<MedicalRecord[]> {
-    return this.request<MedicalRecord[]>('');
+    const response = await api.get('/medical-records');
+    return response.data;
   }
 
   // Get medical records by patient profile
   async getByPatientProfile(patientProfileId: string): Promise<MedicalRecord[]> {
-    return this.request<MedicalRecord[]>(`/patient-profile/${patientProfileId}`);
+    const response = await api.get(`/medical-records/patient-profile/${patientProfileId}`);
+    return response.data;
   }
 
 //   // Get medical records by doctor
 //   async getByDoctor(doctorId: string): Promise<MedicalRecord[]> {
-//     return this.request<MedicalRecord[]>(`/doctor/${doctorId}/medical-records`);
+//     const response = await api.get(`/medical-records/doctor/${doctorId}/medical-records`);
+//     return response.data;
 //   }
 
   // Get single medical record
   async getById(id: string): Promise<MedicalRecord> {
-    return this.request<MedicalRecord>(`/${id}`);
+    const response = await api.get(`/medical-records/${id}`);
+    return response.data;
   }
 
   // Create new medical record
   async create(data: CreateMedicalRecordDto): Promise<MedicalRecord> {
     console.log('data', data);
-    return this.request<MedicalRecord>('', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const response = await api.post('/medical-records', data);
+    return response.data;
   }
 
   // Update medical record
   async update(id: string, data: UpdateMedicalRecordDto): Promise<MedicalRecord> {
-    return this.request<MedicalRecord>(`/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
+    const response = await api.patch(`/medical-records/${id}`, data);
+    return response.data;
   }
 
   // Delete medical record
   async delete(id: string): Promise<void> {
-    return this.request<void>(`/${id}`, {
-      method: 'DELETE',
-    });
+    await api.delete(`/medical-records/${id}`);
   }
 
   // Get all templates
   async getTemplates(): Promise<Template[]> {
-    return this.request<Template[]>('/templates');
+    const response = await api.get('/medical-records/templates');
+    return response.data;
   }
 
   // Get template by ID
   async getTemplateById(templateId: string): Promise<Template> {
-    return this.request<Template>(`/templates/${templateId}`);
+    const response = await api.get(`/medical-records/templates/${templateId}`);
+    return response.data;
   }
 
   // Get template by medical record
   async getTemplateByMedicalRecord(id: string): Promise<Template> {
-    return this.request<Template>(`/${id}/template`);
+    const response = await api.get(`/medical-records/${id}/template`);
+    return response.data;
   }
 }
 

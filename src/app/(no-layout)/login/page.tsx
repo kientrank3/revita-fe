@@ -41,7 +41,7 @@ export default function LoginPage() {
       }
 
       // Redirect to dashboard or home page after successful login
-      router.push("/dashboard")
+      router.push("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thông tin đăng nhập không chính xác")
     } finally {
