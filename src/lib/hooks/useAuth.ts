@@ -1,151 +1,248 @@
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
-import { authApi } from '@/lib/api';
+"use client";
 
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  role?: string;
-  avatar?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { AuthUser, AuthState, LoginCredentials, AuthResponse, UserRole } from '../types/auth';
+import { authMiddleware, AuthContext as MiddlewareAuthContext } from '../middleware/auth';
+import { authApi, userApi } from '../api';
 
-export interface UpdateUserDto {
-  name?: string;
-  email?: string;
-  avatar?: string;
-}
-
-interface UseAuthReturn {
-  user: User | null;
+interface AuthContextValue extends MiddlewareAuthContext {
+  login: (credentials: LoginCredentials) => Promise<boolean>;
+  logout: () => void;
+  refreshToken: () => Promise<boolean>;
+  updateProfile: (data: Partial<AuthUser>) => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
-  updateProfile: (data: UpdateUserDto) => Promise<void>;
-  refreshUser: () => Promise<void>;
-  isAuthenticated: boolean;
 }
 
-export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: true,
+  });
   const [error, setError] = useState<string | null>(null);
 
-  // Check authentication status on mount
+  // Initialize auth state on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          const response = await authApi.getMe();
-          setUser(response.data);
-        } catch (err) {
-          console.error('Failed to get user data:', err);
-          // Token might be invalid, clear it
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
-        }
+    initializeAuth();
+  }, []);
+
+  const initializeAuth = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Get auth context from middleware
+      const authContext = await authMiddleware.getAuthContext();
+      
+      if (authContext.isAuthenticated && authContext.user) {
+        setState({
+          user: authContext.user,
+          token: localStorage.getItem('auth_token'),
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        authMiddleware.setCurrentUser(authContext.user);
+      } else {
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
       }
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, []);
-
-  const login = useCallback(async (identifier: string, password: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await authApi.login({ identifier, password });
-      setUser(response.data.user);
-      toast.success('Đăng nhập thành công');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Đăng nhập thất bại';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
-  }, []);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const register = useCallback(async (_email: string, _password: string, _name?: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Note: You'll need to implement register API in authApi
-      // For now, this is a placeholder
-      toast.error('Chức năng đăng ký chưa được implement');
-      throw new Error('Chức năng đăng ký chưa được implement');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Đăng ký thất bại';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
-    setError(null);
-    toast.success('Đăng xuất thành công');
-  }, []);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateProfile = useCallback(async (_data: UpdateUserDto) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Note: You'll need to implement updateProfile API in authApi
-      // For now, this is a placeholder
-      toast.error('Chức năng cập nhật profile chưa được implement');
-      throw new Error('Chức năng cập nhật profile chưa được implement');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Cập nhật thất bại';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const refreshUser = useCallback(async () => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      try {
-        const response = await authApi.getMe();
-        setUser(response.data);
-      } catch (err) {
-        console.error('Failed to refresh user data:', err);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
-        setUser(null);
-      }
-    }
-  }, []);
-
-  return {
-    user,
-    isLoading,
-    error,
-    login,
-    register,
-    logout,
-    updateProfile,
-    refreshUser,
-    isAuthenticated: !!user,
   };
+
+  const login = async (credentials: LoginCredentials): Promise<boolean> => {
+    try {
+      setError(null);
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const response = await authApi.login(credentials);
+      const authData: AuthResponse = response.data;
+
+      // Store auth data
+      localStorage.setItem('auth_token', authData.token);
+      localStorage.setItem('refresh_token', authData.refreshToken);
+      localStorage.setItem('auth_user', JSON.stringify(authData.user));
+
+      // Update state
+      setState({
+        user: authData.user,
+        token: authData.token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+
+      // Update middleware
+      authMiddleware.setCurrentUser(authData.user);
+
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Đăng nhập thất bại';
+      setError(errorMessage);
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      // Call logout API
+      await authApi.logout();
+    } catch (error) {
+      console.error('Error calling logout API:', error);
+    } finally {
+      // Clear local storage and state
+      authMiddleware.logout();
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+      setError(null);
+    }
+  };
+
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await authApi.refreshToken({ refreshToken });
+      const authData: AuthResponse = response.data;
+
+      // Update stored tokens
+      localStorage.setItem('auth_token', authData.token);
+      localStorage.setItem('refresh_token', authData.refreshToken);
+      localStorage.setItem('auth_user', JSON.stringify(authData.user));
+
+      // Update state
+      setState(prev => ({
+        ...prev,
+        user: authData.user,
+        token: authData.token,
+      }));
+
+      // Update middleware
+      authMiddleware.setCurrentUser(authData.user);
+
+      return true;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      await logout();
+      return false;
+    }
+  };
+
+  const updateProfile = async (data: Partial<AuthUser>): Promise<boolean> => {
+    try {
+      setError(null);
+      
+      const response = await userApi.updateProfile(data);
+      const updatedUser = response.data;
+
+      // Update stored user data
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+
+      // Update state
+      setState(prev => ({
+        ...prev,
+        user: updatedUser,
+      }));
+
+      // Update middleware
+      authMiddleware.setCurrentUser(updatedUser);
+
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Cập nhật thông tin thất bại';
+      setError(errorMessage);
+      return false;
+    }
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    return authMiddleware.hasPermission(state.user, permission);
+  };
+
+  const hasRole = (role: UserRole): boolean => {
+    return authMiddleware.hasRole(state.user, role);
+  };
+
+  const canAccessRoute = (route: string): boolean => {
+    return authMiddleware.canAccessRoute(state.user, route);
+  };
+
+  const value: AuthContextValue = {
+    user: state.user,
+    isAuthenticated: state.isAuthenticated,
+    hasPermission,
+    hasRole,
+    canAccessRoute,
+    login,
+    logout,
+    refreshToken,
+    updateProfile,
+    isLoading: state.isLoading,
+    error,
+  };
+
+  return React.createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// Convenience hooks for specific roles
+export function useIsAdmin() {
+  const { hasRole } = useAuth();
+  return hasRole('ADMIN');
+}
+
+export function useIsDoctor() {
+  const { hasRole } = useAuth();
+  return hasRole('DOCTOR');
+}
+
+export function useIsReceptionist() {
+  const { hasRole } = useAuth();
+  return hasRole('RECEPTIONIST');
+}
+
+export function useIsPatient() {
+  const { hasRole } = useAuth();
+  return hasRole('PATIENT');
+}
+
+// Permission hooks
+export function useHasPermission(permission: string) {
+  const { hasPermission } = useAuth();
+  return hasPermission(permission);
+}
+
+export function useCanAccessRoute(route: string) {
+  const { canAccessRoute } = useAuth();
+  return canAccessRoute(route);
 }
