@@ -17,6 +17,7 @@ export interface Template {
   name: string;
   specialtyName: string;
   fields: {
+    [x: string]: any;
     fields: FieldDefinition[];
   };
 }

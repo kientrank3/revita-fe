@@ -75,7 +75,7 @@ export default function LoginPage() {
               }
             }
             
-            router.push("/dashboard");
+            router.push("/");
           } catch (err) {
             setError(err instanceof Error ? err.message : "Đăng nhập Google thất bại");
           } finally {
