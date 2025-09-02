@@ -70,23 +70,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ ...prev, isLoading: true }));
 
       const response = await authApi.login(credentials);
-      const authData: AuthResponse = response.data;
+      const data = response.data as unknown as Partial<AuthResponse> & { accessToken?: string };
 
-      // Store auth data
-      localStorage.setItem('auth_token', authData.token);
-      localStorage.setItem('refresh_token', authData.refreshToken);
-      localStorage.setItem('auth_user', JSON.stringify(authData.user));
+      // Normalize tokens
+      const token = (data as { token?: string; accessToken?: string }).token || data.accessToken || null;
+      const refreshToken = (data as { refreshToken?: string }).refreshToken || null;
+      if (!token) throw new Error('Token is missing in login response');
+
+      localStorage.setItem('auth_token', token);
+      if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
+
+      // Ensure we have user object; fetch if not provided
+      let user = (data as { user?: AuthUser }).user as AuthUser | undefined;
+      if (!user) {
+        try {
+          const me = await authApi.getMe();
+          user = me.data as unknown as AuthUser;
+        } catch (e) {
+          console.error('Failed to fetch current user after login:', e);
+        }
+      }
+
+      if (user) {
+        localStorage.setItem('auth_user', JSON.stringify(user));
+        // Update middleware cache
+        authMiddleware.setCurrentUser(user);
+      }
 
       // Update state
       setState({
-        user: authData.user,
-        token: authData.token,
-        isAuthenticated: true,
+        user: user ?? null,
+        token,
+        isAuthenticated: !!user,
         isLoading: false,
       });
-
-      // Update middleware
-      authMiddleware.setCurrentUser(authData.user);
 
       return true;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

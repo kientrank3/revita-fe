@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { 
@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 export function AppHeader() {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [notifications] = useState(3);
 
   const getInitials = (name: string) => {
@@ -37,6 +37,11 @@ export function AppHeader() {
       .toUpperCase()
       .slice(0, 2);
   };
+  useEffect(() => {
+    console.log("isAuthenticated",isAuthenticated);
+    console.log("isLoading",isLoading);
+    console.log("user",user);
+  }, [user, isAuthenticated, isLoading]);
 
   const handleLogout = () => {
     logout();
@@ -72,7 +77,7 @@ export function AppHeader() {
       {/* Right side - Notifications and User Profile */}
       <div className="flex items-center gap-4">
         {/* Notifications - Only show if authenticated */}
-        {isAuthenticated && (
+        {isAuthenticated && !isLoading && (
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5 text-gray-600" />
             {notifications > 0 && (
@@ -87,7 +92,7 @@ export function AppHeader() {
         )}
 
         {/* User Profile Dropdown or Login Button */}
-        {isAuthenticated && user ? (
+        {isAuthenticated && user && !isLoading ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild >
               <Button variant="ghost" className="flex items-center gap-2 p-2 hover:bg-gray-100 ">
@@ -140,7 +145,7 @@ export function AppHeader() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
+        ) : !isLoading ? (
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild>
               <Link href="/register">
@@ -154,7 +159,7 @@ export function AppHeader() {
               </Link>
             </Button>
           </div>
-        )}
+        ) : null}
       </div>
     </header>
   );

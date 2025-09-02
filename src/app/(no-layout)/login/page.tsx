@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Phone, Mail, ArrowRight, Loader2, ArrowLeft, Lock } from "lucide-react"
 import Image from "next/image"
 import { authApi } from "@/lib/api"
+import { useAuth } from "@/lib/hooks/useAuth"
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("") // phone or email
@@ -21,27 +22,16 @@ export default function LoginPage() {
   const [isEmailMode, setIsEmailMode] = useState(false)
   const router = useRouter()
 
+  const { login } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     try {
-      const response = await authApi.login({
-        identifier,
-        password
-      });
-
-      // Lưu token vào localStorage
-      if (response.data.accessToken) {
-        localStorage.setItem('auth_token', response.data.accessToken);
-        if (response.data.refreshToken) {
-          localStorage.setItem('refresh_token', response.data.refreshToken);
-        }
-      }
-
-      // Redirect to dashboard or home page after successful login
-      router.push("/")
+      const ok = await login({ identifier, password });
+      if (ok) router.push("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thông tin đăng nhập không chính xác")
     } finally {

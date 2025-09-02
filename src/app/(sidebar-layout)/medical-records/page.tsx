@@ -137,7 +137,7 @@ export default function MedicalRecordsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-2.5">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -160,7 +160,7 @@ export default function MedicalRecordsPage() {
 
   if (!isDoctor) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-2.5">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function MedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-2.5">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>

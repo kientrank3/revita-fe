@@ -57,8 +57,15 @@ class AuthMiddleware {
    */
   private isTokenValid(token: string): boolean {
     try {
-      // Basic JWT validation - in production, you'd want to verify the signature
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Basic JWT validation - decode base64url safely
+      const base64Url = token.split('.')[1];
+      if (!base64Url) return false;
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+      const json = typeof window !== 'undefined'
+        ? atob(padded)
+        : Buffer.from(padded, 'base64').toString('utf-8');
+      const payload = JSON.parse(json);
       const currentTime = Math.floor(Date.now() / 1000);
       
       return payload.exp > currentTime;
@@ -112,27 +119,10 @@ class AuthMiddleware {
   /**
    * Middleware function for Next.js
    */
-  public async middleware(request: NextRequest): Promise<NextResponse | null> {
-    const { pathname } = request.nextUrl;
-    
-    // Skip middleware for public routes
-    if (this.isPublicRoute(pathname)) {
-      return null;
-    }
-
-    // Get current user
-    const user = await this.getCurrentUser();
-    
-    // Check if route requires authentication
-    if (this.requiresAuth(pathname) && !user) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    // Check route access permissions
-    if (user && !this.canAccessRoute(user, pathname)) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
-
+  public async middleware(_request: NextRequest): Promise<NextResponse | null> {
+    void _request;
+    // Skip all redirects here to avoid SSR/localStorage mismatch.
+    // Client-side will enforce auth via useAuth provider.
     return null;
   }
 
@@ -212,15 +202,4 @@ export function middleware(request: NextRequest): Promise<NextResponse | null> {
 }
 
 // Configure which routes to run middleware on
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
-};
+// Route matcher config must be exported from the root middleware file.

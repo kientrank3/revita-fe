@@ -70,7 +70,7 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <Sidebar className="w-48 h-full bg-white border-r">
+    <Sidebar className="w-52 h-full bg-white border-r">
         {/* <SidebarHeader className="flex flex-row items-center justify-center">
             <Image src="/logos/LogoRevita-v2-noneBG.png" alt="logo" width={65} height={65} />
             
