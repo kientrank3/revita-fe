@@ -245,7 +245,7 @@ export function MedicalRecordList({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -303,11 +303,10 @@ export function MedicalRecordList({
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-2">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>Bệnh nhân</TableHead>
                 <TableHead>Loại bệnh án</TableHead>
                 <TableHead>Trạng thái</TableHead>
@@ -334,11 +333,9 @@ export function MedicalRecordList({
               ) : (
                 paginatedRecords.map((record) => (
                   <TableRow key={record.id} className="hover:bg-gray-50">
-                    <TableCell className="font-mono text-sm">
-                      {record.id.slice(0, 8)}...
-                    </TableCell>
+                   
                     <TableCell>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1 ml-2.5">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-gray-500" />
                           <span className="font-medium text-sm">

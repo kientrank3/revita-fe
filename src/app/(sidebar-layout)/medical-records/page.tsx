@@ -127,7 +127,7 @@ export default function MedicalRecordsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Đang tải...</span>
@@ -138,7 +138,7 @@ export default function MedicalRecordsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto py-8 px-2.5">
+      <div className="container mx-auto p-6 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function MedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-2.5">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -208,121 +208,153 @@ export default function MedicalRecordsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="medical-records" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-lg">
+          <TabsTrigger
+            value="medical-records"
+            className="flex items-center gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground"
+          >
             <Stethoscope className="h-4 w-4" />
-            Bệnh án của tôi
+            Bệnh án 
           </TabsTrigger>
-          <TabsTrigger value="patient-search" className="flex items-center gap-2">
+          <TabsTrigger
+            value="patient-search"
+            className="flex items-center gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground"
+          >
             <Search className="h-4 w-4" />
             Tìm kiếm bệnh nhân
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="medical-records" className="space-y-6">
-                      <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Bệnh án của bác sĩ</h2>
-                <p className="text-gray-600">Tất cả bệnh án bạn đã tạo</p>
-              </div>
-              <Link href="/medical-records/create">
-                <Button className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Tạo bệnh án mới
-                </Button>
-              </Link>
-            </div>
-            
-            <MedicalRecordManager 
-              doctorId={user?.id}
-            />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Stethoscope className="h-5 w-5" />
+                  Bệnh án 
+                </span>
+                <Link href="/medical-records/create">
+                  <Button className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Tạo bệnh án mới
+                  </Button>
+                </Link>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MedicalRecordManager 
+                doctorId={user?.id}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="patient-search" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"></div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" onClick={() => {
-                if (!currentPatientId) {
-                  toast.error('Vui lòng chọn bệnh nhân hoặc hồ sơ để tạo hồ sơ mới');
-                  return;
-                }
-                // Set ngày mặc định là ngày hiện tại
-                const today = new Date().toISOString().split('T')[0]; // Format: yyyy-mm-dd
-                setCreateForm({
-                  name: '', 
-                  dateOfBirth: today, 
-                  gender: '', 
-                  address: '', 
-                  occupation: '', 
-                  healthInsurance: '', 
-                  relationship: '',
-                  emergencyContact: { name: '', phone: '', relationship: '' },
-                });
-                setIsCreateProfileOpen(true);
-              }}>Tạo hồ sơ mới</Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                setSelectedPatientProfile(null);
-                setCurrentPatientId(null);
-                setSearchResetKey((k) => k + 1);
-              }}>Xoá trắng</Button>
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Tìm kiếm & chọn bệnh nhân
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2"></div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => {
+                    if (!currentPatientId) {
+                      toast.error('Vui lòng chọn bệnh nhân hoặc hồ sơ để tạo hồ sơ mới');
+                      return;
+                    }
+                    const today = new Date().toISOString().split('T')[0];
+                    setCreateForm({
+                      name: '', 
+                      dateOfBirth: today, 
+                      gender: '', 
+                      address: '', 
+                      occupation: '', 
+                      healthInsurance: '', 
+                      relationship: '',
+                      emergencyContact: { name: '', phone: '', relationship: '' },
+                    });
+                    setIsCreateProfileOpen(true);
+                  }}>Tạo hồ sơ mới</Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setSelectedPatientProfile(null);
+                    setCurrentPatientId(null);
+                    setSearchResetKey((k) => k + 1);
+                  }}>Xoá trắng</Button>
+                </div>
+              </div>
 
-          {/* Patient Search */}
-          <PatientSearch 
-            key={searchResetKey}
-            onPatientProfileSelect={handlePatientProfileSelect} 
-            selectedPatientProfile={selectedPatientProfile}
-            onPatientSelect={handlePatientSelect}
-          />
+              <PatientSearch 
+                key={searchResetKey}
+                onPatientProfileSelect={handlePatientProfileSelect} 
+                selectedPatientProfile={selectedPatientProfile}
+                onPatientSelect={handlePatientSelect}
+              />
+            </CardContent>
+          </Card>
 
           {selectedPatientProfile && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Thông tin bệnh nhân</h2>
-                  <p className="text-gray-600">{selectedPatientProfile.name} • {selectedPatientProfile.profileCode}</p>
-                </div>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  Bệnh nhân
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2" />
-                <div className="flex items-center gap-2">
-                  
-                  <Button variant="outline" size="sm" onClick={() =>{ setIsEditProfileOpen(true)}}>
-                    Chỉnh sửa hồ sơ
-                  </Button>
-                </div>
-              </div>
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Thông tin bệnh nhân</h2>
+                      <p className="text-gray-600">{selectedPatientProfile.name} • {selectedPatientProfile.profileCode}</p>
+                    </div>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      Bệnh nhân
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2" />
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() =>{ setIsEditProfileOpen(true)}}>
+                        Chỉnh sửa hồ sơ
+                      </Button>
+                    </div>
+                  </div>
 
-              <PatientProfileCard 
-                patientProfileId={selectedPatientProfile.id}
-                showActions={false}
-              />
+                  <PatientProfileCard 
+                    patientProfileId={selectedPatientProfile.id}
+                    showActions={false}
+                  />
+                </CardContent>
+              </Card>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Bệnh án của bệnh nhân</h2>
-                  <p className="text-gray-600">{selectedPatientProfile.name}</p>
-                </div>
-                <Link href={`/medical-records/create?patientId=${selectedPatientProfile.id}`}>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Tạo bệnh án cho bệnh nhân này
-                  </Button>
-                </Link>
-              </div>
-              
-              <MedicalRecordManager 
-                patientProfileId={selectedPatientProfile.id}
-                doctorId={user?.id}
-              />
-            </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Bệnh án </h2>
+                      <p className="text-gray-600">{selectedPatientProfile.name}</p>
+                    </div>
+                    <Link href={`/medical-records/create?patientId=${selectedPatientProfile.id}`}>
+                      <Button className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Tạo bệnh án cho bệnh nhân này
+                      </Button>
+                    </Link>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MedicalRecordManager 
+                    patientProfileId={selectedPatientProfile.id}
+                    doctorId={user?.id}
+                  />
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {!selectedPatientProfile && (

@@ -68,19 +68,7 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {isAdmin ? 'Quản lý người dùng' : 'Quản lý bệnh nhân'}
-            </h1>
-            <p className="text-gray-600">
-              Chào mừng, {user?.name || user?.email}!
-            </p>
-          </div>
-        </div>
-      </div>
-
+ 
       <UserManagement />
     </div>
   );

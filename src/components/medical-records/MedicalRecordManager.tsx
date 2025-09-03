@@ -168,7 +168,7 @@ export function MedicalRecordManager({
     switch (currentView) {
       case 'create':
         return (
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto ">
             <DialogHeader>
               <DialogTitle>Tạo bệnh án mới</DialogTitle>
             </DialogHeader>
@@ -241,7 +241,7 @@ export function MedicalRecordManager({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <MedicalRecordList
         medicalRecords={medicalRecords}
         templates={templates}

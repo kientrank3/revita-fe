@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Plus, 
   Edit, 
@@ -26,16 +28,17 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { adminApi, receptionistApi } from '@/lib/api';
 import { toast } from 'sonner';
 
+
 interface UserData {
   id: string;
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   role: string;
-  dateOfBirth: string;
-  gender: string;
-  address: string;
-  citizenId: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  citizenId?: string;
   avatar?: string;
   loyaltyPoints?: number;
   createdAt: string;
@@ -53,7 +56,14 @@ interface CreateUserForm {
   email: string;
   phone: string;
   role: string;
-  loyaltyPoints: number;
+  loyaltyPoints: number; // patient
+  // doctor
+  degrees: string; // comma-separated
+  yearsExperience: string; // numeric string
+  workHistory: string;
+  description: string;
+  // admin
+  adminCode: string;
 }
 
 interface UpdateUserForm {
@@ -66,6 +76,15 @@ interface UpdateUserForm {
   email: string;
   phone: string;
   password: string;
+  // doctor
+  degrees: string; // comma-separated
+  yearsExperience: string; // numeric string
+  workHistory: string;
+  description: string;
+  // patient
+  loyaltyPoints: string; // numeric string
+  // admin
+  adminCode: string;
 }
 
 export function UserManagement() {
@@ -74,6 +93,9 @@ export function UserManagement() {
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -83,7 +105,7 @@ export function UserManagement() {
   // Form states
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     name: '',
-    dateOfBirth: '',
+    dateOfBirth: new Date().toISOString().split('T')[0],
     gender: '',
     address: '',
     citizenId: '',
@@ -93,6 +115,11 @@ export function UserManagement() {
     phone: '',
     role: 'PATIENT',
     loyaltyPoints: 0,
+    degrees: '',
+    yearsExperience: '',
+    workHistory: '',
+    description: '',
+    adminCode: '',
   });
 
   const [editForm, setEditForm] = useState<UpdateUserForm>({
@@ -105,10 +132,88 @@ export function UserManagement() {
     email: '',
     phone: '',
     password: '',
+    degrees: '',
+    yearsExperience: '',
+    workHistory: '',
+    description: '',
+    loyaltyPoints: '',
+    adminCode: '',
   });
 
   const isAdmin = hasRole('ADMIN');
   const isReceptionist = hasRole('RECEPTIONIST');
+
+  const toUndefinedIfEmpty = (value: string | number | undefined | null) => {
+    if (typeof value === 'string') return value.trim() === '' ? undefined : value.trim();
+    return value ?? undefined;
+  };
+
+  const buildCreateDto = () => {
+    const degreesRaw = toUndefinedIfEmpty(createForm.degrees);
+    const degrees = typeof degreesRaw === 'string'
+      ? degreesRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : undefined;
+
+    return {
+      name: createForm.name.trim(),
+      dateOfBirth: new Date(createForm.dateOfBirth).toISOString(),
+      gender: createForm.gender.trim(),
+      address: createForm.address.trim(),
+      citizenId: toUndefinedIfEmpty(createForm.citizenId),
+      avatar: toUndefinedIfEmpty(createForm.avatar),
+      password: createForm.password,
+      email: toUndefinedIfEmpty(createForm.email),
+      phone: toUndefinedIfEmpty(createForm.phone),
+      role: createForm.role,
+      // doctor
+      degrees,
+      yearsExperience: createForm.role === 'DOCTOR' ? (toUndefinedIfEmpty(createForm.yearsExperience) ? Number(createForm.yearsExperience) : undefined) : undefined,
+      workHistory: createForm.role === 'DOCTOR' ? toUndefinedIfEmpty(createForm.workHistory) : undefined,
+      description: createForm.role === 'DOCTOR' ? toUndefinedIfEmpty(createForm.description) : undefined,
+      // patient
+      loyaltyPoints: createForm.role === 'PATIENT' ? (Number.isFinite(Number(createForm.loyaltyPoints)) ? Number(createForm.loyaltyPoints) : 0) : undefined,
+      // admin
+      adminCode: createForm.role === 'ADMIN' ? toUndefinedIfEmpty(createForm.adminCode) : undefined,
+    } as Record<string, unknown>;
+  };
+
+  const buildReceptionistCreateDto = () => {
+    // Receptionist endpoint expects only patient registration fields
+    return {
+      name: createForm.name.trim(),
+      dateOfBirth: new Date(createForm.dateOfBirth).toISOString(),
+      gender: createForm.gender.trim(),
+      address: createForm.address.trim(),
+      citizenId: toUndefinedIfEmpty(createForm.citizenId),
+      avatar: toUndefinedIfEmpty(createForm.avatar),
+      phone: toUndefinedIfEmpty(createForm.phone),
+      email: toUndefinedIfEmpty(createForm.email),
+      password: createForm.password,
+    } as Record<string, unknown>;
+  };
+
+  const buildUpdateDto = () => {
+    const dto: Record<string, unknown> = {};
+    if (editForm.name.trim()) dto.name = editForm.name.trim();
+    if (editForm.dateOfBirth) dto.dateOfBirth = new Date(editForm.dateOfBirth).toISOString();
+    if (editForm.gender) dto.gender = editForm.gender;
+    if (editForm.address) dto.address = editForm.address;
+    if (editForm.citizenId) dto.citizenId = editForm.citizenId;
+    if (editForm.avatar) dto.avatar = editForm.avatar;
+    if (editForm.password) dto.password = editForm.password;
+    if (editForm.email) dto.email = editForm.email;
+    if (editForm.phone) dto.phone = editForm.phone;
+    // doctor
+    if (editForm.degrees) dto.degrees = editForm.degrees.split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (editForm.yearsExperience) dto.yearsExperience = Number(editForm.yearsExperience);
+    if (editForm.workHistory) dto.workHistory = editForm.workHistory;
+    if (editForm.description) dto.description = editForm.description;
+    // patient
+    if (editForm.loyaltyPoints) dto.loyaltyPoints = Number(editForm.loyaltyPoints);
+    // admin
+    if (editForm.adminCode) dto.adminCode = editForm.adminCode;
+    return dto;
+  };
 
   const filterUsers = useCallback(() => {
     let filtered = users;
@@ -130,49 +235,61 @@ export function UserManagement() {
   }, [users, searchTerm, roleFilter]);
 
   useEffect(() => {
-    if (isAdmin || isReceptionist) {
-      fetchUsers();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, isReceptionist]);
+    const id = setTimeout(() => filterUsers(), 300);
+    return () => clearTimeout(id);
+  }, [searchTerm, roleFilter, filterUsers]);
 
-  useEffect(() => {
-    filterUsers();
-  }, [filterUsers]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       let response;
       
       if (isAdmin) {
-        response = await adminApi.getAllUsers({ role: roleFilter || undefined });
+        response = await adminApi.getAllUsers({ role: roleFilter || undefined, page, limit });
       } else {
-        // For receptionist, we'll show only patients
-        response = await adminApi.getAllUsers({ role: 'PATIENT' });
+        // Receptionist: use own endpoint to list users/patients with pagination
+        response = await receptionistApi.getUsers({ role: roleFilter || undefined, page, limit });
       }
       
-      setUsers(response.data || []);
+      const payload = response.data as { data?: UserData[]; meta?: { total: number; page: number; limit: number } } | UserData[];
+      if (Array.isArray(payload)) {
+        setUsers(payload);
+        setTotal(payload.length);
+      } else {
+        setUsers(payload.data || []);
+        setTotal(payload.meta?.total || 0);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Không thể tải danh sách người dùng');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAdmin, roleFilter, page, limit]);
+
+  useEffect(() => {
+    if (isAdmin || isReceptionist) {
+      fetchUsers();
+    }
+  }, [isAdmin, isReceptionist, fetchUsers]);
+
+  useEffect(() => {
+    filterUsers();
+  }, [filterUsers]);
+
 
   const handleCreateUser = async () => {
     try {
       setIsLoading(true);
-      
       if (isAdmin) {
-        await adminApi.createUser(createForm);
+        const userData = buildCreateDto() as Parameters<typeof adminApi.createUser>[0];
+        await adminApi.createUser(userData);
         toast.success('Tạo người dùng thành công');
       } else if (isReceptionist) {
-        await receptionistApi.registerPatient(createForm);
+        const patientData = buildReceptionistCreateDto() as Parameters<typeof receptionistApi.registerPatient>[0];
+        await receptionistApi.registerPatient(patientData);
         toast.success('Đăng ký bệnh nhân thành công');
       }
-      
       setIsCreateDialogOpen(false);
       resetCreateForm();
       fetchUsers();
@@ -186,18 +303,17 @@ export function UserManagement() {
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
-    
     try {
       setIsLoading(true);
-      
       if (isAdmin) {
-        await adminApi.updateUser(selectedUser.id, editForm);
+        const updateData = buildUpdateDto() as Parameters<typeof adminApi.updateUser>[1];
+        await adminApi.updateUser(selectedUser.id, updateData);
         toast.success('Cập nhật người dùng thành công');
       } else if (isReceptionist) {
-        await receptionistApi.updatePatient(selectedUser.id, editForm);
+        const updatePatient = buildUpdateDto() as Parameters<typeof receptionistApi.updatePatient>[1];
+        await receptionistApi.updatePatient(selectedUser.id, updatePatient);
         toast.success('Cập nhật bệnh nhân thành công');
       }
-      
       setIsEditDialogOpen(false);
       setSelectedUser(null);
       fetchUsers();
@@ -228,9 +344,10 @@ export function UserManagement() {
   };
 
   const resetCreateForm = () => {
+    const today = new Date().toISOString().split('T')[0];
     setCreateForm({
       name: '',
-      dateOfBirth: '',
+      dateOfBirth: today,
       gender: '',
       address: '',
       citizenId: '',
@@ -240,21 +357,32 @@ export function UserManagement() {
       phone: '',
       role: 'PATIENT',
       loyaltyPoints: 0,
+      degrees: '',
+      yearsExperience: '',
+      workHistory: '',
+      description: '',
+      adminCode: '',
     });
   };
 
   const openEditDialog = (user: UserData) => {
     setSelectedUser(user);
     setEditForm({
-      name: user.name,
-      dateOfBirth: user.dateOfBirth.split('T')[0],
-      gender: user.gender,
-      address: user.address,
-      citizenId: user.citizenId,
+      name: user.name || '',
+      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
+      gender: user.gender || '',
+      address: user.address || '',
+      citizenId: user.citizenId || '',
       avatar: user.avatar || '',
-      email: user.email,
-      phone: user.phone,
+      email: user.email || '',
+      phone: user.phone || '',
       password: '',
+      degrees: '',
+      yearsExperience: '',
+      workHistory: '',
+      description: '',
+      loyaltyPoints: typeof user.loyaltyPoints === 'number' ? String(user.loyaltyPoints) : '',
+      adminCode: '',
     });
     setIsEditDialogOpen(true);
   };
@@ -317,7 +445,10 @@ export function UserManagement() {
             }
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
+        <Button onClick={() => {
+          resetCreateForm(); // Reset form khi mở dialog
+          setIsCreateDialogOpen(true);
+        }} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           {isAdmin ? 'Tạo người dùng' : 'Đăng ký bệnh nhân'}
         </Button>
@@ -328,7 +459,7 @@ export function UserManagement() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <Label htmlFor="search">Tìm kiếm</Label>
+              <Label htmlFor="search" className="mb-2.5">Tìm kiếm</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -342,10 +473,10 @@ export function UserManagement() {
             </div>
             {isAdmin && (
               <div className="w-full sm:w-48">
-                <Label htmlFor="role-filter">Vai trò</Label>
+                <Label htmlFor="role-filter" className="mb-2.5">Chức vụ</Label>
                 <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value === 'ALL' ? '' : value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tất cả vai trò" />
+                    <SelectValue placeholder="Tất cả" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">Tất cả</SelectItem>
@@ -364,25 +495,90 @@ export function UserManagement() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Danh sách người dùng ({filteredUsers.length})
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Danh sách người dùng ({total})
+            </span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Trang</span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</Button>
+                <span className="px-2">{page}</span>
+                <Button variant="outline" size="sm" disabled={(page * limit) >= total} onClick={() => setPage((p) => p + 1)}>Sau</Button>
+              </div>
+              <Select value={String(limit)} onValueChange={(v) => { setPage(1); setLimit(Number(v)); }}>
+                <SelectTrigger className="w-20 h-8"><SelectValue placeholder="10" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Đang tải...</span>
+            <div className="overflow-x-auto rounded-lg border shadow-sm">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10">
+                  <TableRow>
+                    <TableHead>Người dùng</TableHead>
+                    <TableHead>Thông tin liên hệ</TableHead>
+                    <TableHead>Vai trò</TableHead>
+                    <TableHead>Ngày tạo</TableHead>
+                    <TableHead>Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <Skeleton className="h-3 w-40" />
+                          <Skeleton className="h-3 w-28" />
+                          <Skeleton className="h-3 w-52" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-3 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              Không tìm thấy người dùng nào
+            <div className="text-center py-12 text-gray-500">
+              <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                <Search className="h-6 w-6 text-gray-400" />
+              </div>
+              <p className="font-medium">Không tìm thấy người dùng</p>
+              <p className="text-sm">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border shadow-sm">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
                     <TableHead>Người dùng</TableHead>
                     <TableHead>Thông tin liên hệ</TableHead>
@@ -393,10 +589,10 @@ export function UserManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className="hover:bg-gray-50">
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
+                        <div className="flex items-center gap-3 ml-2.5">
+                          <Avatar className="h-10 w-10 ring-1 ring-gray-200">
                             <AvatarImage src={user.avatar} alt={user.name} />
                             <AvatarFallback className="bg-blue-100 text-blue-600">
                               {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
@@ -443,25 +639,37 @@ export function UserManagement() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(user)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {isAdmin && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDeleteDialog(user)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditDialog(user)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Chỉnh sửa</TooltipContent>
+                            </Tooltip>
+                            {isAdmin && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openDeleteDialog(user)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Xóa</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -487,6 +695,7 @@ export function UserManagement() {
                 <Input
                   id="create-name"
                   value={createForm.name}
+                  placeholder="Nhập họ và tên"
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                   required
                 />
@@ -497,6 +706,7 @@ export function UserManagement() {
                   id="create-email"
                   type="email"
                   value={createForm.email}
+                  placeholder="email@domain.com"
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   required
                 />
@@ -506,6 +716,7 @@ export function UserManagement() {
                 <Input
                   id="create-phone"
                   value={createForm.phone}
+                  placeholder="0123 456 789"
                   onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                   required
                 />
@@ -516,6 +727,7 @@ export function UserManagement() {
                   id="create-password"
                   type="password"
                   value={createForm.password}
+                  placeholder="Tối thiểu 8 ký tự"
                   onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                   required
                 />
@@ -526,7 +738,7 @@ export function UserManagement() {
                   id="create-dateOfBirth"
                   type="date"
                   value={createForm.dateOfBirth}
-                  onChange={(e) => setCreateForm({ ...createForm, dateOfBirth: e.target.value })}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                   required
                 />
               </div>
@@ -564,6 +776,7 @@ export function UserManagement() {
                 <Input
                   id="create-citizenId"
                   value={createForm.citizenId}
+                  placeholder="Số CCCD/CMND"
                   onChange={(e) => setCreateForm({ ...createForm, citizenId: e.target.value })}
                   required
                 />
@@ -574,6 +787,7 @@ export function UserManagement() {
               <Input
                 id="create-address"
                 value={createForm.address}
+                placeholder="Địa chỉ cư trú"
                 onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
                 required
               />
@@ -596,6 +810,18 @@ export function UserManagement() {
                   value={createForm.loyaltyPoints}
                   onChange={(e) => setCreateForm({ ...createForm, loyaltyPoints: parseInt(e.target.value) || 0 })}
                   min="0"
+                  placeholder="0"
+                />
+              </div>
+            )}
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="create-adminCode">Mã quản trị</Label>
+                <Input
+                  id="create-adminCode"
+                  value={createForm.adminCode}
+                  onChange={(e) => setCreateForm({ ...createForm, adminCode: e.target.value })}
+                  placeholder="Nhập mã quản trị (nếu có)"
                 />
               </div>
             )}
@@ -624,6 +850,7 @@ export function UserManagement() {
                 <Input
                   id="edit-name"
                   value={editForm.name}
+                  placeholder="Nhập họ và tên"
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   required
                 />
@@ -634,6 +861,7 @@ export function UserManagement() {
                   id="edit-email"
                   type="email"
                   value={editForm.email}
+                  placeholder="email@domain.com"
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   required
                 />
@@ -643,6 +871,7 @@ export function UserManagement() {
                 <Input
                   id="edit-phone"
                   value={editForm.phone}
+                  placeholder="0123 456 789"
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                   required
                 />
@@ -708,6 +937,17 @@ export function UserManagement() {
                 required
               />
             </div>
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-adminCode">Mã quản trị</Label>
+                <Input
+                  id="edit-adminCode"
+                  value={editForm.adminCode}
+                  onChange={(e) => setEditForm({ ...editForm, adminCode: e.target.value })}
+                  placeholder="Nhập mã quản trị (nếu có)"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>

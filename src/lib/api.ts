@@ -1,6 +1,10 @@
 import api from './config';
 import { CreateMedicalRecordDto, UpdateMedicalRecordDto } from '@/lib/types/medical-record';
 
+// Pagination types
+export type PageParams = { page?: number; limit?: number };
+export type PagedResponse<T> = { data: T[]; meta: { total: number; page: number; limit: number } };
+
 // Patient Profile Types
 export interface PatientProfile {
   id: string;
@@ -110,15 +114,15 @@ export const medicalApi = {
     api.get('/medical/appointments'),
 };
 
-// Medical Records API
+// Medical Records API (paginated)
 export const medicalRecordApi = {
-  // Get all medical records
-  getAll: () =>
-    api.get('/medical-records'),
+  // Get all medical records (role-based filtering, paginated)
+  getAll: (params?: PageParams) =>
+    api.get('/medical-records', { params }),
   
-  // Get medical records by patient profile
-  getByPatientProfile: (patientProfileId: string) =>
-    api.get(`/medical-records/patient-profile/${patientProfileId}`),
+  // Get medical records by patient profile (paginated)
+  getByPatientProfile: (patientProfileId: string, params?: PageParams) =>
+    api.get(`/medical-records/patient-profile/${patientProfileId}`, { params }),
   
   // Get medical records by doctor
   getByDoctor: (doctorId: string) =>
@@ -147,6 +151,112 @@ export const medicalRecordApi = {
   // Get template by ID
   getTemplateById: (templateId: string) =>
     api.get(`/medical-records/templates/${templateId}`),
+};
+
+// Admin API (paginated)
+export const adminApi = {
+  // Get all users with optional role filter
+  getAllUsers: (params?: { role?: string } & PageParams) =>
+    api.get('/admin/users', { params }),
+  
+  // Get user by ID
+  getUserById: (userId: string) =>
+    api.get(`/admin/users/${userId}`),
+  
+  // Create new user
+  createUser: (data: {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    citizenId: string;
+    avatar?: string;
+    password: string;
+    email?: string;
+    phone?: string;
+    role: string;
+    loyaltyPoints?: number;
+    degrees?: string[];
+    yearsExperience?: number;
+    workHistory?: string;
+    description?: string;
+    adminCode?: string;
+  }) =>
+    api.post('/admin/users', data),
+  
+  // Update user
+  updateUser: (userId: string, data: {
+    name?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    citizenId?: string;
+    avatar?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    degrees?: string[];
+    yearsExperience?: number;
+    workHistory?: string;
+    description?: string;
+    loyaltyPoints?: number;
+    adminCode?: string;
+  }) =>
+    api.put(`/admin/users/${userId}`, data),
+  
+  // Delete user
+  deleteUser: (userId: string) =>
+    api.delete(`/admin/users/${userId}`),
+
+  // specialties, templates, services, counters (paginated)
+  getSpecialties: (params?: PageParams) => api.get('/admin/specialties', { params }),
+  getTemplates: (params?: { specialtyId?: string } & PageParams) => api.get('/admin/templates', { params }),
+  getServices: (params?: PageParams) => api.get('/admin/services', { params }),
+  getCounters: (params?: { isActive?: boolean } & PageParams) => api.get('/admin/counters', { params }),
+};
+
+// Receptionist API (paginated)
+export const receptionistApi = {
+  // Register new patient
+  registerPatient: (data: {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    citizenId: string;
+    avatar?: string;
+    phone: string;
+    email?: string;
+    password: string;
+  }) =>
+    api.post('/receptionists/patients', data),
+  
+  // Update patient
+  updatePatient: (patientId: string, data: {
+    name?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    citizenId?: string;
+    avatar?: string;
+    phone?: string;
+    email?: string;
+    loyaltyPoints?: number;
+    password?: string;
+  }) =>
+    api.put(`/receptionists/patients/${patientId}`, data),
+
+  // List users (by role) for receptionist
+  getUsers: (params?: { role?: string } & PageParams) =>
+    api.get('/receptionists/users', { params }),
+
+  // List patients for receptionist
+  getPatients: (params?: PageParams) =>
+    api.get('/receptionists/patients', { params }),
+
+  // List appointments for receptionist
+  getAppointments: (params?: PageParams) =>
+    api.get('/receptionists/appointments', { params }),
 };
 
 // News API
@@ -193,80 +303,4 @@ export const patientProfileApi = {
   // Xóa patient profile
   delete: (patientProfileId: string) =>
     api.delete(`/patient-profiles/${patientProfileId}`),
-};
-
-// Admin API
-export const adminApi = {
-  // Get all users with optional role filter
-  getAllUsers: (params?: { role?: string }) =>
-    api.get('/admin/users', { params }),
-  
-  // Get user by ID
-  getUserById: (userId: string) =>
-    api.get(`/admin/users/${userId}`),
-  
-  // Create new user
-  createUser: (data: {
-    name: string;
-    dateOfBirth: string;
-    gender: string;
-    address: string;
-    citizenId: string;
-    avatar?: string;
-    password: string;
-    email: string;
-    phone: string;
-    role: string;
-    loyaltyPoints?: number;
-  }) =>
-    api.post('/admin/users', data),
-  
-  // Update user
-  updateUser: (userId: string, data: {
-    name?: string;
-    dateOfBirth?: string;
-    gender?: string;
-    address?: string;
-    citizenId?: string;
-    avatar?: string;
-    email?: string;
-    phone?: string;
-    password?: string;
-  }) =>
-    api.put(`/admin/users/${userId}`, data),
-  
-  // Delete user
-  deleteUser: (userId: string) =>
-    api.delete(`/admin/users/${userId}`),
-};
-
-// Receptionist API
-export const receptionistApi = {
-  // Register new patient
-  registerPatient: (data: {
-    name: string;
-    dateOfBirth: string;
-    gender: string;
-    address: string;
-    citizenId: string;
-    avatar?: string;
-    phone: string;
-    email: string;
-    password: string;
-  }) =>
-    api.post('/receptionists/patients', data),
-  
-  // Update patient
-  updatePatient: (patientId: string, data: {
-    name?: string;
-    dateOfBirth?: string;
-    gender?: string;
-    address?: string;
-    citizenId?: string;
-    avatar?: string;
-    phone?: string;
-    email?: string;
-    loyaltyPoints?: number;
-  }) =>
-    api.put(`/receptionists/patients/${patientId}`, data),
 };
