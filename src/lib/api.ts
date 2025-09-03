@@ -194,3 +194,79 @@ export const patientProfileApi = {
   delete: (patientProfileId: string) =>
     api.delete(`/patient-profiles/${patientProfileId}`),
 };
+
+// Admin API
+export const adminApi = {
+  // Get all users with optional role filter
+  getAllUsers: (params?: { role?: string }) =>
+    api.get('/admin/users', { params }),
+  
+  // Get user by ID
+  getUserById: (userId: string) =>
+    api.get(`/admin/users/${userId}`),
+  
+  // Create new user
+  createUser: (data: {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    citizenId: string;
+    avatar?: string;
+    password: string;
+    email: string;
+    phone: string;
+    role: string;
+    loyaltyPoints?: number;
+  }) =>
+    api.post('/admin/users', data),
+  
+  // Update user
+  updateUser: (userId: string, data: {
+    name?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    citizenId?: string;
+    avatar?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+  }) =>
+    api.put(`/admin/users/${userId}`, data),
+  
+  // Delete user
+  deleteUser: (userId: string) =>
+    api.delete(`/admin/users/${userId}`),
+};
+
+// Receptionist API
+export const receptionistApi = {
+  // Register new patient
+  registerPatient: (data: {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    citizenId: string;
+    avatar?: string;
+    phone: string;
+    email: string;
+    password: string;
+  }) =>
+    api.post('/receptionists/patients', data),
+  
+  // Update patient
+  updatePatient: (patientId: string, data: {
+    name?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    citizenId?: string;
+    avatar?: string;
+    phone?: string;
+    email?: string;
+    loyaltyPoints?: number;
+  }) =>
+    api.put(`/receptionists/patients/${patientId}`, data),
+};

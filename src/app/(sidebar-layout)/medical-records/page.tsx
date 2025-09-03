@@ -15,6 +15,7 @@ import {
 import { MedicalRecordManager } from '@/components/medical-records/MedicalRecordManager';
 import { PatientProfileCard } from '@/components/patient/PatientProfileCard';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
+
 import { useAuth } from '@/lib/hooks/useAuth';
 import { PatientProfile, User as UserType } from '@/lib/types/user';
 import Link from 'next/link';
@@ -160,7 +161,7 @@ export default function MedicalRecordsPage() {
 
   if (!isDoctor) {
     return (
-      <div className="container mx-auto py-8 px-2.5">
+      <div className="container mx-auto p-6 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -347,6 +348,8 @@ export default function MedicalRecordsPage() {
             </Card>
           )}
         </TabsContent>
+        
+
       </Tabs>
 
       {/* Edit Profile Dialog */}
