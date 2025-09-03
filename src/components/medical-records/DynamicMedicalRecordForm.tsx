@@ -54,7 +54,8 @@ export function DynamicMedicalRecordForm({
     
     // Format date fields to yyyy-mm-dd for HTML date inputs
     const formattedData = { ...initialData };
-    template.fields.forEach((field: { type: string; name: string | number; }) => {
+    const fieldDefs = Array.isArray(template?.fields?.fields) ? template.fields.fields : [];
+    fieldDefs.forEach((field: { type: string; name: string | number; }) => {
       if (field.type === 'date' && formattedData[field.name]) {
         formattedData[field.name] = formatDateForInput(formattedData[field.name]);
       }

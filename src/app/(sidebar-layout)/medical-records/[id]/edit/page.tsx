@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   FileText,
-  Stethoscope
+  Stethoscope,
+  ClipboardList
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -188,6 +189,13 @@ export default function EditMedicalRecordPage() {
             <Badge className={`${getStatusColor(medicalRecord.status)} text-xs`}>
               {getStatusText(medicalRecord.status)}
             </Badge>
+            <Button
+              onClick={() => router.push(`/medical-records/${recordId}/prescription`)}
+              className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Tạo phiếu chỉ định
+            </Button>
           </div>
         </div>
       </div>

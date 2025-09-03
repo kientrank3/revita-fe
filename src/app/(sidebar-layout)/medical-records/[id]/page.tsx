@@ -9,6 +9,11 @@ import {
   ArrowLeft, 
   Edit, 
   FileText,
+  ClipboardList,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service'; 
@@ -17,6 +22,7 @@ import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { toast } from 'sonner';
 import { MedicalRecordViewer } from '@/components/medical-records/MedicalRecordViewer';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
+import { Badge } from '@/components/ui/badge';
 
 interface DoctorData {
   id: string;
@@ -40,6 +46,34 @@ interface PatientProfileData {
   };
 }
 
+interface PrescriptionService {
+  prescriptionId: string;
+  serviceId: string;
+  status: string;
+  results: any[];
+  order: number;
+  note: string | null;
+  service: {
+    id: string;
+    serviceCode: string;
+    name: string;
+    description: string;
+  };
+}
+
+interface Prescription {
+  id: string;
+  prescriptionCode: string;
+  doctorId: string;
+  patientProfileId: string;
+  note: string;
+  status: string;
+  medicalRecordId: string;
+  services: PrescriptionService[];
+  patientProfile?: any;
+  doctor?: any;
+}
+
 export default function MedicalRecordDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -49,9 +83,42 @@ export default function MedicalRecordDetailPage() {
   const [template, setTemplate] = useState<Template | null>(null);
   const [doctor, setDoctor] = useState<DoctorData | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfileData | null>(null);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
   const [, setIsSaving] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Load prescriptions for this medical record
+  const loadPrescriptions = async () => {
+    if (!recordId) return;
+    
+    console.log('Loading prescriptions for medical record:', recordId);
+    setIsLoadingPrescriptions(true);
+    try {
+      const response = await fetch(`/api/prescriptions/medical-record/${recordId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Prescriptions response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Prescriptions data:', data);
+        setPrescriptions(Array.isArray(data) ? data : []);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load prescriptions:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('Error loading prescriptions:', error);
+    } finally {
+      setIsLoadingPrescriptions(false);
+    }
+  };
 
   // Debug dialog state
   useEffect(() => {
@@ -101,6 +168,7 @@ export default function MedicalRecordDetailPage() {
     };
 
     loadData();
+    loadPrescriptions();
   }, [recordId, router]);
 
   const handleEdit = () => {
@@ -208,6 +276,51 @@ export default function MedicalRecordDetailPage() {
     router.push('/medical-records');
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      case 'IN_PROGRESS':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Chờ thực hiện';
+      case 'COMPLETED':
+        return 'Hoàn thành';
+      case 'CANCELLED':
+        return 'Đã hủy';
+      case 'IN_PROGRESS':
+        return 'Đang thực hiện';
+      default:
+        return status;
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return <Clock className="h-4 w-4" />;
+      case 'COMPLETED':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'CANCELLED':
+        return <XCircle className="h-4 w-4" />;
+      case 'IN_PROGRESS':
+        return <AlertCircle className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
+    }
+  };
+
  
 
 
@@ -280,22 +393,113 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
-      {/* Medical Record Content */}
-      <MedicalRecordViewer
-        medicalRecord={medicalRecord}
-        template={template}
-        patientProfile={patientProfile}
-        doctor={doctor}
-        onEdit={handleEdit}
-        onPrint={handlePrint}
-        onDownload={handleDownload}
-      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Medical Record Content */}
+        <div className="lg:col-span-2">
+          <MedicalRecordViewer
+            medicalRecord={medicalRecord}
+            template={template}
+            patientProfile={patientProfile}
+            doctor={doctor}
+            onEdit={handleEdit}
+            onPrint={handlePrint}
+            onDownload={handleDownload}
+          />
+        </div>
 
-      {/* Test Button */}
-      <div className="mt-4 text-center">
-        <Button onClick={handleEdit} variant="outline">
-          Test Edit Dialog
-        </Button>
+        {/* Right Column - Prescriptions */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ClipboardList className="h-5 w-5 text-green-600" />
+                Phiếu chỉ định ({prescriptions.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPrescriptions ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
+                </div>
+              ) : prescriptions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <ClipboardList className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Chưa có phiếu chỉ định nào</p>
+                  <p className="text-xs mt-1">Tạo phiếu chỉ định từ trang chỉnh sửa</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {prescriptions.map((prescription) => (
+                    <div
+                      key={prescription.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      {/* Prescription Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(prescription.status)}
+                          <Badge className={`${getStatusColor(prescription.status)} text-xs`}>
+                            {getStatusText(prescription.status)}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {prescription.prescriptionCode}
+                        </p>
+                      </div>
+
+                      {/* Services List */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-900">
+                          Dịch vụ ({prescription.services.length})
+                        </h4>
+                        {prescription.services.map((service) => (
+                          <div
+                            key={service.serviceId}
+                            className="flex items-center gap-3 p-2 bg-gray-50 rounded border"
+                          >
+                            <Badge variant="outline" className="text-xs">
+                              {service.order}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {service.service.name}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {service.service.serviceCode}
+                              </p>
+                            </div>
+                            <Badge 
+                              className={`${getStatusColor(service.status)} text-xs`}
+                            >
+                              {getStatusText(service.status)}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Note */}
+                      {prescription.note && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-xs text-gray-600">
+                            <span className="font-medium">Ghi chú:</span> {prescription.note}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Created Date */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">
+                          Tạo lúc: {new Date().toLocaleDateString('vi-VN')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Edit Dialog */}

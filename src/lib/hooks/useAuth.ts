@@ -4,6 +4,7 @@ import React, { useState, useEffect, createContext, useContext, ReactNode } from
 import { AuthUser, AuthState, LoginCredentials, AuthResponse, UserRole } from '../types/auth';
 import { authMiddleware, AuthContext as MiddlewareAuthContext } from '../middleware/auth';
 import { authApi, userApi } from '../api';
+import api from '../config';
 
 interface AuthContextValue extends MiddlewareAuthContext {
   login: (credentials: LoginCredentials) => Promise<boolean>;
@@ -45,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isLoading: false,
         });
         authMiddleware.setCurrentUser(authContext.user);
+        const existingToken = localStorage.getItem('auth_token');
+        if (existingToken) {
+          api.defaults.headers.common.Authorization = `Bearer ${existingToken}`;
+        }
       } else {
         setState({
           user: null,
@@ -79,6 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       localStorage.setItem('auth_token', token);
       if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
+
+      // Ensure axios instance sends Authorization header immediately (including this tab/session)
+      api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
       // Ensure we have user object; fetch if not provided
       let user = (data as { user?: AuthUser }).user as AuthUser | undefined;
@@ -131,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       });
       setError(null);
+      // Remove default Authorization header
+      delete api.defaults.headers.common.Authorization;
     }
   };
 

@@ -78,6 +78,8 @@ export function MedicalRecordList({
   // onDelete,
   isLoading = false,
 }: MedicalRecordListProps) {
+  const safeMedicalRecords = Array.isArray(medicalRecords) ? medicalRecords : [];
+  const safeTemplates = Array.isArray(templates) ? templates : [];
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [templateFilter, setTemplateFilter] = useState<string>('all');
@@ -125,6 +127,7 @@ export function MedicalRecordList({
   };
 
   const getTemplateName = (templateId: string) => {
+    if (!templateId) return 'N/A';
     // First try to get from loaded template data
     const template = templateData[templateId];
     if (template) {
@@ -132,7 +135,7 @@ export function MedicalRecordList({
     }
     
     // Fallback to templates prop
-    const templateFromProp = templates.find(t => t.templateCode === templateId);
+    const templateFromProp = safeTemplates.find(t => t.templateCode === templateId);
     return templateFromProp ? templateFromProp.name : templateId;
   };
 
@@ -156,18 +159,18 @@ export function MedicalRecordList({
   // Load additional data for medical records
   useEffect(() => {
     const loadAdditionalData = async () => {
-      if (medicalRecords.length === 0) return;
+      if (!safeMedicalRecords || safeMedicalRecords.length === 0) return;
 
       try {
         setLoadingProfiles(true);
         
         // Load patient profiles
-        const uniquePatientIds = [...new Set(medicalRecords.map(record => record.patientProfileId))];
+        const uniquePatientIds = [...new Set(safeMedicalRecords.map(record => record.patientProfileId).filter((id): id is string => !!id))];
         const profiles = await patientProfileService.getByIds(uniquePatientIds);
         setPatientProfiles(profiles);
 
         // Load templates
-        const uniqueTemplateIds = [...new Set(medicalRecords.map(record => record.templateId))];
+        const uniqueTemplateIds = [...new Set(safeMedicalRecords.map(record => record.templateId).filter((id): id is string => !!id))];
         const templatePromises = uniqueTemplateIds.map(async (templateId) => {
           try {
             return await medicalRecordService.getTemplateById(templateId);
@@ -187,7 +190,7 @@ export function MedicalRecordList({
         setTemplateData(templateMap);
 
         // Load doctors
-        const uniqueDoctorIds = [...new Set(medicalRecords.map(record => record.doctorId).filter((id): id is string => !!id))];
+        const uniqueDoctorIds = [...new Set(safeMedicalRecords.map(record => record.doctorId).filter((id): id is string => !!id))];
         const doctors = await userService.getDoctorsByIds(uniqueDoctorIds);
         setDoctorData(doctors as Record<string, DoctorData>);
 
@@ -199,7 +202,7 @@ export function MedicalRecordList({
     };
 
     loadAdditionalData();
-  }, [medicalRecords]);
+  }, [safeMedicalRecords]);
 
   const getPatientInfo = (patientProfileId: string) => {
     const profile = patientProfiles[patientProfileId];
@@ -219,11 +222,15 @@ export function MedicalRecordList({
   };
 
   const filteredRecords = useMemo(() => {
-    return medicalRecords.filter(record => {
+    return safeMedicalRecords.filter(record => {
+      const recordId = (record.id ?? '').toLowerCase();
+      const patientId = (record.patientProfileId ?? '').toLowerCase();
+      const templateName = getTemplateName(record.templateId ?? '').toLowerCase();
+
       const matchesSearch = searchTerm === '' || 
-        record.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.patientProfileId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getTemplateName(record.templateId).toLowerCase().includes(searchTerm.toLowerCase());
+        recordId.includes(searchTerm.toLowerCase()) ||
+        patientId.includes(searchTerm.toLowerCase()) ||
+        templateName.includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
       const matchesTemplate = templateFilter === 'all' || record.templateId === templateFilter;
@@ -231,7 +238,7 @@ export function MedicalRecordList({
       return matchesSearch && matchesStatus && matchesTemplate;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [medicalRecords, searchTerm, statusFilter, templateFilter, templates]);
+  }, [safeMedicalRecords, searchTerm, statusFilter, templateFilter, safeTemplates]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
