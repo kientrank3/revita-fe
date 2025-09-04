@@ -127,7 +127,7 @@ export default function MedicalRecordsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-6 space-y-6 bg-white">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Đang tải...</span>
@@ -138,7 +138,7 @@ export default function MedicalRecordsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-6 space-y-6 bg-white">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -161,7 +161,7 @@ export default function MedicalRecordsPage() {
 
   if (!isDoctor) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-6 space-y-6 bg-white">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function MedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 bg-white">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -207,7 +207,7 @@ export default function MedicalRecordsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 bg-white">
         <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-lg">
           <TabsTrigger
             value="medical-records"
@@ -229,7 +229,7 @@ export default function MedicalRecordsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="medical-records" className="space-y-6">
+        <TabsContent value="medical-records" className="space-y-6 bg-white">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -253,7 +253,7 @@ export default function MedicalRecordsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="patient-search" className="space-y-6">
+        <TabsContent value="patient-search" className="space-y-6 bg-white">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

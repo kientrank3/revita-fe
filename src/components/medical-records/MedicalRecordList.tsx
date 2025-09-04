@@ -219,7 +219,8 @@ export function MedicalRecordList({
   };
 
   const filteredRecords = useMemo(() => {
-    return medicalRecords.filter(record => {
+    const list = Array.isArray(medicalRecords) ? medicalRecords : [];
+    return list.filter(record => {
       const matchesSearch = searchTerm === '' || 
         record.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.patientProfileId.toLowerCase().includes(searchTerm.toLowerCase()) ||

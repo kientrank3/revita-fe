@@ -104,7 +104,7 @@ export function AppHeader() {
                 </Avatar>
                 <div className="hidden md:flex flex-col items-start">
                   <span className="text-sm font-medium text-gray-900">{user.name}</span>
-                  <span className="text-xs text-gray-500">{user.role}</span>
+                  <span className="text-xs text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>

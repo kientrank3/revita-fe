@@ -10,13 +10,26 @@ class MedicalRecordService {
   // Get all medical records
   async getAll(): Promise<MedicalRecord[]> {
     const response = await api.get('/medical-records');
-    return response.data;
+    const data = response.data as unknown;
+    if (Array.isArray(data)) return data as MedicalRecord[];
+    if (data && typeof data === 'object') {
+      // Support common API shapes like { items: [...]} or { data: [...] }
+      const maybeArray = (data as Record<string, unknown>).items ?? (data as Record<string, unknown>).data;
+      if (Array.isArray(maybeArray)) return maybeArray as MedicalRecord[];
+    }
+    return [];
   }
 
   // Get medical records by patient profile
   async getByPatientProfile(patientProfileId: string): Promise<MedicalRecord[]> {
     const response = await api.get(`/medical-records/patient-profile/${patientProfileId}`);
-    return response.data;
+    const data = response.data as unknown;
+    if (Array.isArray(data)) return data as MedicalRecord[];
+    if (data && typeof data === 'object') {
+      const maybeArray = (data as Record<string, unknown>).items ?? (data as Record<string, unknown>).data;
+      if (Array.isArray(maybeArray)) return maybeArray as MedicalRecord[];
+    }
+    return [];
   }
 
 //   // Get medical records by doctor

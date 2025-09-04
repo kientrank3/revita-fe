@@ -247,7 +247,7 @@ export default function MedicalRecordDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto  bg-white p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
@@ -290,13 +290,6 @@ export default function MedicalRecordDetailPage() {
         onPrint={handlePrint}
         onDownload={handleDownload}
       />
-
-      {/* Test Button */}
-      <div className="mt-4 text-center">
-        <Button onClick={handleEdit} variant="outline">
-          Test Edit Dialog
-        </Button>
-      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

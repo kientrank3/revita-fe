@@ -1,15 +1,70 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Home, CalendarDays, ChartColumn, Library, Users, Bell, Activity, UserCheck, FileText, Clock } from "lucide-react";
+import { Home, CalendarDays, ChartColumn, Library, Users, Bell, Activity, UserCheck, FileText, Clock, Loader2 } from "lucide-react";
+import { medicalRecordService } from "@/lib/services/medical-record.service";
+import { userService } from "@/lib/services/user.service";
+import type { MedicalRecord } from "@/lib/types/medical-record";
+import type { User } from "@/lib/types/user";
 
 export default function HomePage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [usersResult, setUsersResult] = useState<User[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const [records, usersSearch] = await Promise.all([
+          medicalRecordService.getAll(),
+          userService.searchUsers("patient"),
+        ]);
+        setMedicalRecords(records);
+        setUsersResult(usersSearch.users || []);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Không thể tải dữ liệu";
+        setError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void load();
+  }, []);
+
+  const totalPatients = useMemo(() => usersResult.filter(u => u.role === "PATIENT").length, [usersResult]);
+  const totalMedicalRecords = medicalRecords.length;
+  const todayAppointments = 0; // Chưa có API lịch hẹn
+  const activeStaff = usersResult.filter(u => u.role === "DOCTOR" || u.role === "RECEPTIONIST" || u.role === "ADMIN").length;
+
+  const recentActivities = useMemo(() => {
+    const items = [...medicalRecords]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        title: "Bệnh án mới/được cập nhật",
+        description: `Hồ sơ: ${r.patientProfileId} • Loại: ${r.templateId}`,
+        createdAt: r.createdAt,
+      }));
+    return items;
+  }, [medicalRecords]);
+
   return (
-    <div className="p-6 space-y-6 ">
+    <div className="p-6 space-y-6 bg-white">
       {/* Header Section */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">Bảng điều khiển</h1>
-        <p className="text-gray-600">Tổng quan hệ thống quản lý y tế</p>
+        <p className="text-gray-600">Tổng quan hoạt động trong hệ thống</p>
+        {error && (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
       </div>
 
       {/* Quick Stats */}
@@ -20,23 +75,23 @@ export default function HomePage() {
             <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <p className="text-xs text-muted-foreground">
-              +12 so với tháng trước
-            </p>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : totalPatients}
+            </div>
+            <p className="text-xs text-muted-foreground">Người dùng có vai trò bệnh nhân</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bệnh án mới</CardTitle>
+            <CardTitle className="text-sm font-medium">Bệnh án</CardTitle>
             <FileText className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">89</div>
-            <p className="text-xs text-muted-foreground">
-              +5 so với tuần trước
-            </p>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : totalMedicalRecords}
+            </div>
+            <p className="text-xs text-muted-foreground">Tổng số bệnh án trong hệ thống</p>
           </CardContent>
         </Card>
 
@@ -46,10 +101,8 @@ export default function HomePage() {
             <CalendarDays className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">
-              8 lịch hẹn đã hoàn thành
-            </p>
+            <div className="text-2xl font-bold">{todayAppointments}</div>
+            <p className="text-xs text-muted-foreground">Chưa tích hợp lịch hẹn</p>
           </CardContent>
         </Card>
 
@@ -59,10 +112,10 @@ export default function HomePage() {
             <UserCheck className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15</div>
-            <p className="text-xs text-muted-foreground">
-              3 người đang nghỉ phép
-            </p>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : activeStaff}
+            </div>
+            <p className="text-xs text-muted-foreground">Nhân sự có quyền truy cập</p>
           </CardContent>
         </Card>
       </div>
@@ -77,45 +130,28 @@ export default function HomePage() {
               Hoạt động gần đây
             </CardTitle>
             <CardDescription>
-              Những hoạt động mới nhất trong hệ thống
+              Những thay đổi gần đây của bệnh án
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Bệnh án mới được tạo</p>
-                <p className="text-xs text-gray-500">Bệnh nhân: Nguyễn Văn A - 2 giờ trước</p>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Đang tải hoạt động...
               </div>
-              <Badge variant="secondary">Mới</Badge>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Lịch hẹn được cập nhật</p>
-                <p className="text-xs text-gray-500">Phòng khám 2 - 1 giờ trước</p>
+            )}
+            {!isLoading && recentActivities.length === 0 && (
+              <div className="text-sm text-gray-500">Chưa có hoạt động nào</div>
+            )}
+            {!isLoading && recentActivities.map((a, idx) => (
+              <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                <div className={`w-2 h-2 rounded-full ${idx === 0 ? "bg-green-500" : "bg-blue-500"}`}></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{a.title}</p>
+                  <p className="text-xs text-gray-500">{a.description}</p>
+                </div>
+                <Badge variant="secondary">{new Date(a.createdAt).toLocaleString("vi-VN")}</Badge>
               </div>
-              <Badge variant="secondary">Cập nhật</Badge>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Báo cáo tháng được tạo</p>
-                <p className="text-xs text-gray-500">Báo cáo tháng 12/2024 - 3 giờ trước</p>
-              </div>
-              <Badge variant="secondary">Báo cáo</Badge>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Người dùng mới đăng ký</p>
-                <p className="text-xs text-gray-500">Dr. Trần Thị B - 4 giờ trước</p>
-              </div>
-              <Badge variant="secondary">Mới</Badge>
-            </div>
+            ))}
           </CardContent>
         </Card>
 
@@ -131,24 +167,28 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start" variant="outline">
-              <CalendarDays className="mr-2 h-4 w-4" />
-              Xem lịch hẹn hôm nay
+            <Button asChild className="w-full justify-start" variant="outline">
+              <Link href="/medical-records">
+                <Library className="mr-2 h-4 w-4" />
+                Quản lý bệnh án
+              </Link>
             </Button>
             
-            <Button className="w-full justify-start" variant="outline">
-              <Library className="mr-2 h-4 w-4" />
-              Tạo bệnh án mới
+            <Button asChild className="w-full justify-start" variant="outline">
+              <Link href="/medical-records/create">
+                <FileText className="mr-2 h-4 w-4" />
+                Tạo bệnh án mới
+              </Link>
             </Button>
             
-            <Button className="w-full justify-start" variant="outline">
+            <Button disabled className="w-full justify-start" variant="outline">
               <ChartColumn className="mr-2 h-4 w-4" />
-              Xem báo cáo
+              Xem báo cáo (sắp có)
             </Button>
             
-            <Button className="w-full justify-start" variant="outline">
+            <Button disabled className="w-full justify-start" variant="outline">
               <Users className="mr-2 h-4 w-4" />
-              Quản lý người dùng
+              Quản lý người dùng (sắp có)
             </Button>
           </CardContent>
         </Card>
@@ -166,49 +206,7 @@ export default function HomePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Nguyễn Thị C</p>
-                  <p className="text-sm text-gray-500">Khám tổng quát</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">09:00</p>
-                <p className="text-sm text-gray-500">Phòng 1</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Lê Văn D</p>
-                  <p className="text-sm text-gray-500">Tái khám</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">10:30</p>
-                <p className="text-sm text-gray-500">Phòng 2</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Phạm Thị E</p>
-                  <p className="text-sm text-gray-500">Xét nghiệm</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">14:00</p>
-                <p className="text-sm text-gray-500">Phòng XN</p>
-              </div>
-            </div>
-          </div>
+          <div className="space-y-3 text-sm text-gray-500">Chưa tích hợp lịch hẹn</div>
         </CardContent>
       </Card>
 
@@ -243,16 +241,16 @@ export default function HomePage() {
           <CardContent>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm">Bệnh án chờ xử lý</span>
-                <span className="font-medium">12</span>
+                <span className="text-sm">Bệnh án</span>
+                <span className="font-medium">{isLoading ? "…" : totalMedicalRecords}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Lịch hẹn tuần này</span>
-                <span className="font-medium">156</span>
+                <span className="text-sm">Bệnh nhân</span>
+                <span className="font-medium">{isLoading ? "…" : totalPatients}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Nhân viên online</span>
-                <span className="font-medium">8</span>
+                <span className="text-sm">Nhân sự</span>
+                <span className="font-medium">{isLoading ? "…" : activeStaff}</span>
               </div>
             </div>
           </CardContent>
@@ -266,15 +264,15 @@ export default function HomePage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-orange-500" />
-                <span className="text-sm">3 thông báo mới</span>
+                <span className="text-sm">{isLoading ? "Đang tải..." : "Không có thông báo"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-blue-500" />
-                <span className="text-sm">5 lịch hẹn sắp tới</span>
+                <span className="text-sm">Tính năng lịch hẹn đang phát triển</span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-green-500" />
-                <span className="text-sm">2 bệnh án cần duyệt</span>
+                <span className="text-sm">Báo cáo sẽ có sớm</span>
               </div>
             </div>
           </CardContent>
