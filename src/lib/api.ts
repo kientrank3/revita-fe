@@ -268,6 +268,32 @@ export const newsApi = {
     api.get(`/news/${id}`),
 };
 
+// Cashier/Invoice Payments API
+export const cashierApi = {
+  // Lookup prescription by code (for cashier scanning)
+  getPrescriptionByCode: (prescriptionCode: string) =>
+    api.get(`/prescriptions/${encodeURIComponent(prescriptionCode)}`),
+
+  // Preview invoice for selected services on a prescription
+  previewInvoice: (data: {
+    prescriptionCode: string;
+    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'WALLET';
+    selectedServiceCodes: string[];
+  }) => api.post('/invoice-payments/preview', data),
+
+  // Create invoice draft (not yet paid)
+  createInvoiceDraft: (data: {
+    prescriptionCode: string;
+    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'WALLET';
+    cashierId: string;
+    selectedServiceCodes: string[];
+  }) => api.post('/invoice-payments/create', data),
+
+  // Confirm payment for an invoice
+  confirmPayment: (data: { invoiceCode: string; cashierId: string }) =>
+    api.post('/invoice-payments/confirm', data),
+};
+
 // Patient Profile API
 export const patientProfileApi = {
   // Lấy patient profile theo patient ID

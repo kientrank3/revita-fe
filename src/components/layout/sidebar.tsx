@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
 	CalendarDays,
 	ChartColumn,
+	CreditCard,
 	Home,
 	Library,
 	Users,
@@ -56,7 +57,7 @@ const getMenuItems = () => {
 			icon: Library,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "DOCTOR"],
+			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 		},
 		{
 			title: "Quản lý người dùng",
@@ -66,6 +67,14 @@ const getMenuItems = () => {
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN", "RECEPTIONIST"],
 		},
+		{
+			title: "Thanh toán dịch vụ",
+			url: "/invoices",
+			icon: CreditCard,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN", "RECEPTIONIST", "CASHIER"],
+		}
 	];
 
 	return baseItems;
