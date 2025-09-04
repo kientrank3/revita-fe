@@ -112,6 +112,28 @@ export default function InvoicesPage() {
     const pdfData = data || confirmResult;
     if (!pdfData) return;
 
+    // Helper function to get practitioner display info
+    const getPractitionerDisplay = (assignment: any) => {
+      if (assignment.doctorId && assignment.doctorName !== 'N/A') {
+        return {
+          label: 'Bác sĩ',
+          name: assignment.doctorName,
+          code: assignment.doctorCode
+        };
+      } else if (assignment.technicianId && assignment.technicianName !== 'N/A') {
+        return {
+          label: 'Kỹ thuật viên',
+          name: assignment.technicianName,
+          code: assignment.technicianCode
+        };
+      }
+      return {
+        label: 'Người thực hiện',
+        name: 'N/A',
+        code: 'N/A'
+      };
+    };
+
     try {
       const { default: pdfMake } = await import('pdfmake/build/pdfmake');
       const { default: pdfFonts } = await import('pdfmake/build/vfs_fonts');
@@ -301,26 +323,29 @@ export default function InvoicesPage() {
           },
 
           // Room assignments
-          ...(pdfData.routingAssignments?.length ? pdfData.routingAssignments.map((assignment: any, index: number) => ({
-            stack: [
-              {
-                text: `Phòng ${index + 1}: ${assignment.roomName} (${assignment.roomCode})`,
-                fontSize: 12,
-                bold: true,
-                margin: [0, 0, 0, 8]
-              },
-              {
-                text: `Buồng: ${assignment.boothName} (${assignment.boothCode})`,
-                fontSize: 11,
-                margin: [20, 0, 0, 5]
-              },
-              {
-                text: `Bác sĩ: ${assignment.doctorName} (${assignment.doctorCode})`,
-                fontSize: 11,
-                margin: [20, 0, 0, 15]
-              }
-            ]
-          })) : [{
+          ...(pdfData.routingAssignments?.length ? pdfData.routingAssignments.map((assignment: any, index: number) => {
+            const practitioner = getPractitionerDisplay(assignment);
+            return {
+              stack: [
+                {
+                  text: `Phòng ${index + 1}: ${assignment.roomName} (${assignment.roomCode})`,
+                  fontSize: 12,
+                  bold: true,
+                  margin: [0, 0, 0, 8]
+                },
+                {
+                  text: `Buồng: ${assignment.boothName} (${assignment.boothCode})`,
+                  fontSize: 11,
+                  margin: [20, 0, 0, 5]
+                },
+                {
+                  text: `${practitioner.label}: ${practitioner.name} (${practitioner.code})`,
+                  fontSize: 11,
+                  margin: [20, 0, 0, 15]
+                }
+              ]
+            };
+          }) : [{
             text: 'Không có hướng dẫn phòng khám nào.',
             fontSize: 11,
             italics: true
@@ -660,6 +685,28 @@ export default function InvoicesPage() {
               const pdfDoc = pdfMake.createPdf(docDefinition as any);
               pdfDoc.download(`Hoa-don-${confirmData.invoiceCode}.pdf`);
             } else if (type === 'routing') {
+              // Helper function to get practitioner display info
+              const getPractitionerDisplay = (assignment: any) => {
+                if (assignment.doctorId && assignment.doctorName !== 'N/A') {
+                  return {
+                    label: 'Bác sĩ',
+                    name: assignment.doctorName,
+                    code: assignment.doctorCode
+                  };
+                } else if (assignment.technicianId && assignment.technicianName !== 'N/A') {
+                  return {
+                    label: 'Kỹ thuật viên',
+                    name: assignment.technicianName,
+                    code: assignment.technicianCode
+                  };
+                }
+                return {
+                  label: 'Người thực hiện',
+                  name: 'N/A',
+                  code: 'N/A'
+                };
+              };
+
               // Similar structure for routing guide
               const routingContent = [
                 {
@@ -698,26 +745,29 @@ export default function InvoicesPage() {
                   margin: [0, 0, 0, 15]
                 },
                 // Room assignments
-                ...(confirmData.routingAssignments?.length ? confirmData.routingAssignments.map((assignment: any, index: number) => ({
-                  stack: [
-                    {
-                      text: `Phòng ${index + 1}: ${assignment.roomName} (${assignment.roomCode})`,
-                      fontSize: 12,
-                      bold: true,
-                      margin: [0, 0, 0, 8]
-                    },
-                    {
-                      text: `Buồng: ${assignment.boothName} (${assignment.boothCode})`,
-                      fontSize: 11,
-                      margin: [20, 0, 0, 5]
-                    },
-                    {
-                      text: `Bác sĩ: ${assignment.doctorName} (${assignment.doctorCode})`,
-                      fontSize: 11,
-                      margin: [20, 0, 0, 15]
-                    }
-                  ]
-                })) : [{
+                ...(confirmData.routingAssignments?.length ? confirmData.routingAssignments.map((assignment: any, index: number) => {
+                  const practitioner = getPractitionerDisplay(assignment);
+                  return {
+                    stack: [
+                      {
+                        text: `Phòng ${index + 1}: ${assignment.roomName} (${assignment.roomCode})`,
+                        fontSize: 12,
+                        bold: true,
+                        margin: [0, 0, 0, 8]
+                      },
+                      {
+                        text: `Buồng: ${assignment.boothName} (${assignment.boothCode})`,
+                        fontSize: 11,
+                        margin: [20, 0, 0, 5]
+                      },
+                      {
+                        text: `${practitioner.label}: ${practitioner.name} (${practitioner.code})`,
+                        fontSize: 11,
+                        margin: [20, 0, 0, 15]
+                      }
+                    ]
+                  };
+                }) : [{
                   text: 'Không có hướng dẫn phòng khám nào.',
                   fontSize: 11,
                   margin: [0, 0, 0, 10]
@@ -1180,13 +1230,26 @@ export default function InvoicesPage() {
             <div className="text-sm mb-2">Phiếu: {confirmResult?.prescriptionInfo?.prescriptionCode || prescription?.prescriptionCode}</div>
             <Separator className="my-2" />
             <div className="space-y-2 text-sm">
-              {confirmResult?.routingAssignments?.map((r) => (
-                <div key={r.boothId} className="border p-2 rounded">
-                  <div><span className="font-medium">Phòng:</span> {r.roomName} ({r.roomCode})</div>
-                  <div><span className="font-medium">Buồng:</span> {r.boothName} ({r.boothCode})</div>
-                  <div><span className="font-medium">Bác sĩ:</span> {r.doctorName} ({r.doctorCode})</div>
-                </div>
-              ))}
+              {confirmResult?.routingAssignments?.map((r) => {
+                const getPractitionerInfo = (assignment: any) => {
+                  if (assignment.doctorId && assignment.doctorName !== 'N/A') {
+                    return { label: 'Bác sĩ', name: assignment.doctorName, code: assignment.doctorCode };
+                  } else if (assignment.technicianId && assignment.technicianName !== 'N/A') {
+                    return { label: 'Kỹ thuật viên', name: assignment.technicianName, code: assignment.technicianCode };
+                  }
+                  return { label: 'Người thực hiện', name: 'N/A', code: 'N/A' };
+                };
+
+                const practitioner = getPractitionerInfo(r);
+
+                return (
+                  <div key={r.boothId} className="border p-2 rounded">
+                    <div><span className="font-medium">Phòng:</span> {r.roomName} ({r.roomCode})</div>
+                    <div><span className="font-medium">Buồng:</span> {r.boothName} ({r.boothCode})</div>
+                    <div><span className="font-medium">{practitioner.label}:</span> {practitioner.name} ({practitioner.code})</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -280,10 +280,20 @@ export default function MedicalRecordDetailPage() {
     switch (status) {
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800';
+      case 'WAITING':
+        return 'bg-orange-100 text-orange-800';
+      case 'SERVING':
+        return 'bg-purple-100 text-purple-800';
+      case 'WAITING_RESULT':
+        return 'bg-cyan-100 text-cyan-800';
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
+      case 'DELAYED':
+        return 'bg-red-100 text-red-800';
       case 'CANCELLED':
         return 'bg-red-100 text-red-800';
+      case 'NOT_STARTED':
+        return 'bg-blue-100 text-blue-800';
       case 'IN_PROGRESS':
         return 'bg-blue-100 text-blue-800';
       default:
@@ -291,16 +301,41 @@ export default function MedicalRecordDetailPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, serviceOrder?: number, prescriptionServices?: PrescriptionService[]) => {
     switch (status) {
       case 'PENDING':
+        if (prescriptionServices && serviceOrder !== undefined) {
+          // Find the current serving service (SERVING or WAITING)
+          const servingService = prescriptionServices.find(s =>
+            s.status === 'SERVING' || s.status === 'WAITING'
+          );
+
+          if (servingService) {
+            // If this is the next service after serving one
+            if (serviceOrder === servingService.order + 1) {
+              return 'Kế tiếp';
+            }
+            // If this is a PENDING service after the serving one
+            else if (serviceOrder > servingService.order) {
+              return 'Sớm bắt đầu';
+            }
+          }
+        }
         return 'Chờ thực hiện';
+      case 'WAITING':
+        return 'Đang chờ phục vụ';
+      case 'SERVING':
+        return 'Đang thực hiện';
+      case 'WAITING_RESULT':
+        return 'Chờ kết quả';
       case 'COMPLETED':
         return 'Hoàn thành';
+      case 'DELAYED':
+        return 'Trì hoãn';
       case 'CANCELLED':
         return 'Đã hủy';
-      case 'IN_PROGRESS':
-        return 'Đang thực hiện';
+      case 'NOT_STARTED':
+        return 'Chưa bắt đầu';
       default:
         return status;
     }
@@ -310,10 +345,20 @@ export default function MedicalRecordDetailPage() {
     switch (status) {
       case 'PENDING':
         return <Clock className="h-4 w-4" />;
+      case 'WAITING':
+        return <Clock className="h-4 w-4" />;
+      case 'SERVING':
+        return <AlertCircle className="h-4 w-4" />;
+      case 'WAITING_RESULT':
+        return <Clock className="h-4 w-4" />;
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
+      case 'DELAYED':
+        return <XCircle className="h-4 w-4" />;
       case 'CANCELLED':
         return <XCircle className="h-4 w-4" />;
+      case 'NOT_STARTED':
+        return <Clock className="h-4 w-4" />;
       case 'IN_PROGRESS':
         return <AlertCircle className="h-4 w-4" />;
       default:
@@ -469,10 +514,10 @@ export default function MedicalRecordDetailPage() {
                                 {service.service.serviceCode}
                               </p>
                             </div>
-                            <Badge 
+                            <Badge
                               className={`${getStatusColor(service.status)} text-xs`}
                             >
-                              {getStatusText(service.status)}
+                              {getStatusText(service.status, service.order, prescription.services)}
                             </Badge>
                           </div>
                         ))}
