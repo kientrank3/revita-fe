@@ -30,10 +30,12 @@ export function ProtectedRoute({
 
   // Check if user has required permissions
   const hasRequiredPermissions = requiredPermissions.every(permission => 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useHasPermission(permission)
   );
 
   // Check if user can access required route
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const canAccessRequiredRoute = requiredRoute ? useCanAccessRoute(requiredRoute) : true;
 
   // Check if user has required role

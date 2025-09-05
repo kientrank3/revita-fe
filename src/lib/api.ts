@@ -97,6 +97,27 @@ export const userApi = {
     confirmPassword: string;
   }) =>
     api.put('/user/change-password', data),
+  
+  // Update current user profile
+  updateMe: (data: {
+    name?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    citizenId?: string;
+    avatar?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    // role-specific fields
+    degrees?: string[];
+    yearsExperience?: number;
+    workHistory?: string;
+    description?: string;
+    loyaltyPoints?: number;
+    adminCode?: string;
+  }) =>
+    api.put('/users/me', data),
 };
 
 // Medical Services API

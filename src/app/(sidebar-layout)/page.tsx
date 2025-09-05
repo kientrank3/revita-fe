@@ -57,7 +57,7 @@ export default function HomePage() {
   }, [medicalRecords]);
 
   return (
-    <div className="p-6 space-y-6 bg-white">
+    <div className="px-8 py-6 space-y-6 bg-white">
       {/* Header Section */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">Bảng điều khiển</h1>

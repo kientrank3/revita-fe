@@ -34,7 +34,7 @@ export default function MedicalRecordsPage() {
   const [activeTab, setActiveTab] = useState('medical-records');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
-  type GenderOption = 'MALE' | 'FEMALE' | 'OTHER';
+  type GenderOption = 'male' | 'female' | 'other';
   type PatientProfileForm = {
     name: string;
     dateOfBirth: string;
@@ -127,7 +127,7 @@ export default function MedicalRecordsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6 bg-white">
+      <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Đang tải...</span>
@@ -138,7 +138,7 @@ export default function MedicalRecordsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto p-6 space-y-6 bg-white">
+      <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -161,7 +161,7 @@ export default function MedicalRecordsPage() {
 
   if (!isDoctor) {
     return (
-      <div className="container mx-auto p-6 space-y-6 bg-white">
+      <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function MedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6 bg-white">
+    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -414,8 +414,8 @@ export default function MedicalRecordsPage() {
                 <Select value={editForm.gender} onValueChange={(v)=>setEditForm({...editForm, gender: v as GenderOption})}>
                   <SelectTrigger><SelectValue placeholder="Chọn giới tính" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MALE">Nam</SelectItem>
-                    <SelectItem value="FEMALE">Nữ</SelectItem>
+                    <SelectItem value="male">Nam</SelectItem>
+                    <SelectItem value="female">Nữ</SelectItem>
                     <SelectItem value="OTHER">Khác</SelectItem>
                   </SelectContent>
                 </Select>
@@ -558,9 +558,9 @@ export default function MedicalRecordsPage() {
                 <Select value={createForm.gender} onValueChange={(v)=>setCreateForm({...createForm, gender: v})}>
                   <SelectTrigger><SelectValue placeholder="Chọn giới tính" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MALE">Nam</SelectItem>
-                    <SelectItem value="FEMALE">Nữ</SelectItem>
-                    <SelectItem value="OTHER">Khác</SelectItem>
+                    <SelectItem value="male">Nam</SelectItem>
+                    <SelectItem value="female">Nữ</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

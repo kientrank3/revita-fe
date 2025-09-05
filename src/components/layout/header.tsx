@@ -48,8 +48,7 @@ export function AppHeader() {
   };
 
   const handleProfile = () => {
-    // Implement profile navigation
-    console.log("Profile clicked");
+    window.location.href = '/profile';
   };
 
   const handleSettings = () => {

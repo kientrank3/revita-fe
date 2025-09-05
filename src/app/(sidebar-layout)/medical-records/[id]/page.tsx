@@ -17,16 +17,14 @@ import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { toast } from 'sonner';
 import { MedicalRecordViewer } from '@/components/medical-records/MedicalRecordViewer';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
+import { Doctor } from '@/lib/types/user';
 
 interface DoctorData {
   id: string;
   name: string;
   email: string;
   phone: string;
-  doctor?: {
-    doctorCode: string;
-    specialty: string;
-  };
+  doctor?: Doctor;
 }
 
 interface PatientProfileData {
@@ -213,7 +211,7 @@ export default function MedicalRecordDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto px-8 py-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Đang tải bệnh án...</span>
@@ -224,7 +222,7 @@ export default function MedicalRecordDetailPage() {
 
   if (!medicalRecord || !template) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto px-8 py-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -247,7 +245,7 @@ export default function MedicalRecordDetailPage() {
   }
 
   return (
-    <div className="container mx-auto  bg-white p-6">
+    <div className="container mx-auto  bg-white px-8 py-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">

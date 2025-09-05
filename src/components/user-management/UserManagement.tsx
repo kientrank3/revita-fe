@@ -41,6 +41,13 @@ interface UserData {
   citizenId?: string;
   avatar?: string;
   loyaltyPoints?: number;
+  // Doctor specific fields
+  degrees?: string[];
+  yearsExperience?: number;
+  workHistory?: string;
+  description?: string;
+  // Admin specific fields
+  adminCode?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,6 +149,7 @@ export function UserManagement() {
 
   const isAdmin = hasRole('ADMIN');
   const isReceptionist = hasRole('RECEPTIONIST');
+  const isCashier = hasRole('CASHIER');
 
   const toUndefinedIfEmpty = (value: string | number | undefined | null) => {
     if (typeof value === 'string') return value.trim() === '' ? undefined : value.trim();
@@ -149,12 +157,7 @@ export function UserManagement() {
   };
 
   const buildCreateDto = () => {
-    const degreesRaw = toUndefinedIfEmpty(createForm.degrees);
-    const degrees = typeof degreesRaw === 'string'
-      ? degreesRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
-      : undefined;
-
-    return {
+    const baseDto = {
       name: createForm.name.trim(),
       dateOfBirth: new Date(createForm.dateOfBirth).toISOString(),
       gender: createForm.gender.trim(),
@@ -165,20 +168,31 @@ export function UserManagement() {
       email: toUndefinedIfEmpty(createForm.email),
       phone: toUndefinedIfEmpty(createForm.phone),
       role: createForm.role,
-      // doctor
-      degrees,
-      yearsExperience: createForm.role === 'DOCTOR' ? (toUndefinedIfEmpty(createForm.yearsExperience) ? Number(createForm.yearsExperience) : undefined) : undefined,
-      workHistory: createForm.role === 'DOCTOR' ? toUndefinedIfEmpty(createForm.workHistory) : undefined,
-      description: createForm.role === 'DOCTOR' ? toUndefinedIfEmpty(createForm.description) : undefined,
-      // patient
-      loyaltyPoints: createForm.role === 'PATIENT' ? (Number.isFinite(Number(createForm.loyaltyPoints)) ? Number(createForm.loyaltyPoints) : 0) : undefined,
-      // admin
-      adminCode: createForm.role === 'ADMIN' ? toUndefinedIfEmpty(createForm.adminCode) : undefined,
     } as Record<string, unknown>;
+
+    // Add role-specific fields
+    if (createForm.role === 'DOCTOR') {
+      const degreesRaw = toUndefinedIfEmpty(createForm.degrees);
+      const degrees = typeof degreesRaw === 'string'
+        ? degreesRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
+      
+      baseDto.degrees = degrees;
+      baseDto.yearsExperience = toUndefinedIfEmpty(createForm.yearsExperience) ? Number(createForm.yearsExperience) : undefined;
+      baseDto.workHistory = toUndefinedIfEmpty(createForm.workHistory);
+      baseDto.description = toUndefinedIfEmpty(createForm.description);
+    } else if (createForm.role === 'PATIENT') {
+      baseDto.loyaltyPoints = Number.isFinite(Number(createForm.loyaltyPoints)) ? Number(createForm.loyaltyPoints) : 0;
+    } else if (createForm.role === 'ADMIN') {
+      baseDto.adminCode = toUndefinedIfEmpty(createForm.adminCode);
+    }
+    // CASHIER role doesn't need additional fields for now
+
+    return baseDto;
   };
 
   const buildReceptionistCreateDto = () => {
-    // Receptionist endpoint expects only patient registration fields
+    // Receptionist/Cashier endpoint expects only patient registration fields
     return {
       name: createForm.name.trim(),
       dateOfBirth: new Date(createForm.dateOfBirth).toISOString(),
@@ -203,15 +217,33 @@ export function UserManagement() {
     if (editForm.password) dto.password = editForm.password;
     if (editForm.email) dto.email = editForm.email;
     if (editForm.phone) dto.phone = editForm.phone;
-    // doctor
-    if (editForm.degrees) dto.degrees = editForm.degrees.split(',').map((s: string) => s.trim()).filter(Boolean);
-    if (editForm.yearsExperience) dto.yearsExperience = Number(editForm.yearsExperience);
-    if (editForm.workHistory) dto.workHistory = editForm.workHistory;
-    if (editForm.description) dto.description = editForm.description;
-    // patient
-    if (editForm.loyaltyPoints) dto.loyaltyPoints = Number(editForm.loyaltyPoints);
-    // admin
-    if (editForm.adminCode) dto.adminCode = editForm.adminCode;
+    
+    // Doctor specific fields
+    if (editForm.degrees && selectedUser?.role === 'DOCTOR') {
+      dto.degrees = editForm.degrees.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    if (editForm.yearsExperience && selectedUser?.role === 'DOCTOR') {
+      dto.yearsExperience = Number(editForm.yearsExperience);
+    }
+    if (editForm.workHistory && selectedUser?.role === 'DOCTOR') {
+      dto.workHistory = editForm.workHistory;
+    }
+    if (editForm.description && selectedUser?.role === 'DOCTOR') {
+      dto.description = editForm.description;
+    }
+    
+    // Patient specific fields
+    if (editForm.loyaltyPoints && selectedUser?.role === 'PATIENT') {
+      dto.loyaltyPoints = Number(editForm.loyaltyPoints);
+    }
+    
+    // Admin specific fields
+    if (editForm.adminCode && selectedUser?.role === 'ADMIN') {
+      dto.adminCode = editForm.adminCode;
+    }
+    
+    // CASHIER role doesn't need additional fields for now
+    
     return dto;
   };
 
@@ -246,12 +278,15 @@ export function UserManagement() {
       
       if (isAdmin) {
         response = await adminApi.getAllUsers({ role: roleFilter || undefined, page, limit });
-      } else {
+      } else if (isReceptionist) {
         // Receptionist: use own endpoint to list users/patients with pagination
         response = await receptionistApi.getUsers({ role: roleFilter || undefined, page, limit });
+      } else if (isCashier) {
+        // Cashier: only view patients, use receptionist endpoint for now
+        response = await receptionistApi.getUsers({ role: 'PATIENT', page, limit });
       }
       
-      const payload = response.data as { data?: UserData[]; meta?: { total: number; page: number; limit: number } } | UserData[];
+      const payload = response?.data as { data?: UserData[]; meta?: { total: number; page: number; limit: number } } | UserData[];
       if (Array.isArray(payload)) {
         setUsers(payload);
         setTotal(payload.length);
@@ -265,13 +300,13 @@ export function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, roleFilter, page, limit]);
+  }, [isAdmin, isReceptionist, isCashier, roleFilter, page, limit]);
 
   useEffect(() => {
-    if (isAdmin || isReceptionist) {
+    if (isAdmin || isReceptionist || isCashier) {
       fetchUsers();
     }
-  }, [isAdmin, isReceptionist, fetchUsers]);
+  }, [isAdmin, isReceptionist, isCashier, fetchUsers]);
 
   useEffect(() => {
     filterUsers();
@@ -285,8 +320,12 @@ export function UserManagement() {
         const userData = buildCreateDto() as Parameters<typeof adminApi.createUser>[0];
         await adminApi.createUser(userData);
         toast.success('Tạo người dùng thành công');
-      } else if (isReceptionist) {
-        const patientData = buildReceptionistCreateDto() as Parameters<typeof receptionistApi.registerPatient>[0];
+      } else if (isReceptionist || isCashier) {
+        // Force role to PATIENT for receptionist and cashier
+        const patientData = {
+          ...buildReceptionistCreateDto(),
+          role: 'PATIENT'
+        } as unknown as Parameters<typeof receptionistApi.registerPatient>[0];
         await receptionistApi.registerPatient(patientData);
         toast.success('Đăng ký bệnh nhân thành công');
       }
@@ -309,10 +348,16 @@ export function UserManagement() {
         const updateData = buildUpdateDto() as Parameters<typeof adminApi.updateUser>[1];
         await adminApi.updateUser(selectedUser.id, updateData);
         toast.success('Cập nhật người dùng thành công');
-      } else if (isReceptionist) {
-        const updatePatient = buildUpdateDto() as Parameters<typeof receptionistApi.updatePatient>[1];
-        await receptionistApi.updatePatient(selectedUser.id, updatePatient);
-        toast.success('Cập nhật bệnh nhân thành công');
+      } else if (isReceptionist || isCashier) {
+        // Only allow updating patients for receptionist and cashier
+        if (selectedUser.role === 'PATIENT') {
+          const updatePatient = buildUpdateDto() as Parameters<typeof receptionistApi.updatePatient>[1];
+          await receptionistApi.updatePatient(selectedUser.id, updatePatient);
+          toast.success('Cập nhật bệnh nhân thành công');
+        } else {
+          toast.error('Chỉ có thể cập nhật thông tin bệnh nhân');
+          return;
+        }
       }
       setIsEditDialogOpen(false);
       setSelectedUser(null);
@@ -377,12 +422,12 @@ export function UserManagement() {
       email: user.email || '',
       phone: user.phone || '',
       password: '',
-      degrees: '',
-      yearsExperience: '',
-      workHistory: '',
-      description: '',
+      degrees: user.degrees ? user.degrees.join(', ') : '',
+      yearsExperience: user.yearsExperience ? String(user.yearsExperience) : '',
+      workHistory: user.workHistory || '',
+      description: user.description || '',
       loyaltyPoints: typeof user.loyaltyPoints === 'number' ? String(user.loyaltyPoints) : '',
-      adminCode: '',
+      adminCode: user.adminCode || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -397,6 +442,7 @@ export function UserManagement() {
       case 'ADMIN': return 'destructive';
       case 'DOCTOR': return 'default';
       case 'RECEPTIONIST': return 'secondary';
+      case 'CASHIER': return 'secondary';
       case 'PATIENT': return 'outline';
       default: return 'outline';
     }
@@ -407,12 +453,13 @@ export function UserManagement() {
       case 'ADMIN': return 'Quản trị viên';
       case 'DOCTOR': return 'Bác sĩ';
       case 'RECEPTIONIST': return 'Lễ tân';
+      case 'CASHIER': return 'Thu ngân';
       case 'PATIENT': return 'Bệnh nhân';
       default: return role;
     }
   };
 
-  if (!isAdmin && !isReceptionist) {
+  if (!isAdmin && !isReceptionist && !isCashier) {
     return (
       <Card>
         <CardHeader>
@@ -423,7 +470,7 @@ export function UserManagement() {
         </CardHeader>
         <CardContent>
           <p className="text-gray-600">
-            Chỉ quản trị viên và lễ tân mới có quyền truy cập quản lý người dùng.
+            Chỉ quản trị viên, lễ tân và thu ngân mới có quyền truy cập quản lý người dùng.
           </p>
         </CardContent>
       </Card>
@@ -483,6 +530,7 @@ export function UserManagement() {
                     <SelectItem value="ADMIN">Quản trị viên</SelectItem>
                     <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
                     <SelectItem value="RECEPTIONIST">Lễ tân</SelectItem>
+                    <SelectItem value="CASHIER">Thu ngân</SelectItem>
                     <SelectItem value="PATIENT">Bệnh nhân</SelectItem>
                   </SelectContent>
                 </Select>
@@ -647,11 +695,14 @@ export function UserManagement() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => openEditDialog(user)}
+                                  disabled={isCashier && user.role !== 'PATIENT'}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Chỉnh sửa</TooltipContent>
+                              <TooltipContent>
+                                {isCashier && user.role !== 'PATIENT' ? 'Chỉ có thể chỉnh sửa bệnh nhân' : 'Chỉnh sửa'}
+                              </TooltipContent>
                             </Tooltip>
                             {isAdmin && (
                               <Tooltip>
@@ -749,13 +800,13 @@ export function UserManagement() {
                     <SelectValue placeholder="Chọn giới tính" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Nam">Nam</SelectItem>
-                    <SelectItem value="Nữ">Nữ</SelectItem>
-                    <SelectItem value="Khác">Khác</SelectItem>
+                    <SelectItem value="male">Nam</SelectItem>
+                    <SelectItem value="female">Nữ</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {isAdmin && (
+              {(isAdmin || isCashier) && (
                 <div className="space-y-2">
                   <Label htmlFor="create-role">Vai trò <span className="text-red-500">*</span></Label>
                   <Select value={createForm.role} onValueChange={(value) => setCreateForm({ ...createForm, role: value })}>
@@ -764,9 +815,14 @@ export function UserManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="PATIENT">Bệnh nhân</SelectItem>
-                      <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
-                      <SelectItem value="RECEPTIONIST">Lễ tân</SelectItem>
-                      <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                      {isAdmin && (
+                        <>
+                          <SelectItem value="DOCTOR">Bác sĩ</SelectItem>
+                          <SelectItem value="RECEPTIONIST">Lễ tân</SelectItem>
+                          <SelectItem value="CASHIER">Thu ngân</SelectItem>
+                          <SelectItem value="ADMIN">Quản trị viên</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -801,7 +857,57 @@ export function UserManagement() {
                 placeholder="https://example.com/avatar.jpg"
               />
             </div>
-            {isAdmin && (
+            {/* Doctor specific fields */}
+            {isAdmin && createForm.role === 'DOCTOR' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="create-degrees">Bằng cấp <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="create-degrees"
+                    value={createForm.degrees}
+                    onChange={(e) => setCreateForm({ ...createForm, degrees: e.target.value })}
+                    placeholder="VD: Bác sĩ Y khoa, Thạc sĩ Y học..."
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Nhập các bằng cấp cách nhau bởi dấu phẩy</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-yearsExperience">Số năm kinh nghiệm <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="create-yearsExperience"
+                    type="number"
+                    value={createForm.yearsExperience}
+                    onChange={(e) => setCreateForm({ ...createForm, yearsExperience: e.target.value })}
+                    min="0"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-workHistory">Lịch sử công tác <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="create-workHistory"
+                    value={createForm.workHistory}
+                    onChange={(e) => setCreateForm({ ...createForm, workHistory: e.target.value })}
+                    placeholder="VD: Bệnh viện Chợ Rẫy (2015-2020), Bệnh viện Đại học Y..."
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-description">Mô tả chuyên môn <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="create-description"
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                    placeholder="Mô tả về chuyên môn và kinh nghiệm..."
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Patient specific fields */}
+            {isAdmin && createForm.role === 'PATIENT' && (
               <div className="space-y-2">
                 <Label htmlFor="create-loyaltyPoints">Điểm tích lũy</Label>
                 <Input
@@ -814,14 +920,17 @@ export function UserManagement() {
                 />
               </div>
             )}
-            {isAdmin && (
+
+            {/* Admin specific fields */}
+            {isAdmin && createForm.role === 'ADMIN' && (
               <div className="space-y-2">
-                <Label htmlFor="create-adminCode">Mã quản trị</Label>
+                <Label htmlFor="create-adminCode">Mã quản trị <span className="text-red-500">*</span></Label>
                 <Input
                   id="create-adminCode"
                   value={createForm.adminCode}
                   onChange={(e) => setCreateForm({ ...createForm, adminCode: e.target.value })}
-                  placeholder="Nhập mã quản trị (nếu có)"
+                  placeholder="Nhập mã quản trị"
+                  required
                 />
               </div>
             )}
@@ -898,14 +1007,14 @@ export function UserManagement() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-gender">Giới tính <span className="text-red-500">*</span></Label>
-                <Select value={editForm.gender} onValueChange={(value) => setEditForm({ ...editForm, gender: value })}>
+                <Select value={editForm.gender} onValueChange={(value) => {setEditForm({ ...editForm, gender: value }); console.log(editForm.gender)}}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn giới tính" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Nam">Nam</SelectItem>
-                    <SelectItem value="Nữ">Nữ</SelectItem>
-                    <SelectItem value="Khác">Khác</SelectItem>
+                    <SelectItem value="male">Nam</SelectItem>
+                    <SelectItem value="female">Nữ</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -937,7 +1046,68 @@ export function UserManagement() {
                 required
               />
             </div>
-            {isAdmin && (
+            {/* Doctor specific fields */}
+            {isAdmin && selectedUser?.role === 'DOCTOR' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-degrees">Bằng cấp</Label>
+                  <Input
+                    id="edit-degrees"
+                    value={editForm.degrees}
+                    onChange={(e) => setEditForm({ ...editForm, degrees: e.target.value })}
+                    placeholder="VD: Bác sĩ Y khoa, Thạc sĩ Y học..."
+                  />
+                  <p className="text-xs text-gray-500">Nhập các bằng cấp cách nhau bởi dấu phẩy</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-yearsExperience">Số năm kinh nghiệm</Label>
+                  <Input
+                    id="edit-yearsExperience"
+                    type="number"
+                    value={editForm.yearsExperience}
+                    onChange={(e) => setEditForm({ ...editForm, yearsExperience: e.target.value })}
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-workHistory">Lịch sử công tác</Label>
+                  <Input
+                    id="edit-workHistory"
+                    value={editForm.workHistory}
+                    onChange={(e) => setEditForm({ ...editForm, workHistory: e.target.value })}
+                    placeholder="VD: Bệnh viện Chợ Rẫy (2015-2020), Bệnh viện Đại học Y..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Mô tả chuyên môn</Label>
+                  <Input
+                    id="edit-description"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    placeholder="Mô tả về chuyên môn và kinh nghiệm..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Patient specific fields */}
+            {isAdmin && selectedUser?.role === 'PATIENT' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-loyaltyPoints">Điểm tích lũy</Label>
+                <Input
+                  id="edit-loyaltyPoints"
+                  type="number"
+                  value={editForm.loyaltyPoints}
+                  onChange={(e) => setEditForm({ ...editForm, loyaltyPoints: e.target.value })}
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+            )}
+
+            {/* Admin specific fields */}
+            {isAdmin && selectedUser?.role === 'ADMIN' && (
               <div className="space-y-2">
                 <Label htmlFor="edit-adminCode">Mã quản trị</Label>
                 <Input

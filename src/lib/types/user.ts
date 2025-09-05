@@ -3,7 +3,7 @@ export interface PatientProfile {
   profileCode: string;
   name: string;
   dateOfBirth: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  gender: 'male' | 'female' | 'other';
   address: string;
   emergencyContact: {
     name: string;
@@ -26,9 +26,11 @@ export interface Patient {
 export interface Doctor {
   id: string;
   doctorCode: string;
-  specialty: string;
-  licenseNumber: string;
-  experience: number;
+  degrees?: string[];
+  yearsExperience?: number;
+  rating?: number;
+  workHistory?: string;
+  description?: string;
 }
 
 export interface Receptionist {
@@ -40,6 +42,12 @@ export interface Receptionist {
 export interface Admin {
   id: string;
   adminCode: string;
+  permissions: string[];
+}
+
+export interface Cashier {
+  id: string;
+  cashierCode: string;
   permissions: string[];
 }
 
