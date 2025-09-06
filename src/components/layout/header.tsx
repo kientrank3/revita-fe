@@ -45,10 +45,14 @@ export function AppHeader() {
 
   const handleLogout = () => {
     logout();
+    // Redirect to homepage after logout
+    window.location.href = '/';
   };
 
   const handleProfile = () => {
-    window.location.href = '/profile';
+    // For sidebar-layout users (admin, doctor, receptionist, cashier), 
+    // redirect to sidebar-layout profile page
+    window.location.href = '/staff-profile';
   };
 
   const handleSettings = () => {
@@ -111,7 +115,7 @@ export function AppHeader() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user.role}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
