@@ -48,6 +48,7 @@ interface PrescriptionService {
   prescriptionId: string;
   serviceId: string;
   status: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   results: any[];
   order: number;
   note: string | null;
@@ -68,7 +69,9 @@ interface Prescription {
   status: string;
   medicalRecordId: string;
   services: PrescriptionService[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   patientProfile?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   doctor?: any;
 }
 
@@ -167,6 +170,7 @@ export default function MedicalRecordDetailPage() {
 
     loadData();
     loadPrescriptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordId, router]);
 
   const handleEdit = () => {

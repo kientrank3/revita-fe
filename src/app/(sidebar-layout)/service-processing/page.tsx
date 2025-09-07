@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +11,6 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   ScanLine,
-  User,
   FileText,
   Clock,
   CheckCircle,
@@ -35,7 +35,7 @@ import { UpdateResultsDialog } from '@/components/service-processing/UpdateResul
 export default function ServiceProcessingPage() {
   const { user } = useAuth();
   const [prescriptionCode, setPrescriptionCode] = useState('');
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [prescription, setPrescription] = useState<Prescription | null>(null);
   const [workSession, setWorkSession] = useState<WorkSession | null>(null);
@@ -54,6 +54,7 @@ export default function ServiceProcessingPage() {
       loadWorkSession();
       loadMyServices();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const loadWorkSession = async () => {
@@ -227,23 +228,23 @@ export default function ServiceProcessingPage() {
     }
   };
 
-  const canUpdateStatus = (currentStatus: ServiceStatus, newStatus: ServiceStatus) => {
-    const allowedTransitions: Record<ServiceStatus, ServiceStatus[]> = {
-      'NOT_STARTED': ['PENDING', 'WAITING'],
-      'PENDING': ['WAITING', 'SERVING', 'CANCELLED'],
-      'WAITING': ['SERVING', 'CANCELLED'],
-      'SERVING': ['WAITING_RESULT', 'COMPLETED', 'CANCELLED'],
-      'WAITING_RESULT': ['COMPLETED', 'SERVING', 'CANCELLED'], // Can go back to SERVING for corrections
-      'COMPLETED': [],
-      'DELAYED': ['SERVING', 'CANCELLED'],
-      'CANCELLED': []
-    };
+  // const canUpdateStatus = (currentStatus: ServiceStatus, newStatus: ServiceStatus) => {
+  //   const allowedTransitions: Record<ServiceStatus, ServiceStatus[]> = {
+  //     'NOT_STARTED': ['PENDING', 'WAITING'],
+  //     'PENDING': ['WAITING', 'SERVING', 'CANCELLED'],
+  //     'WAITING': ['SERVING', 'CANCELLED'],
+  //     'SERVING': ['WAITING_RESULT', 'COMPLETED', 'CANCELLED'],
+  //     'WAITING_RESULT': ['COMPLETED', 'SERVING', 'CANCELLED'], // Can go back to SERVING for corrections
+  //     'COMPLETED': [],
+  //     'DELAYED': ['SERVING', 'CANCELLED'],
+  //     'CANCELLED': []
+  //   };
 
-    return allowedTransitions[currentStatus]?.includes(newStatus) || false;
-  };
+  //   return allowedTransitions[currentStatus]?.includes(newStatus) || false;
+  // };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -253,7 +254,7 @@ export default function ServiceProcessingPage() {
 
         {workSession && (
           <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-            <div className="text-sm text-blue-800">
+            <div className="text-sm text-blue-600">
               <div className="font-medium">Ca làm việc hiện tại:</div>
               <div>{workSession.booth.room.roomName} - {workSession.booth.name}</div>
             </div>
