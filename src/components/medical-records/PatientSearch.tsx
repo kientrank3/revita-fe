@@ -8,15 +8,15 @@ import {
   Search, 
   User, 
   Phone, 
-  Mail, 
   Calendar,
   MapPin,
   Check,
   Loader2,
   X,
 } from 'lucide-react';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { userService } from '@/lib/services/user.service';
-import { User as UserType, PatientProfile } from '@/lib/types/user';
+import { PatientProfile, User as UserType } from '@/lib/types/user';
 import { toast } from 'sonner';
 
 interface PatientSearchProps {
@@ -24,6 +24,7 @@ interface PatientSearchProps {
   selectedPatientProfile?: PatientProfile | null;
   compact?: boolean;
   onPatientSelect?: (patient: UserType | null) => void;
+  selectedPatient?: UserType | null;
 }
 
 export function PatientSearch({ 
@@ -31,17 +32,15 @@ export function PatientSearch({
   selectedPatientProfile,
   compact = false,
   onPatientSelect,
+  selectedPatient,
 }: PatientSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<UserType[]>([]);
+  const [searchResults, setSearchResults] = useState<PatientProfile[]>([]);
+  const [patientResults, setPatientResults] = useState<UserType[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<UserType | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<PatientProfile | null>(null);
+  const [searchMode, setSearchMode] = useState<'profiles' | 'patients'>('profiles');
   
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [selectedPatientProfiles, setSelectedPatientProfiles] = useState<PatientProfile[]>([]);
-
-  // Refresh profiles for selected patient
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -51,33 +50,54 @@ export function PatientSearch({
 
     try {
       setIsSearching(true);
-      const response = await userService.searchUsers(searchQuery.trim());
       
-      // Filter only patients
-      const patients = response.users.filter((user: { role: string; }) => user.role === 'PATIENT');
-      setSearchResults(patients);
-      
-      if (patients.length === 0) {
-        toast.info('Không tìm thấy bệnh nhân nào');
+      if (searchMode === 'profiles') {
+        // Search PatientProfiles
+        try {
+          await patientProfileService.testConnection();
+        } catch (testError) {
+          console.error('Test connection failed:', testError);
+          toast.error('Không thể kết nối đến API. Vui lòng kiểm tra kết nối mạng.');
+          return;
+        }
+        
+        const response = await patientProfileService.searchPatientProfiles(searchQuery.trim());
+        console.log('Search response:', response); // Debug log
+        
+        setSearchResults(response.patientProfiles);
+        setPatientResults([]); // Clear patient results
+        
+        if (response.patientProfiles.length === 0) {
+          toast.info('Không tìm thấy hồ sơ bệnh nhân nào');
+        }
+      } else {
+        // Search Patients (Users with role 'PATIENT')
+        const response = await userService.searchUsers(searchQuery.trim());
+        const patients = response.users.filter((user: UserType) => user.role === 'PATIENT');
+        
+        setPatientResults(patients);
+        setSearchResults([]); // Clear profile results
+        
+        if (patients.length === 0) {
+          toast.info('Không tìm thấy bệnh nhân nào');
+        }
       }
     } catch (error) {
-      console.error('Error searching patients:', error);
-      toast.error('Có lỗi xảy ra khi tìm kiếm bệnh nhân');
+      console.error('Error searching:', error);
+      toast.error('Có lỗi xảy ra khi tìm kiếm');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handlePatientSelect = (patient: UserType) => {
-    setSelectedPatient(patient);
-    setSelectedProfile(null);
-    setSelectedPatientProfiles(patient.patient?.patientProfiles || []);
-    if (onPatientSelect) onPatientSelect(patient);
+  const handleProfileSelect = (profile: PatientProfile) => {
+    onPatientProfileSelect(profile);
   };
 
-  const handleProfileSelect = (profile: PatientProfile) => {
-    setSelectedProfile(profile);
-    onPatientProfileSelect(profile);
+  const handlePatientSelect = (patient: UserType) => {
+    if (onPatientSelect) {
+      onPatientSelect(patient);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -90,27 +110,20 @@ export function PatientSearch({
 
   const clearSelection = () => {
     // Reset all selections
-    setSelectedPatient(null);
-    setSelectedProfile(null);
     setSearchResults([]);
+    setPatientResults([]);
     setSearchQuery('');
-    // Notify parent to clear selected profile
+    // Notify parent to clear selected profile and patient
     onPatientProfileSelect(null);
     if (onPatientSelect) onPatientSelect(null);
   };
-
-
-
-  // No delete endpoint -> remove delete logic
-
-
 
   // Compact version for create page
   if (compact) {
     return (
       <div className="relative" ref={dropdownRef}>
-        {/* Selected Patient Display */}
-        {selectedPatientProfile ? (
+        {/* Selected Patient/Profile Display */}
+        {(selectedPatientProfile || selectedPatient) ? (
           <div className="border border-green-200 rounded-lg p-3 bg-green-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -118,9 +131,13 @@ export function PatientSearch({
                   <User className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-green-900 text-sm truncate">{selectedPatientProfile.name}</p>
+                  <p className="font-medium text-green-900 text-sm truncate">
+                    {selectedPatientProfile?.name || selectedPatient?.name}
+                  </p>
                   <p className="text-xs text-green-700 truncate">
-                    {selectedPatientProfile.profileCode} • {formatDate(selectedPatientProfile.dateOfBirth)}
+                    {selectedPatientProfile?.profileCode || selectedPatient?.patient?.patientCode} • 
+                    {selectedPatientProfile?.dateOfBirth ? formatDate(selectedPatientProfile.dateOfBirth) : 
+                     selectedPatient?.dateOfBirth ? formatDate(selectedPatient.dateOfBirth) : ''}
                   </p>
                 </div>
               </div>
@@ -161,62 +178,75 @@ export function PatientSearch({
             </div>
 
             {/* Dropdown Results */}
-            {(searchResults.length > 0 || selectedPatient) && (
+            {(searchResults.length > 0 || patientResults.length > 0) && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 <div className="p-3">
-                  {searchResults.map((patient) => (
-                    <div key={patient.id} className="mb-3 last:mb-0">
-                      {/* Patient Info */}
-                      <div 
-                        className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
-                          selectedPatient?.id === patient.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => handlePatientSelect(patient)}
-                      >
+                  {/* Patient Profile Results */}
+                  {searchResults.map((profile: PatientProfile) => {
+                    const isSelected = selectedPatientProfile ? (selectedPatientProfile as PatientProfile).id === profile.id : false;
+                    return (
+                    <div 
+                      key={profile.id} 
+                      className={`p-2 rounded cursor-pointer transition-colors text-sm mb-2 last:mb-0 ${
+                        isSelected 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => handleProfileSelect(profile)}
+                    >
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="h-3 w-3 text-blue-600" />
+                            <User className="h-3 w-3 text-blue-500" />
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{patient.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{patient.phone}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{profile.name}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {profile.profileCode} • {formatDate(profile.dateOfBirth)}
+                              {profile.phone && ` • ${profile.phone}`}
+                            </p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          {patient.patient?.patientCode}
-                        </Badge>
+                        {isSelected && (
+                          <Check className="h-4 w-4 text-green-600" />
+                        )}
                       </div>
-
-                      {/* Patient Profiles */}
-                      {selectedPatient?.id === patient.id && patient.patient?.patientProfiles && (
-                        <div className="ml-6 mt-2 space-y-1">
-                          {patient.patient.patientProfiles.map((profile) => (
-                            <div 
-                              key={profile.id} 
-                              className={`p-2 rounded cursor-pointer transition-colors text-sm ${
-                                selectedProfile?.id === profile.id 
-                                  ? 'bg-green-50 border border-green-200' 
-                                  : 'hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleProfileSelect(profile)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{profile.name}</p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    {profile.profileCode} • {formatDate(profile.dateOfBirth)}
-                                  </p>
-                                </div>
-                                {selectedProfile?.id === profile.id && (
-                                  <Check className="h-4 w-4 text-green-600" />
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  ))}
+                    );
+                  })}
+                  
+                  {/* Patient Results */}
+                  {patientResults.map((patient: UserType) => {
+                    const isSelected = selectedPatient ? (selectedPatient as UserType).id === patient.id : false;
+                    return (
+                    <div 
+                      key={patient.id} 
+                      className={`p-2 rounded cursor-pointer transition-colors text-sm mb-2 last:mb-0 ${
+                        isSelected 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => handlePatientSelect(patient)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                            <User className="h-3 w-3 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{patient.name}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {patient.patient?.patientCode} • {patient.phone}
+                            </p>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="h-4 w-4 text-green-600" />
+                        )}
+                      </div>
+                    </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -235,12 +265,34 @@ export function PatientSearch({
       <div className="border rounded-lg p-4">
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tìm kiếm theo tên, số điện thoại hoặc email</label>
+            
+            {/* Search Mode Toggle */}
+            <div className="flex gap-2 my-3">
+              <Button
+                variant={searchMode === 'profiles' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSearchMode('profiles')}
+                className="text-xs"
+              >
+                Hồ sơ bệnh nhân
+              </Button>
+              <Button
+                variant={searchMode === 'patients' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSearchMode('patients')}
+                className="text-xs"
+              >
+                Tài khoản bệnh nhân
+              </Button>
+            </div>
+            
             <div className="flex gap-2">
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Nhập tên, số điện thoại hoặc email..."
+                placeholder={searchMode === 'profiles' ? 
+                  "Nhập tên, số điện thoại hoặc mã hồ sơ..." : 
+                  "Nhập tên, số điện thoại hoặc mã bệnh nhân..."}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="text-sm"
               />
@@ -262,130 +314,136 @@ export function PatientSearch({
       </div>
 
       {/* Search Results */}
-      {searchResults.length > 0 && (
+      {(searchResults.length > 0 || patientResults.length > 0) && (
         <div className="border rounded-lg p-4">
           <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
             <User className="h-4 w-4" />
-            Kết quả tìm kiếm ({searchResults.length})
+            Kết quả tìm kiếm ({searchResults.length + patientResults.length})
           </h4>
           <div className="space-y-4">
-            {searchResults.map((patient) => (
-              <div key={patient.id} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                {/* Patient Info */}
-                <div className="flex items-center justify-between mb-3">
+            {/* Patient Profile Results */}
+            {searchResults.map((profile: PatientProfile) => (
+              <div 
+                key={profile.id} 
+                className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                  selectedPatientProfile?.id === profile.id 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => handleProfileSelect(profile)}
+              >
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-blue-600" />
+                      <User className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">{profile.name}</h5>
+                      <div className="flex items-center gap-3 text-xs text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {profile.profileCode}
+                          </Badge>
+                        </span>
+                        {profile.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {profile.phone}
+                          </span>
+                        )}
+                        {profile.isActive && (
+                          <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                            Hoạt động
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedPatientProfile?.id === profile.id && (
+                      <Check className="h-4 w-4 text-blue-500" />
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-2">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDate(profile.dateOfBirth)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {formatGender(profile.gender)}
+                  </span>
+                  <span className="flex items-center gap-1 col-span-2">
+                    <MapPin className="h-3 w-3" />
+                    {profile.address}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {profile.occupation} • {profile.relationship}
+                </div>
+              </div>
+            ))}
+            
+            {/* Patient Results */}
+            {patientResults.map((patient: UserType) => (
+              <div 
+                key={patient.id} 
+                className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                  selectedPatient && (selectedPatient as UserType).id === patient.id 
+                    ? 'border-purple-500 bg-purple-50' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => handlePatientSelect(patient)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-purple-600" />
                     </div>
                     <div>
                       <h5 className="font-medium text-gray-900 text-sm">{patient.name}</h5>
                       <div className="flex items-center gap-3 text-xs text-gray-600">
                         <span className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {patient.patient?.patientCode}
+                          </Badge>
+                        </span>
+                        <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />
                           {patient.phone}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {patient.email}
-                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          Tài khoản
+                        </Badge>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{patient.patient?.patientCode}</Badge>
-                    <Button
-                      variant={selectedPatient?.id === patient.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handlePatientSelect(patient)}
-                      className="text-xs"
-                    >
-                      {selectedPatient?.id === patient.id ? (
-                        <>
-                          <Check className="h-3 w-3 mr-1" />
-                          Đã chọn
-                        </>
-                      ) : (
-                        'Chọn'
-                      )}
-                    </Button>
+                    {selectedPatient && (selectedPatient as UserType).id === patient.id && (
+                      <Check className="h-4 w-4 text-purple-600" />
+                    )}
                   </div>
                 </div>
-
-                {/* Patient Profiles */}
-                {selectedPatient?.id === patient.id && (
-                  <div className="border-t pt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h6 className="font-medium text-gray-900 flex items-center gap-2 text-sm">
-                        <User className="h-3 w-3" />
-                        Hồ sơ bệnh nhân ({patient.patient?.patientProfiles?.length || 0})
-                      </h6>
-                      
-                    </div>
-                                          <div className="grid gap-2">
-                        {(selectedPatient?.id === patient.id ? selectedPatientProfiles : patient.patient?.patientProfiles || []).map((profile) => (
-                        <div 
-                          key={profile.id} 
-                          className={`border rounded p-2 cursor-pointer transition-colors text-sm ${
-                            selectedProfile?.id === profile.id 
-                              ? 'border-blue-500 bg-blue-50' 
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          onClick={() => handleProfileSelect(profile)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-gray-900">{profile.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {profile.profileCode}
-                                </Badge>
-                                {profile.isActive && (
-                                  <Badge variant="default" className="text-xs bg-green-100 text-green-800">
-                                    Hoạt động
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 mt-1">
-                                {/* <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditProfile(profile);
-                                  }}
-                                  className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button> */}
-                                {/* Delete disabled: no endpoint */}
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDate(profile.dateOfBirth)}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {formatGender(profile.gender)}
-                                </span>
-                                <span className="flex items-center gap-1 col-span-2">
-                                  <MapPin className="h-3 w-3" />
-                                  {profile.address}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {profile.occupation} • {profile.relationship}
-                              </div>
-                            </div>
-                            {selectedProfile?.id === profile.id && (
-                              <Check className="h-4 w-4 text-blue-600" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-2">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDate(patient.dateOfBirth)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {formatGender(patient.gender)}
+                  </span>
+                  <span className="flex items-center gap-1 col-span-2">
+                    <MapPin className="h-3 w-3" />
+                    {patient.address}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Email: {patient.email}
+                </div>
               </div>
             ))}
           </div>
@@ -394,23 +452,43 @@ export function PatientSearch({
 
      
 
-      {/* Selected Profile Summary */}
-      {selectedPatientProfile && (
+      {/* Selected Profile/Patient Summary */}
+      {(selectedPatientProfile || selectedPatient) && (
         <div className="border-green-200 bg-green-50 rounded-lg p-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-green-600" />
             </div>
             <div className="flex-1">
-              <h4 className="font-medium text-green-900 text-sm">{selectedPatientProfile.name}</h4>
+              <h4 className="font-medium text-green-900 text-sm">
+                {selectedPatientProfile?.name || selectedPatient?.name}
+              </h4>
               <p className="text-xs text-green-700">
-                {selectedPatientProfile.profileCode} • {formatDate(selectedPatientProfile.dateOfBirth)}
+                {selectedPatientProfile?.profileCode || selectedPatient?.patient?.patientCode} • 
+                {selectedPatientProfile?.dateOfBirth ? formatDate(selectedPatientProfile.dateOfBirth) : 
+                 selectedPatient?.dateOfBirth ? formatDate(selectedPatient.dateOfBirth) : ''}
+                {selectedPatientProfile?.phone && ` • ${selectedPatientProfile.phone}`}
+                {selectedPatient?.phone && ` • ${selectedPatient.phone}`}
               </p>
-              <p className="text-xs text-green-600 truncate">{selectedPatientProfile.address}</p>
+              <p className="text-xs text-green-600 truncate">
+                {selectedPatientProfile?.address || selectedPatient?.address}
+              </p>
             </div>
-            <Badge variant="outline" className="text-green-700 border-green-300 text-xs">
-              ID: {selectedPatientProfile.id}
-            </Badge>
+            <div className="flex flex-col gap-1">
+              <Badge variant="outline" className="text-green-700 border-green-300 text-xs">
+                ID: {selectedPatientProfile?.id || selectedPatient?.id}
+              </Badge>
+              {selectedPatientProfile && (
+                <Badge variant="default" className="text-xs bg-blue-100 text-blue-800">
+                  Hồ sơ
+                </Badge>
+              )}
+              {selectedPatient && (
+                <Badge variant="default" className="text-xs bg-purple-100 text-purple-800">
+                  Tài khoản
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       )}

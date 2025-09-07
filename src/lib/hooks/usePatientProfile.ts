@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { patientProfileApi, PatientProfile, CreatePatientProfileDto } from '@/lib/api';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
+import { PatientProfile } from '@/lib/types/user';
+import { CreatePatientProfileDto } from '@/lib/services/patient-profile.service';
 
 interface UsePatientProfileProps {
   patientId?: string;
@@ -28,15 +30,17 @@ export function usePatientProfile({
       setIsLoading(true);
       setError(null);
       
-      let response;
+      let profile;
       if (patientProfileId) {
-        response = await patientProfileApi.getById(patientProfileId);
+        profile = await patientProfileService.getPatientProfileById(patientProfileId);
       } else if (patientId) {
-        response = await patientProfileApi.getByPatientId(patientId);
+        // For patientId, get all patient profiles and use the first one
+        const profiles = await patientProfileService.getPatientProfilesByPatientId(patientId);
+        profile = profiles && profiles.length > 0 ? profiles[0] : null;
       }
       
-      if (response?.data) {
-        setPatientProfile(response.data);
+      if (profile) {
+        setPatientProfile(profile);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi tải thông tin bệnh nhân';
@@ -50,8 +54,7 @@ export function usePatientProfile({
   // Create patient profile
   const createPatientProfile = useCallback(async (data: CreatePatientProfileDto): Promise<PatientProfile> => {
     try {
-      const response = await patientProfileApi.create(data);
-      const newProfile = response.data;
+      const newProfile = await patientProfileService.create(data);
       setPatientProfile(newProfile);
       toast.success('Tạo hồ sơ bệnh nhân thành công');
       return newProfile;
@@ -69,8 +72,7 @@ export function usePatientProfile({
     }
 
     try {
-      const response = await patientProfileApi.update(patientProfile.id, data);
-      const updatedProfile = response.data;
+      const updatedProfile = await patientProfileService.update(patientProfile.id, data);
       setPatientProfile(updatedProfile);
       toast.success('Cập nhật hồ sơ bệnh nhân thành công');
       return updatedProfile;
@@ -81,22 +83,10 @@ export function usePatientProfile({
     }
   }, [patientProfile?.id]);
 
-  // Delete patient profile
+  // Delete patient profile - not available in new service
   const deletePatientProfile = useCallback(async (): Promise<void> => {
-    if (!patientProfile?.id) {
-      throw new Error('Không tìm thấy ID hồ sơ bệnh nhân');
-    }
-
-    try {
-      await patientProfileApi.delete(patientProfile.id);
-      setPatientProfile(null);
-      toast.success('Xóa hồ sơ bệnh nhân thành công');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa hồ sơ bệnh nhân';
-      toast.error(errorMessage);
-      throw err;
-    }
-  }, [patientProfile?.id]);
+    throw new Error('Delete functionality not available in new PatientProfile service');
+  }, []);
 
   // Load data on mount
   useEffect(() => {

@@ -130,7 +130,7 @@ export default function EditMedicalRecordPage() {
     return (
       <div className="container mx-auto px-8 py-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <span className="ml-2">Đang tải bệnh án...</span>
         </div>
       </div>
@@ -207,7 +207,7 @@ export default function EditMedicalRecordPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Stethoscope className="h-5 w-5 text-blue-600" />
+                <Stethoscope className="h-5 w-5 text-blue-500" />
                 Trạng thái
               </CardTitle>
             </CardHeader>
@@ -230,7 +230,7 @@ export default function EditMedicalRecordPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <FileText className="h-3 w-3 text-blue-600" />
+                    <FileText className="h-3 w-3 text-blue-500" />
                   </div>
                   <h4 className="font-medium text-blue-900 text-sm">Thông tin bệnh án</h4>
                 </div>

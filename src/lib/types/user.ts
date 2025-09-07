@@ -2,6 +2,7 @@ export interface PatientProfile {
   id: string;
   profileCode: string;
   name: string;
+  phone?: string; // New field for phone number
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other';
   address: string;
@@ -14,6 +15,7 @@ export interface PatientProfile {
   healthInsurance: string;
   relationship: string;
   isActive: boolean;
+  patientId?: string | null; // Optional - can be null for independent profiles
 }
 
 export interface Patient {
@@ -72,4 +74,10 @@ export interface UserSearchResponse {
   query: string;
   total: number;
   users: User[];
+}
+
+export interface PatientProfileSearchResponse {
+  query: string;
+  total: number;
+  patientProfiles: PatientProfile[];
 }

@@ -174,7 +174,7 @@ export function UserProfile() {
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">ID</div>
+              <div className="text-2xl font-bold text-blue-500">ID</div>
               <div className="text-sm text-gray-600 font-mono">{user.id}</div>
             </div>
           </CardContent>

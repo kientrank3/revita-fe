@@ -47,10 +47,9 @@ export function PatientProfileCard({
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CreatePatientProfileDto>({
-    patientId: patientId || '',
     name: '',
     dateOfBirth: '',
-    gender: '',
+    gender: 'male' as 'male' | 'female' | 'other',
     address: '',
     occupation: '',
     emergencyContact: {
@@ -65,10 +64,9 @@ export function PatientProfileCard({
   const handleEdit = () => {
     if (patientProfile) {
       setFormData({
-        patientId: patientProfile.patientId,
         name: patientProfile.name,
         dateOfBirth: formatDateForInput(patientProfile.dateOfBirth),
-        gender: patientProfile.gender,
+        gender: patientProfile.gender as 'male' | 'female' | 'other',
         address: patientProfile.address,
         occupation: patientProfile.occupation,
         emergencyContact: patientProfile.emergencyContact || { name: '', phone: '', relationship: '' },
@@ -82,10 +80,9 @@ export function PatientProfileCard({
 
   const handleCreate = () => {
     setFormData({
-      patientId: patientId || '',
       name: '',
       dateOfBirth: '',
-      gender: '',
+      gender: 'male' as 'male' | 'female' | 'other',
       address: '',
       occupation: '',
       emergencyContact: {
@@ -113,10 +110,7 @@ export function PatientProfileCard({
       setIsSubmitting(true);
       const shouldCreate = isCreating || (!isEditing && !patientProfile);
       if (shouldCreate) {
-        if (!formData.patientId || String(formData.patientId).trim() === '') {
-          toast.error('Thiếu patientId. Vui lòng chọn bệnh nhân trước khi tạo hồ sơ.');
-          return;
-        }
+        // No need to validate patientId for independent profiles
         await createPatientProfile(formData);
         toast.success('Tạo hồ sơ thành công');
         setIsCreating(false);
@@ -162,7 +156,7 @@ export function PatientProfileCard({
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-500">Đang tải thông tin bệnh nhân...</p>
         </CardContent>
       </Card>

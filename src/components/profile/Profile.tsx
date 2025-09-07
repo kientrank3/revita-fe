@@ -599,7 +599,7 @@ export function Profile() {
                     id="edit-name"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                     required
                   />
                 </div>
@@ -610,7 +610,7 @@ export function Profile() {
                     type="email"
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -619,7 +619,7 @@ export function Profile() {
                     id="edit-phone"
                     value={editForm.phone}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -629,13 +629,13 @@ export function Profile() {
                     type="date"
                     value={editForm.dateOfBirth}
                     onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-gender" className="text-sm font-medium text-gray-700">Giới tính</Label>
                   <Select value={editForm.gender} onValueChange={(value) => setEditForm({ ...editForm, gender: value })}>
-                    <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200">
+                    <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200">
                       <SelectValue placeholder="Chọn giới tính" />
                     </SelectTrigger>
                     <SelectContent>
@@ -651,7 +651,7 @@ export function Profile() {
                     id="edit-citizenId"
                     value={editForm.citizenId}
                     onChange={(e) => setEditForm({ ...editForm, citizenId: e.target.value })}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                   />
                 </div>
               </div>
@@ -662,7 +662,7 @@ export function Profile() {
                   id="edit-address"
                   value={editForm.address}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                 />
               </div>
               
@@ -673,7 +673,7 @@ export function Profile() {
                   value={editForm.avatar}
                   onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })}
                   placeholder="https://example.com/avatar.jpg"
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                 />
               </div>
               
@@ -685,7 +685,7 @@ export function Profile() {
                   value={editForm.password}
                   onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                   placeholder="Để trống nếu không thay đổi"
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 transition-colors duration-200"
                 />
               </div>
 

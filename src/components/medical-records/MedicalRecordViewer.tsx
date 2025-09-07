@@ -162,7 +162,7 @@ export function MedicalRecordViewer({
                      key === 'weight' ? 'Cân nặng (kg)' :
                      key === 'height' ? 'Chiều cao (cm)' : key}
                   </div>
-                  <div className="text-sm font-bold text-blue-600">
+                  <div className="text-sm font-bold text-blue-500">
                     {val || 'N/A'}
                   </div>
                 </div>
@@ -213,7 +213,7 @@ export function MedicalRecordViewer({
       <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="w-2 h-2 bg-primary rounded-full"></div>
             <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               {field.label}
               {field.required && (
@@ -237,7 +237,7 @@ export function MedicalRecordViewer({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Stethoscope className="h-5 w-5 text-blue-600" />
+              <Stethoscope className="h-5 w-5 text-primary" />
               Trạng thái
             </CardTitle>
           </CardHeader>
@@ -296,7 +296,7 @@ export function MedicalRecordViewer({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                  <FileText className="h-3 w-3 text-blue-600" />
+                  <FileText className="h-3 w-3 text-blue-500" />
                 </div>
                 <h4 className="font-medium text-blue-900 text-sm">Mẫu bệnh án</h4>
               </div>

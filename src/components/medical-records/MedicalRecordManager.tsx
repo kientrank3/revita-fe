@@ -11,6 +11,7 @@ import {
   UpdateMedicalRecordDto
 } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { DynamicMedicalRecordForm } from './DynamicMedicalRecordForm';
 import { MedicalRecordViewer } from './MedicalRecordViewer';
@@ -18,12 +19,14 @@ import { MedicalRecordList } from './MedicalRecordList';
 
 interface MedicalRecordManagerProps {
   patientProfileId?: string;
+  patientId?: string;
   doctorId?: string;
   appointmentId?: string;
 }
 
 export function MedicalRecordManager({
   patientProfileId,
+  patientId,
   doctorId,
   appointmentId,
 }: MedicalRecordManagerProps) {
@@ -54,6 +57,28 @@ export function MedicalRecordManager({
         if (patientProfileId) {
           // Nếu có patientProfileId, lấy bệnh án của bệnh nhân đó
           records = await medicalRecordService.getByPatientProfile(patientProfileId);
+        } else if (patientId) {
+          // Nếu có patientId, lấy tất cả hồ sơ của bệnh nhân đó, sau đó lấy bệnh án của từng hồ sơ
+          try {
+            const patientProfiles = await patientProfileService.getPatientProfilesByPatientId(patientId);
+            const allRecords: MedicalRecord[] = [];
+            
+            // Lấy bệnh án cho từng hồ sơ bệnh nhân
+            for (const profile of patientProfiles) {
+              try {
+                const profileRecords = await medicalRecordService.getByPatientProfile(profile.id);
+                allRecords.push(...profileRecords);
+              } catch (error) {
+                console.error(`Error loading medical records for profile ${profile.id}:`, error);
+                // Continue with other profiles even if one fails
+              }
+            }
+            
+            records = allRecords;
+          } catch (error) {
+            console.error('Error loading patient profiles:', error);
+            records = [];
+          }
         } else if (doctorId) {
           // Nếu chỉ có doctorId, lấy tất cả bệnh án của bác sĩ đó
           records = await medicalRecordService.getAll();
@@ -72,7 +97,7 @@ export function MedicalRecordManager({
     };
 
     loadData();
-  }, [patientProfileId, doctorId, appointmentId]);
+  }, [patientProfileId, patientId, doctorId, appointmentId]);
 
   const handleCreate = () => {
     setCurrentView('create');
@@ -80,8 +105,8 @@ export function MedicalRecordManager({
   };
 
   const handleView = (record: MedicalRecord) => {
-    // Navigate to the detail page instead of opening dialog
-    window.open(`/medical-records/${record.id}`, '_blank');
+    // Navigate to the detail page in the same tab
+    window.location.href = `/medical-records/${record.id}`;
   };
 
   // Edit functionality moved to dedicated edit page

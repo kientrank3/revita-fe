@@ -63,7 +63,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">42</div>
-            <p className="text-xs text-blue-600 flex items-center mt-1">
+            <p className="text-xs text-blue-500 flex items-center mt-1">
               <Clock className="h-3 w-3 mr-1" />
               15 lịch sắp tới
             </p>
