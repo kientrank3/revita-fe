@@ -161,8 +161,6 @@ export default function EditMedicalRecordPage() {
     );
   }
 
-  console.log('Edit page - medicalRecord:', medicalRecord);
-  console.log('Edit page - medicalRecord.content:', medicalRecord.content);
 
   return (
     <div className="container mx-auto px-8 py-6 bg-white">

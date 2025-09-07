@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 
 import { 
@@ -17,14 +16,13 @@ import {
   User, 
   Save,
   X,
-  Paperclip,
-  Trash2,
 } from 'lucide-react';
 import { Template, CreateMedicalRecordDto, MedicalRecordStatus } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { toast } from 'sonner';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
+import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import { PatientProfile } from '@/lib/types/user';
 
 export default function CreateMedicalRecordPage() {
@@ -45,7 +43,7 @@ export default function CreateMedicalRecordPage() {
     status: MedicalRecordStatus.DRAFT,
     content: {},
   });
-  const [attachments, setAttachments] = useState<File[]>([]);
+  // const [attachments, setAttachments] = useState<File[]>([]);
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
 
   // Load templates
@@ -100,31 +98,18 @@ export default function CreateMedicalRecordPage() {
     }));
   };
 
-  const handleContentChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      content: {
-        ...prev.content,
-        [field]: value,
-      },
-    }));
-  };
+  // Content is managed by DynamicMedicalRecordForm now
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setAttachments(prev => [...prev, ...files]);
-  };
+  // File upload is handled inside DynamicMedicalRecordForm
 
-  const handleRemoveFile = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
+  // File removal is handled inside DynamicMedicalRecordForm
 
   const handleSubmit = async () => {
     if (!formData.templateId || !selectedPatientProfile) {
       toast.error('Vui lòng chọn template và bệnh nhân');
       return;
     }
-
+    console.log('formData', formData);
     try {
       setIsCreating(true);
 
@@ -132,7 +117,6 @@ export default function CreateMedicalRecordPage() {
       if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
         delete payload.appointmentId;
       }
-      console.log('formData', formData);
       await medicalRecordService.create(payload as CreateMedicalRecordDto);
       toast.success('Tạo bệnh án thành công');
       router.push('/medical-records');
@@ -278,7 +262,7 @@ export default function CreateMedicalRecordPage() {
           </Card>
         </div>
 
-        {/* Right Column - Template Form */}
+        {/* Right Column - DynamicMedicalRecordForm for Create */}
         <div className="lg:col-span-3">
           {selectedTemplate ? (
             <Card>
@@ -289,166 +273,38 @@ export default function CreateMedicalRecordPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {Array.isArray(selectedTemplate.fields?.fields) ? (
-                    <>
-                      {/* Dynamic Fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {selectedTemplate.fields.fields.map((field) => (
-                          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900">
-                                  {field.label}
-                                  {field.required && <span className="text-red-500 ml-1">*</span>}
-                                </Label>
-                              </div>
-                              
-                              {field.type === 'text' && (
-                                <Textarea
-                                  id={field.name}
-                                  placeholder={`Nhập ${field.label.toLowerCase()}...`}
-                                  value={formData.content?.[field.name] || ''}
-                                  onChange={(e) => handleContentChange(field.name, e.target.value)}
-                                  required={field.required}
-                                  className="min-h-[100px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                                />
-                              )}
-                              
-                              {field.type === 'string' && (
-                                <Input
-                                  id={field.name}
-                                  placeholder={`Nhập ${field.label.toLowerCase()}...`}
-                                  value={formData.content?.[field.name] || ''}
-                                  onChange={(e) => handleContentChange(field.name, e.target.value)}
-                                  required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                                />
-                              )}
-                              
-                              {field.type === 'number' && (
-                                <Input
-                                  id={field.name}
-                                  type="number"
-                                  placeholder={`Nhập ${field.label.toLowerCase()}...`}
-                                  value={formData.content?.[field.name] || ''}
-                                  onChange={(e) => handleContentChange(field.name, parseFloat(e.target.value) || 0)}
-                                  required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                                />
-                              )}
-                              
-                              {field.type === 'date' && (
-                                <Input
-                                  id={field.name}
-                                  type="date"
-                                  value={formData.content?.[field.name] || ''}
-                                  onChange={(e) => handleContentChange(field.name, e.target.value)}
-                                  required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                                />
-                              )}
-                              
-                              {field.type === 'boolean' && (
-                                <Select
-                                  value={formData.content?.[field.name]?.toString() || ''}
-                                  onValueChange={(value) => handleContentChange(field.name, value === 'true')}
-                                >
-                                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm">
-                                    <SelectValue placeholder="Chọn..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="true">Có</SelectItem>
-                                    <SelectItem value="false">Không</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* File Attachments */}
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <Label className="text-sm font-semibold text-gray-900">
-                              Tệp đính kèm
-                            </Label>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            {/* File Upload */}
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
-                              <input
-                                type="file"
-                                multiple
-                                onChange={handleFileUpload}
-                                className="hidden"
-                                id="file-upload"
-                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
-                              />
-                              <label htmlFor="file-upload" className="cursor-pointer">
-                                <div className="flex flex-col items-center gap-2">
-                                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Paperclip className="h-5 w-5 text-blue-500" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      Tải lên tệp đính kèm
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      PDF, DOC, DOCX, JPG, PNG, XLS, XLSX (tối đa 10MB)
-                                    </p>
-                                  </div>
-                                </div>
-                              </label>
-                            </div>
-
-                            {/* File List */}
-                            {attachments.length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-sm font-medium text-gray-700">Tệp đã chọn:</p>
-                                {attachments.map((file, index) => (
-                                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-2 border border-gray-200">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center">
-                                        <Paperclip className="h-3 w-3 text-gray-600" />
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                                        <p className="text-xs text-gray-500">
-                                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleRemoveFile(index)}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Mẫu này không có trường để điền</p>
-                      <p className="text-sm text-gray-400 mt-2">
-                        Cấu trúc fields: {selectedTemplate.fields ? 'Có' : 'Không có'} fields object
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <DynamicMedicalRecordForm
+                  template={selectedTemplate}
+                  patientProfileId={selectedPatientProfile?.id || formData.patientProfileId || ''}
+                  doctorId={user?.id}
+                  appointmentId={formData.appointmentId}
+                  onSubmit={async (data) => {
+                    try {
+                      setIsCreating(true);
+                      // If child returns only content (should not in create), normalize
+                      const payload = (data as any).content
+                        ? data
+                        : {
+                            patientProfileId: selectedPatientProfile?.id || formData.patientProfileId || '',
+                            templateId: selectedTemplate.templateCode,
+                            doctorId: user?.id,
+                            appointmentId: formData.appointmentId || undefined,
+                            status: 'DRAFT',
+                            content: data,
+                          };
+                      await medicalRecordService.create(payload as any);
+                      toast.success('Tạo bệnh án thành công');
+                      router.push('/medical-records');
+                    } catch (error) {
+                      console.error('Error creating medical record:', error);
+                      toast.error('Có lỗi xảy ra khi tạo bệnh án');
+                      throw error;
+                    } finally {
+                      setIsCreating(false);
+                    }
+                  }}
+                  onCancel={() => router.push('/medical-records')}
+                />
               </CardContent>
             </Card>
           ) : (
@@ -489,23 +345,26 @@ export default function CreateMedicalRecordPage() {
               {selectedPatientProfile && ` • ${selectedPatientProfile.name}`}
             </p>
           </div>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={!selectedTemplate || isCreating}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-sm"
-          >
-            {isCreating ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Đang tạo...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Tạo bệnh án
-              </>
-            )}
-          </Button>
+          {/* When using DynamicMedicalRecordForm, use its internal submit button to ensure content is sent */}
+          {!selectedTemplate ? (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isCreating}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-sm"
+            >
+              {isCreating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Đang tạo...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Tạo bệnh án
+                </>
+              )}
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>
