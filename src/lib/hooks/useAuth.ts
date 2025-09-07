@@ -6,6 +6,52 @@ import { authMiddleware, AuthContext as MiddlewareAuthContext } from '../middlew
 import { authApi, userApi } from '../api';
 import api from '../config';
 
+// Safe localStorage utility for SSR
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Ignore errors (e.g., when storage is full or disabled)
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore errors
+    }
+  }
+};
+
+// Safe date formatting utility for SSR
+const safeDateFormat = {
+  toLocaleDateString: (date: Date, locale: string = 'vi-VN'): string => {
+    if (typeof window === 'undefined') {
+      // On server, return a consistent format
+      return date.toISOString().split('T')[0];
+    }
+    return date.toLocaleDateString(locale);
+  },
+  toLocaleString: (date: Date, locale: string = 'vi-VN', options?: Intl.DateTimeFormatOptions): string => {
+    if (typeof window === 'undefined') {
+      // On server, return a consistent format
+      return date.toISOString();
+    }
+    return date.toLocaleString(locale, options);
+  }
+};
+
 interface AuthContextValue extends MiddlewareAuthContext {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   logout: () => void;
@@ -39,14 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authContext = await authMiddleware.getAuthContext();
       
       if (authContext.isAuthenticated && authContext.user) {
+        const existingToken = safeLocalStorage.getItem('auth_token');
         setState({
           user: authContext.user,
-          token: localStorage.getItem('auth_token'),
+          token: existingToken,
           isAuthenticated: true,
           isLoading: false,
         });
         authMiddleware.setCurrentUser(authContext.user);
-        const existingToken = localStorage.getItem('auth_token');
         if (existingToken) {
           api.defaults.headers.common.Authorization = `Bearer ${existingToken}`;
         }
@@ -82,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshToken = (data as { refreshToken?: string }).refreshToken || null;
       if (!token) throw new Error('Token is missing in login response');
 
-      localStorage.setItem('auth_token', token);
-      if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
+      safeLocalStorage.setItem('auth_token', token);
+      if (refreshToken) safeLocalStorage.setItem('refresh_token', refreshToken);
 
       // Ensure axios instance sends Authorization header immediately (including this tab/session)
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -100,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (user) {
-        localStorage.setItem('auth_user', JSON.stringify(user));
+        safeLocalStorage.setItem('auth_user', JSON.stringify(user));
         // Update middleware cache
         authMiddleware.setCurrentUser(user);
       }
@@ -146,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshToken = async (): Promise<boolean> => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = safeLocalStorage.getItem('refresh_token');
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -155,9 +201,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authData: AuthResponse = response.data;
 
       // Update stored tokens
-      localStorage.setItem('auth_token', authData.token);
-      localStorage.setItem('refresh_token', authData.refreshToken);
-      localStorage.setItem('auth_user', JSON.stringify(authData.user));
+      safeLocalStorage.setItem('auth_token', authData.token);
+      safeLocalStorage.setItem('refresh_token', authData.refreshToken);
+      safeLocalStorage.setItem('auth_user', JSON.stringify(authData.user));
 
       // Update state
       setState(prev => ({
@@ -185,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedUser = response.data;
 
       // Update stored user data
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      safeLocalStorage.setItem('auth_user', JSON.stringify(updatedUser));
 
       // Update state
       setState(prev => ({

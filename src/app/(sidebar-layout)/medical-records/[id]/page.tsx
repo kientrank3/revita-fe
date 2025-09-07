@@ -16,7 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
-import { medicalRecordService } from '@/lib/services/medical-record.service'; 
+import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { userService } from '@/lib/services/user.service';
 import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { toast } from 'sonner';

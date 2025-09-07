@@ -107,6 +107,26 @@ export default function InvoicesPage() {
   }>>([]);
   const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  // Update current time every second to avoid hydration mismatch
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }));
+    };
+
+    // Set initial time
+    updateTime();
+
+    // Update every second
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const exportSectionAsPdf = useCallback(async (type: 'invoice' | 'routing', data?: any) => {
     const pdfData = data || confirmResult;
@@ -322,8 +342,63 @@ export default function InvoicesPage() {
             margin: [0, 0, 0, 15]
           },
 
-          // Room assignments
-          ...(pdfData.routingAssignments?.length ? pdfData.routingAssignments.map((assignment: any, index: number) => {
+          // Room assignments - Sort by service order before mapping
+          ...(pdfData.routingAssignments?.length ? (() => {
+            // Debug logging
+            console.log('PDF Export - Invoice Details:', pdfData.invoiceDetails);
+            console.log('PDF Export - Routing Assignments:', pdfData.routingAssignments);
+
+            return pdfData.routingAssignments.sort((a: any, b: any) => {
+              // Create mapping of service codes to order
+              const serviceOrderMap: { [key: string]: number } = {};
+
+              // Get order from invoice details (most reliable source)
+              if (pdfData.invoiceDetails) {
+                pdfData.invoiceDetails.forEach((detail: any, index: number) => {
+                  serviceOrderMap[detail.serviceCode] = index + 1;
+                  console.log(`Service ${detail.serviceCode} -> Order ${index + 1}`);
+                });
+              }
+
+              // Function to get service order for an assignment
+              const getServiceOrder = (assignment: any) => {
+                const roomPrefix = assignment.roomCode?.split('-')[0]; // e.g., "HUY" from "HUY-1403"
+                console.log(`Assignment ${assignment.roomName} (${assignment.roomCode}) -> Room Prefix: ${roomPrefix}`);
+
+                // Direct mapping based on service codes and room types
+                if (roomPrefix === 'CHU' && serviceOrderMap['XRAY_CHEST']) {
+                  console.log(`Matched CHU room with XRAY_CHEST, order: ${serviceOrderMap['XRAY_CHEST']}`);
+                  return serviceOrderMap['XRAY_CHEST'];
+                }
+                if (roomPrefix === 'HUY' && serviceOrderMap['CBC_TEST']) {
+                  console.log(`Matched HUY room with CBC_TEST, order: ${serviceOrderMap['CBC_TEST']}`);
+                  return serviceOrderMap['CBC_TEST'];
+                }
+
+                // Fallback: Try to find any service that matches room type
+                for (const [serviceCode, order] of Object.entries(serviceOrderMap)) {
+                  if (roomPrefix === 'CHU' && (serviceCode.includes('XRAY') || serviceCode.includes('CT') || serviceCode.includes('MRI'))) {
+                    console.log(`Pattern matched ${serviceCode} with CHU room, order: ${order}`);
+                    return order as number;
+                  }
+                  if (roomPrefix === 'HUY' && (serviceCode.includes('CBC') || serviceCode.includes('BLOOD'))) {
+                    console.log(`Pattern matched ${serviceCode} with HUY room, order: ${order}`);
+                    return order as number;
+                  }
+                }
+
+                console.log(`No match found for ${assignment.roomName}, using default order 999`);
+                return 999; // Default high order
+              };
+
+              const orderA = getServiceOrder(a);
+              const orderB = getServiceOrder(b);
+
+              console.log(`Comparing ${a.roomName} (order: ${orderA}) vs ${b.roomName} (order: ${orderB})`);
+              return orderA - orderB;
+            });
+          })()
+            .map((assignment: any, index: number) => {
             const practitioner = getPractitionerDisplay(assignment);
             return {
               stack: [
@@ -551,270 +626,23 @@ export default function InvoicesPage() {
         patientName: confirmData.patientInfo?.name || ''
       }, ...prev.slice(0, 9)]); // Keep only last 10 transactions
 
-      // Auto export PDFs
+      // Auto export PDFs using the dedicated function
       setTimeout(() => {
-        const exportPdf = async (type: 'invoice' | 'routing') => {
-          try {
-            const { default: pdfMake } = await import('pdfmake/build/pdfmake');
-            const { default: pdfFonts } = await import('pdfmake/build/vfs_fonts');
-            pdfMake.vfs = pdfFonts.vfs;
-
-            if (type === 'invoice') {
-              const invoiceContent = [
-                // Header
-                {
-                  text: 'HÓA ĐƠN THANH TOÁN',
-                  fontSize: 18,
-                  bold: true,
-                  alignment: 'center',
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  text: `Mã hóa đơn: ${confirmData.invoiceCode}`,
-                  fontSize: 10,
-                  alignment: 'center',
-                  margin: [0, 0, 0, 20]
-                },
-                // Patient Info
-                {
-                  text: 'Thông tin bệnh nhân:',
-                  fontSize: 12,
-                  bold: true,
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  text: `Tên: ${confirmData.patientInfo?.name || preview?.patientName || ''}`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: `Ngày thanh toán: ${new Date().toLocaleDateString('vi-VN')}`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: `Trạng thái: ${confirmData.paymentStatus}`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: `Phương thức thanh toán: ${
-                    paymentMethod === 'CASH' ? 'Tiền mặt' :
-                    paymentMethod === 'CARD' ? 'Thẻ tín dụng' :
-                    'Chuyển khoản'
-                  }`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 20]
-                },
-                // Services Table
-                {
-                  table: {
-                    headerRows: 1,
-                    widths: ['*', 'auto'],
-                    body: [
-                      [
-                        { text: 'Dịch vụ', style: 'tableHeader' },
-                        { text: 'Giá', style: 'tableHeader', alignment: 'right' }
-                      ],
-                      ...confirmData.invoiceDetails?.map((item: any) => [
-                        { text: item.serviceName, fontSize: 10 },
-                        { text: `${item.price.toLocaleString()} đ`, fontSize: 10, alignment: 'right' }
-                      ]) || [],
-                      [
-                        { text: 'TỔNG CỘNG:', bold: true, fontSize: 12 },
-                        { text: `${confirmData.totalAmount.toLocaleString()} đ`, bold: true, fontSize: 12, alignment: 'right' }
-                      ]
-                    ]
-                  },
-                  margin: [0, 0, 0, 10]
-                },
-                // Payment Details
-                {
-                  table: {
-                    widths: ['*', 'auto'],
-                    body: [
-                      [
-                        { text: 'Tiền khách đưa:', fontSize: 11 },
-                        { text: `${parseInt(customerMoney || '0').toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
-                      ],
-                      [
-                        { text: 'Tiền thối lại:', fontSize: 11 },
-                        { text: `${(parseInt(customerMoney || '0') - confirmData.totalAmount).toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
-                      ]
-                    ]
-                  },
-                  margin: [0, 0, 0, 20]
-                },
-                // Footer
-                {
-                  text: `Nhân viên thu ngân: ${user?.name || 'N/A'}`,
-                  alignment: 'left',
-                  fontSize: 9,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: `Thời gian thanh toán: ${new Date().toLocaleString('vi-VN')}`,
-                  alignment: 'left',
-                  fontSize: 9,
-                  margin: [0, 0, 0, 15]
-                },
-                {
-                  text: 'Cảm ơn quý khách đã sử dụng dịch vụ!',
-                  alignment: 'center',
-                  fontSize: 10,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: 'Hẹn gặp lại quý khách lần sau.',
-                  alignment: 'center',
-                  fontSize: 10
-                }
-              ];
-
-              const docDefinition = {
-                content: invoiceContent,
-                styles: {
-                  tableHeader: {
-                    bold: true,
-                    fontSize: 11,
-                    alignment: 'left'
-                  }
-                }
-              };
-
-              const pdfDoc = pdfMake.createPdf(docDefinition as any);
-              pdfDoc.download(`Hoa-don-${confirmData.invoiceCode}.pdf`);
-            } else if (type === 'routing') {
-              // Helper function to get practitioner display info
-              const getPractitionerDisplay = (assignment: any) => {
-                if (assignment.doctorId && assignment.doctorName !== 'N/A') {
-                  return {
-                    label: 'Bác sĩ',
-                    name: assignment.doctorName,
-                    code: assignment.doctorCode
-                  };
-                } else if (assignment.technicianId && assignment.technicianName !== 'N/A') {
-                  return {
-                    label: 'Kỹ thuật viên',
-                    name: assignment.technicianName,
-                    code: assignment.technicianCode
-                  };
-                }
-                return {
-                  label: 'Người thực hiện',
-                  name: 'N/A',
-                  code: 'N/A'
-                };
-              };
-
-              // Similar structure for routing guide
-              const routingContent = [
-                {
-                  text: 'PHIẾU HƯỚNG DẪN',
-                  fontSize: 18,
-                  bold: true,
-                  alignment: 'center',
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  text: `Mã phiếu: ${confirmData.prescriptionInfo?.prescriptionCode || prescription?.prescriptionCode}`,
-                  fontSize: 10,
-                  alignment: 'center',
-                  margin: [0, 0, 0, 20]
-                },
-                {
-                  text: 'Thông tin bệnh nhân:',
-                  fontSize: 12,
-                  bold: true,
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  text: `Tên: ${confirmData.patientInfo?.name || preview?.patientName || ''}`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 5]
-                },
-                {
-                  text: `Ngày lập: ${new Date().toLocaleDateString('vi-VN')}`,
-                  fontSize: 11,
-                  margin: [0, 0, 0, 20]
-                },
-                {
-                  text: 'HƯỚNG DẪN ĐẾN PHÒNG KHÁM',
-                  fontSize: 14,
-                  bold: true,
-                  margin: [0, 0, 0, 15]
-                },
-                // Room assignments
-                ...(confirmData.routingAssignments?.length ? confirmData.routingAssignments.map((assignment: any, index: number) => {
-                  const practitioner = getPractitionerDisplay(assignment);
-                  return {
-                    stack: [
-                      {
-                        text: `Phòng ${index + 1}: ${assignment.roomName} (${assignment.roomCode})`,
-                        fontSize: 12,
-                        bold: true,
-                        margin: [0, 0, 0, 8]
-                      },
-                      {
-                        text: `Buồng: ${assignment.boothName} (${assignment.boothCode})`,
-                        fontSize: 11,
-                        margin: [20, 0, 0, 5]
-                      },
-                      {
-                        text: `${practitioner.label}: ${practitioner.name} (${practitioner.code})`,
-                        fontSize: 11,
-                        margin: [20, 0, 0, 15]
-                      }
-                    ]
-                  };
-                }) : [{
-                  text: 'Không có hướng dẫn phòng khám nào.',
-                  fontSize: 11,
-                  margin: [0, 0, 0, 10]
-                }]),
-                // Important Notes
-                {
-                  text: 'Lưu ý quan trọng:',
-                  fontSize: 12,
-                  bold: true,
-                  margin: [0, 0, 0, 10]
-                },
-                {
-                  ul: [
-                    'Vui lòng đến phòng theo thứ tự được chỉ định',
-                    'Mang theo phiếu hướng dẫn này',
-                    'Tuân thủ hướng dẫn của nhân viên y tế',
-                    'Thông báo ngay nếu có thay đổi sức khỏe'
-                  ],
-                  fontSize: 10,
-                  margin: [0, 0, 0, 20]
-                },
-                {
-                  text: 'Chúc quý khách mau chóng bình phục!',
-                  alignment: 'center',
-                  fontSize: 10
-                }
-              ];
-
-              const docDefinition = {
-                content: routingContent
-              };
-
-              const pdfDoc = pdfMake.createPdf(docDefinition as any);
-              pdfDoc.download(`Phieu-huong-dan-${confirmData.invoiceCode}.pdf`);
-            }
-          } catch (error) {
-            console.error('PDF export failed:', error);
-          }
-        };
-
-        exportPdf('invoice');
+        exportSectionAsPdf('invoice', confirmData);
         if (confirmData.routingAssignments?.length) {
-          exportPdf('routing');
+          setTimeout(() => {
+            exportSectionAsPdf('routing', confirmData);
+          }, 1000); // Delay routing export to avoid conflicts
         }
       }, 200);
 
       toast.success(`Thanh toán thành công! ${confirmData.routingAssignments?.length ? 'Đã xuất hóa đơn và phiếu hướng dẫn.' : 'Đã xuất hóa đơn.'}`);
+
+      // Reload trang sau 4 giây để reset về trạng thái ban đầu (đủ thời gian export PDF)
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+
     } catch (err: any) {
       console.error('Payment error:', err);
       toast.error(err.message || 'Thanh toán thất bại');
@@ -838,9 +666,17 @@ export default function InvoicesPage() {
       setTimeout(() => {
         exportSectionAsPdf('invoice', data);
         if (data.routingAssignments?.length) {
-          exportSectionAsPdf('routing', data);
+          setTimeout(() => {
+            exportSectionAsPdf('routing', data);
+          }, 1000); // Delay routing export to avoid conflicts
         }
       }, 200);
+
+      // Reload trang sau 4 giây để reset về trạng thái ban đầu (đủ thời gian export PDF)
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+
     } catch (err: any) {
       toast.error(err.message || 'Không thể xác nhận thanh toán');
     } finally {
@@ -866,11 +702,7 @@ export default function InvoicesPage() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            {new Date().toLocaleString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
+            {currentTime}
           </div>
 
           {transactionHistory.length > 0 && (

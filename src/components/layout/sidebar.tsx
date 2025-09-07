@@ -8,8 +8,10 @@ import {
 	CalendarDays,
 	ChartColumn,
 	CreditCard,
+	FileTextIcon,
 	Home,
 	Library,
+	User,
 	Users,
 } from "lucide-react";
 
@@ -74,6 +76,14 @@ const getMenuItems = () => {
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN", "RECEPTIONIST", "CASHIER"],
+		},
+		{
+			title: "Xử lý dịch vụ",
+			url: "/service-processing",
+			icon: FileTextIcon,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["DOCTOR", "TECHNICIAN"],
 		}
 	];
 
