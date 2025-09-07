@@ -45,11 +45,14 @@ export function AppHeader() {
 
   const handleLogout = () => {
     logout();
+    // Redirect to homepage after logout
+    window.location.href = '/';
   };
 
   const handleProfile = () => {
-    // Implement profile navigation
-    console.log("Profile clicked");
+    // For sidebar-layout users (admin, doctor, receptionist, cashier), 
+    // redirect to sidebar-layout profile page
+    window.location.href = '/staff-profile';
   };
 
   const handleSettings = () => {
@@ -104,7 +107,7 @@ export function AppHeader() {
                 </Avatar>
                 <div className="hidden md:flex flex-col items-start">
                   <span className="text-sm font-medium text-gray-900">{user.name}</span>
-                  <span className="text-xs text-gray-500">{user.role}</span>
+                  <span className="text-xs text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -112,7 +115,7 @@ export function AppHeader() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user.role}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

@@ -22,7 +22,7 @@ export default function UsersPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto px-8 py-6 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export default function UsersPage() {
 
   if (!isAdmin && !isReceptionist) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto px-8 py-6 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
  
       <UserManagement />
     </div>

@@ -12,6 +12,7 @@ import { Phone, Mail, ArrowRight, Loader2, ArrowLeft, Lock } from "lucide-react"
 import Image from "next/image"
 import { authApi } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { getRedirectPathByRole } from "@/lib/utils/redirect"
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("") // phone or email
@@ -31,7 +32,22 @@ export default function LoginPage() {
 
     try {
       const ok = await login({ identifier, password });
-      if (ok) router.push("/")
+      if (ok) {
+        // Get user data to determine redirect path
+        const userStr = localStorage.getItem('auth_user');
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            const redirectPath = getRedirectPathByRole(user.role);
+            router.push(redirectPath);
+          } catch (error) {
+            console.error('Error parsing user data:', error);
+            router.push('/');
+          }
+        } else {
+          router.push('/');
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thông tin đăng nhập không chính xác")
     } finally {
@@ -65,7 +81,14 @@ export default function LoginPage() {
               }
             }
             
-            router.push("/");
+            // Redirect based on user role
+            if (response.data.user) {
+              const user = response.data.user;
+              const redirectPath = getRedirectPathByRole(user.role);
+              router.push(redirectPath);
+            } else {
+              router.push('/');
+            }
           } catch (err) {
             setError(err instanceof Error ? err.message : "Đăng nhập Google thất bại");
           } finally {

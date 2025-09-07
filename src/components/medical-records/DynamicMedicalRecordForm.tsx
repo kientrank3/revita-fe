@@ -158,10 +158,10 @@ export function DynamicMedicalRecordForm({
     switch (field.type) {
       case 'string':
         return (
-          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
                 <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {field.label}
                   {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -173,7 +173,7 @@ export function DynamicMedicalRecordForm({
                 onChange={(e) => handleInputChange(field.name, e.target.value)}
                 placeholder={`Nhập ${field.label.toLowerCase()}`}
                 required={isRequired}
-                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
               />
             </div>
           </div>
@@ -181,10 +181,10 @@ export function DynamicMedicalRecordForm({
 
       case 'text':
         return (
-          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
                 <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {field.label}
                   {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -197,7 +197,7 @@ export function DynamicMedicalRecordForm({
                 placeholder={`Nhập ${field.label.toLowerCase()}`}
                 rows={4}
                 required={isRequired}
-                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
               />
             </div>
           </div>
@@ -205,10 +205,10 @@ export function DynamicMedicalRecordForm({
 
       case 'number':
         return (
-          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
                 <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {field.label}
                   {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -221,7 +221,7 @@ export function DynamicMedicalRecordForm({
                 onChange={(e) => handleInputChange(field.name, parseFloat(e.target.value) || 0)}
                 placeholder={`Nhập ${field.label.toLowerCase()}`}
                 required={isRequired}
-                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
               />
             </div>
           </div>
@@ -229,7 +229,7 @@ export function DynamicMedicalRecordForm({
 
       case 'boolean':
         return (
-          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-3">
               <Checkbox
                 id={field.name}
@@ -237,7 +237,7 @@ export function DynamicMedicalRecordForm({
                 onCheckedChange={(checked) => handleInputChange(field.name, checked)}
               />
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
                 <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {field.label}
                   {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -249,10 +249,10 @@ export function DynamicMedicalRecordForm({
 
       case 'date':
         return (
-          <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
                 <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   {field.label}
                   {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -264,7 +264,7 @@ export function DynamicMedicalRecordForm({
                 value={value !== undefined && value !== null ? value : ''}
                 onChange={(e) => handleInputChange(field.name, e.target.value)}
                 required={isRequired}
-                className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
               />
             </div>
           </div>
@@ -273,10 +273,10 @@ export function DynamicMedicalRecordForm({
       case 'object':
         if (field.name === 'vital_signs') {
           return (
-            <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+            <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                     {field.label}
                     {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -305,7 +305,7 @@ export function DynamicMedicalRecordForm({
                           prop.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value
                         )}
                         placeholder={prop.type === 'number' ? '0' : ''}
-                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
                       />
                     </div>
                   ))}
@@ -319,10 +319,10 @@ export function DynamicMedicalRecordForm({
       case 'array':
         if (field.name === 'attachments') {
           return (
-            <div key={field.name} className="bg-gray-50 rounded-lg p-4 border border-gray-100 md:col-span-2">
+            <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                     {field.label}
                     {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
@@ -330,7 +330,7 @@ export function DynamicMedicalRecordForm({
                 </div>
                 <div className="space-y-3">
                   {(value || []).map((attachment: Attachment, index: number) => (
-                    <div key={index} className="grid grid-cols-3 gap-2 p-2 border rounded-lg bg-white">
+                    <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 border rounded-lg bg-gray-50">
                       <Input
                         placeholder="Tên file"
                         value={attachment.filename !== undefined && attachment.filename !== null ? attachment.filename : ''}
@@ -338,7 +338,7 @@ export function DynamicMedicalRecordForm({
                           ...attachment,
                           filename: e.target.value,
                         })}
-                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
                       />
                       <Input
                         placeholder="Loại file"
@@ -347,7 +347,7 @@ export function DynamicMedicalRecordForm({
                           ...attachment,
                           filetype: e.target.value,
                         })}
-                        className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        className="text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
                       />
                       <div className="flex gap-2">
                         <Input
@@ -357,7 +357,7 @@ export function DynamicMedicalRecordForm({
                             ...attachment,
                             url: e.target.value,
                           })}
-                          className="text-sm border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          className="text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
                         />
                         <Button
                           type="button"
@@ -449,7 +449,7 @@ export function DynamicMedicalRecordForm({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-3">
+      <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t pt-4 pb-4 flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel} className="text-sm">
           Hủy
         </Button>

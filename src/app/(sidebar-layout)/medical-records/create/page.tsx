@@ -149,7 +149,7 @@ export default function CreateMedicalRecordPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto px-8 py-6 space-y-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
@@ -492,7 +492,7 @@ export default function CreateMedicalRecordPage() {
           <Button 
             onClick={handleSubmit} 
             disabled={!selectedTemplate || isCreating}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-sm"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-sm"
           >
             {isCreating ? (
               <>

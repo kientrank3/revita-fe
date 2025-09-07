@@ -30,8 +30,8 @@ import { useAuth } from "@/lib/hooks/useAuth";
 const getMenuItems = () => {
 	const baseItems = [
 		{
-			title: "Trang chủ",
-			url: "/",
+			title: "Dashboard",
+			url: "/dashboard",
 			icon: Home,
 			color: "text-primary",
 			bgColor: "bg-primary/10",

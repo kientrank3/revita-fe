@@ -17,7 +17,7 @@ export interface AuthUser {
   admin?: Admin;
 }
 
-export type UserRole = 'PATIENT' | 'DOCTOR' | 'RECEPTIONIST' | 'ADMIN';
+export type UserRole = 'PATIENT' | 'DOCTOR' | 'RECEPTIONIST' | 'ADMIN' | 'CASHIER';
 
 export interface AuthState {
   user: AuthUser | null;
@@ -146,6 +146,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionValue[]> = {
     PERMISSIONS.CALENDAR_DELETE,
     PERMISSIONS.SYSTEM_SETTINGS,
     PERMISSIONS.SYSTEM_LOGS,
+  ],
+  CASHIER: [
   ],
 };
 

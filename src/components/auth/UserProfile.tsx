@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   User, 
   Mail, 
-  Calendar, 
   Edit, 
   Save, 
   X,
@@ -69,13 +68,7 @@ export function UserProfile() {
     }));
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+
 
   const getInitials = (name: string) => {
     return name
@@ -124,7 +117,7 @@ export function UserProfile() {
         <CardContent>
           <div className="flex items-start gap-6">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarImage src={user.avatar || ''} alt={user.name} />
               <AvatarFallback className="text-lg">
                 {user.name ? getInitials(user.name) : user.email.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -164,10 +157,7 @@ export function UserProfile() {
                   </div>
                   
                   <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>Tham gia: {formatDate(user.createdAt)}</span>
-                    </div>
+                    
                     {user.role && (
                       <Badge variant="secondary">{user.role}</Badge>
                     )}
@@ -205,9 +195,7 @@ export function UserProfile() {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">Cập nhật</div>
-              <div className="text-sm text-gray-600">
-                {formatDate(user.updatedAt)}
-              </div>
+              
             </div>
           </CardContent>
         </Card>

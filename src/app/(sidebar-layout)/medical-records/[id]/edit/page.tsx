@@ -128,7 +128,7 @@ export default function EditMedicalRecordPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto px-8 py-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Đang tải bệnh án...</span>
@@ -139,7 +139,7 @@ export default function EditMedicalRecordPage() {
 
   if (!medicalRecord || !template) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto px-8 py-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -165,7 +165,7 @@ export default function EditMedicalRecordPage() {
   console.log('Edit page - medicalRecord.content:', medicalRecord.content);
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-8 py-6 bg-white">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
