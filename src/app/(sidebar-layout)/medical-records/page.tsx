@@ -30,7 +30,9 @@ import { formatDateForInput } from '@/lib/utils';
 export default function MedicalRecordsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
-  const [, setSelectedPatient] = useState<UserType | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<UserType | null>(null);
+  const [availablePatientProfiles, setAvailablePatientProfiles] = useState<PatientProfile[]>([]);
+  const [showProfileSelection, setShowProfileSelection] = useState(false);
   const [activeTab, setActiveTab] = useState('medical-records');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
@@ -89,38 +91,95 @@ export default function MedicalRecordsPage() {
       setCurrentPatientId(null);
     }
   };
-  const handlePatientSelect = (patient: UserType | null) => {
+
+  const handlePatientSelect = async (patient: UserType | null) => {
     setSelectedPatient(patient);
-    setCurrentPatientId(patient?.id || null);
+    setActiveTab('patient-search');
+    // Clear profile selection when patient is selected
+    setSelectedPatientProfile(null);
+    setAvailablePatientProfiles([]);
+    setShowProfileSelection(false);
+    
+    if (patient) {
+      try {
+        // Load patient profiles for the selected patient
+        const profiles = await patientProfileService.getPatientProfilesByPatientId(patient.id);
+        if (profiles && profiles.length > 0) {
+          // Show profile selection if multiple profiles exist
+          if (profiles.length > 1) {
+            setAvailablePatientProfiles(profiles);
+            setShowProfileSelection(true);
+            setCurrentPatientId(patient.id); // Set patient ID for creating new profiles
+          } else {
+            // If only one profile, select it automatically
+            setSelectedPatientProfile(profiles[0]);
+            setCurrentPatientId(profiles[0].id);
+          }
+        } else {
+          // If no profiles exist, set the patient ID for creating new profiles
+          setCurrentPatientId(patient.id);
+        }
+      } catch (error) {
+        console.error('Error loading patient profiles:', error);
+        toast.error('Không thể tải hồ sơ bệnh nhân');
+        setCurrentPatientId(patient.id);
+      }
+    } else {
+      setCurrentPatientId(null);
+    }
   };
 
-  // Fetch patientId for selected profile to enable creating a new profile for same patient
-  useEffect(() => {
-    const run = async () => {
-      if (!selectedPatientProfile) {
-        setCurrentPatientId(null);
-        return;
-      }
-      try {
-        const full = await patientProfileService.getByProfileId(selectedPatientProfile.id);
-        setCurrentPatientId(selectedPatientProfile.id || null);
-        // Seed emergency contact if available
-        if (full?.emergencyContact) {
-          setEditForm((prev) => ({
-            ...prev,
-            emergencyContact: {
-              name: full.emergencyContact?.name || '',
-              phone: full.emergencyContact?.phone || '',
-              relationship: full.emergencyContact?.relationship || '',
-            }
-          }));
-        }
-      } catch {
-        setCurrentPatientId(null);
-      }
+  const handleProfileSelectFromList = (profile: PatientProfile) => {
+    setSelectedPatientProfile(profile);
+    setCurrentPatientId(profile.id);
+    setShowProfileSelection(false);
+    setAvailablePatientProfiles([]);
+  };
+
+  const handleCreateNewProfile = () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Pre-fill form with patient data if available
+    let initialForm = {
+      name: '', 
+      dateOfBirth: today, 
+      gender: '', 
+      address: '', 
+      occupation: '', 
+      healthInsurance: '', 
+      relationship: '',
+      emergencyContact: { name: '', phone: '', relationship: '' },
     };
-    void run();
-  }, [selectedPatientProfile]);
+
+    // If patient is selected, pre-fill with patient data
+    if (selectedPatient) {
+      initialForm = {
+        name: selectedPatient.name || '', 
+        dateOfBirth: selectedPatient.dateOfBirth ? formatDateForInput(selectedPatient.dateOfBirth) : today, 
+        gender: selectedPatient.gender || '', 
+        address: selectedPatient.address || '', 
+        occupation: '', 
+        healthInsurance: '', 
+        relationship: 'Chính chủ',
+        emergencyContact: { name: '', phone: '', relationship: '' },
+      };
+    }
+
+    setCreateForm(initialForm);
+    setIsCreateProfileOpen(true);
+  };
+
+  // Update currentPatientId when selectedPatientProfile or selectedPatient changes
+  useEffect(() => {
+    if (selectedPatientProfile) {
+      setCurrentPatientId(selectedPatientProfile.id);
+    } else if (selectedPatient) {
+      // If only patient is selected (no profile), use patient ID for creating new profiles
+      setCurrentPatientId(selectedPatient.id);
+    } else {
+      setCurrentPatientId(null);
+    }
+  }, [selectedPatientProfile, selectedPatient]);
 
   // Kiểm tra quyền bác sĩ
   const isDoctor = user?.role === 'DOCTOR' || user?.role === 'ADMIN';
@@ -129,7 +188,7 @@ export default function MedicalRecordsPage() {
     return (
       <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <span className="ml-2">Đang tải...</span>
         </div>
       </div>
@@ -265,40 +324,88 @@ export default function MedicalRecordsPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2"></div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" onClick={() => {
-                    if (!currentPatientId) {
-                      toast.error('Vui lòng chọn bệnh nhân hoặc hồ sơ để tạo hồ sơ mới');
-                      return;
-                    }
-                    const today = new Date().toISOString().split('T')[0];
-                    setCreateForm({
-                      name: '', 
-                      dateOfBirth: today, 
-                      gender: '', 
-                      address: '', 
-                      occupation: '', 
-                      healthInsurance: '', 
-                      relationship: '',
-                      emergencyContact: { name: '', phone: '', relationship: '' },
-                    });
-                    setIsCreateProfileOpen(true);
-                  }}>Tạo hồ sơ mới</Button>
+                  <Button size="sm" onClick={handleCreateNewProfile}>
+                    {selectedPatient ? 'Tạo hồ sơ cho bệnh nhân này' : 'Tạo hồ sơ độc lập'}
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => {
                     setSelectedPatientProfile(null);
+                    setSelectedPatient(null);
+                    setAvailablePatientProfiles([]);
+                    setShowProfileSelection(false);
                     setCurrentPatientId(null);
                     setSearchResetKey((k) => k + 1);
                   }}>Xoá trắng</Button>
                 </div>
               </div>
 
-              <PatientSearch 
+              <PatientSearch
                 key={searchResetKey}
                 onPatientProfileSelect={handlePatientProfileSelect} 
                 selectedPatientProfile={selectedPatientProfile}
                 onPatientSelect={handlePatientSelect}
+                selectedPatient={selectedPatient}
               />
             </CardContent>
           </Card>
+
+          {/* Patient Profile Selection */}
+          {showProfileSelection && selectedPatient && availablePatientProfiles.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Chọn hồ sơ bệnh nhân
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Bệnh nhân {selectedPatient.name} có {availablePatientProfiles.length} hồ sơ. Vui lòng chọn hồ sơ để tiếp tục.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {availablePatientProfiles.map((profile) => (
+                    <div 
+                      key={profile.id}
+                      className="border rounded-lg p-4 cursor-pointer transition-colors hover:border-blue-300 hover:bg-blue-50"
+                      onClick={() => handleProfileSelectFromList(profile)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{profile.name}</h4>
+                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                              <Badge variant="outline" className="text-xs">
+                                {profile.profileCode}
+                              </Badge>
+                              <span>{formatDateForInput(profile.dateOfBirth)}</span>
+                              <span>{profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'Khác'}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{profile.address}</p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm">
+                          Chọn hồ sơ này
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="border-t pt-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCreateNewProfile}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo hồ sơ mới cho bệnh nhân này
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {selectedPatientProfile && (
             <>
@@ -307,7 +414,9 @@ export default function MedicalRecordsPage() {
                   <CardTitle className="flex items-center justify-between">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">Thông tin bệnh nhân</h2>
-                      <p className="text-gray-600">{selectedPatientProfile.name} • {selectedPatientProfile.profileCode}</p>
+                      <p className="text-gray-600">
+                        {selectedPatientProfile.name} • {selectedPatientProfile.profileCode}
+                      </p>
                     </div>
                     <Badge variant="outline" className="flex items-center gap-1">
                       <User className="h-3 w-3" />
@@ -357,12 +466,12 @@ export default function MedicalRecordsPage() {
             </>
           )}
 
-          {!selectedPatientProfile && (
+          {!selectedPatientProfile && !selectedPatient && !showProfileSelection && (
             <Card>
               <CardContent className="p-12 text-center">
                 <div className="max-w-md mx-auto">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search className="h-8 w-8 text-blue-600" />
+                    <Search className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Tìm kiếm bệnh nhân
@@ -371,7 +480,7 @@ export default function MedicalRecordsPage() {
                     Sử dụng công cụ tìm kiếm ở trên để tìm và chọn bệnh nhân
                   </p>
                   <div className="space-y-2 text-sm text-gray-500">
-                    <p>• Tìm kiếm theo tên, số điện thoại hoặc email</p>
+                    <p>• Tìm kiếm theo tên, số điện thoại, email hoặc code</p>
                     <p>• Xem thông tin cá nhân bệnh nhân</p>
                     <p>• Tạo và quản lý hồ sơ bệnh án</p>
                   </div>
@@ -496,12 +605,10 @@ export default function MedicalRecordsPage() {
                   setIsSubmittingEdit(true);
                   
                   // Convert dateOfBirth to ISO 8601 format
-                  const dateOfBirthISO = new Date(editForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
+                  // const dateOfBirthISO = new Date(editForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
                   
                   await patientProfileService.update(selectedPatientProfile.id, {
-                    ...editForm,
                     name: editForm.name.trim(),
-                    dateOfBirth: dateOfBirthISO,
                     address: editForm.address.trim(),
                     occupation: editForm.occupation.trim(),
                     healthInsurance: editForm.healthInsurance.trim(),
@@ -532,9 +639,34 @@ export default function MedicalRecordsPage() {
       <Dialog open={isCreateProfileOpen} onOpenChange={setIsCreateProfileOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tạo hồ sơ bệnh nhân</DialogTitle>
+            <DialogTitle>
+              {selectedPatient ? `Tạo hồ sơ cho bệnh nhân ${selectedPatient.name}` : 'Tạo hồ sơ bệnh nhân độc lập'}
+            </DialogTitle>
+            {selectedPatient && (
+              <p className="text-sm text-blue-500 bg-blue-50 p-2 rounded">
+                📋 Hồ sơ này sẽ được liên kết với tài khoản bệnh nhân {selectedPatient.name}
+              </p>
+            )}
+            {!selectedPatient && (
+              <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                📋 Hồ sơ độc lập - không liên kết với tài khoản bệnh nhân nào
+              </p>
+            )}
           </DialogHeader>
           <div className="space-y-3">
+            {/* Patient Info Display */}
+            {selectedPatient && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Thông tin bệnh nhân</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                  <div><span className="font-medium">Tên:</span> {selectedPatient.name}</div>
+                  <div><span className="font-medium">Email:</span> {selectedPatient.email}</div>
+                  <div><span className="font-medium">SĐT:</span> {selectedPatient.phone}</div>
+                  <div><span className="font-medium">Mã bệnh nhân:</span> {selectedPatient.patient?.patientCode}</div>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Họ và tên <span className="text-red-500">*</span></Label>
@@ -643,11 +775,13 @@ export default function MedicalRecordsPage() {
                   // Convert dateOfBirth to ISO 8601 format
                   const dateOfBirthISO = new Date(createForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
                   
+                  // Determine if this should be a linked or independent profile
+                  const patientId = selectedPatient?.id || null;
+                  
                   await patientProfileService.create({
-                    patientId: currentPatientId,
                     name: createForm.name.trim(),
                     dateOfBirth: dateOfBirthISO,
-                    gender: createForm.gender,
+                    gender: createForm.gender as 'male' | 'female' | 'other',
                     address: createForm.address.trim(),
                     occupation: createForm.occupation.trim(),
                     emergencyContact: {
@@ -657,9 +791,32 @@ export default function MedicalRecordsPage() {
                     },
                     healthInsurance: createForm.healthInsurance.trim(),
                     relationship: createForm.relationship,
+                    patientId: patientId, // null for independent, patientId for linked
                   });
-                  toast.success('Tạo hồ sơ thành công');
+                  toast.success(
+                    patientId 
+                      ? `Tạo hồ sơ liên kết với bệnh nhân ${selectedPatient?.name} thành công`
+                      : 'Tạo hồ sơ độc lập thành công'
+                  );
                   setIsCreateProfileOpen(false);
+                  
+                  // Refresh patient profiles if we have a selected patient
+                  if (selectedPatient) {
+                    try {
+                      const profiles = await patientProfileService.getPatientProfilesByPatientId(selectedPatient.id);
+                      if (profiles && profiles.length > 0) {
+                        if (profiles.length > 1) {
+                          setAvailablePatientProfiles(profiles);
+                          setShowProfileSelection(true);
+                        } else {
+                          setSelectedPatientProfile(profiles[0]);
+                          setCurrentPatientId(profiles[0].id);
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing patient profiles:', error);
+                    }
+                  }
                 } catch (error) {
                   console.error('Error creating profile:', error);
                   toast.error('Không thể tạo hồ sơ');
@@ -667,9 +824,9 @@ export default function MedicalRecordsPage() {
                   setIsSubmittingCreate(false);
                 }
               }}
-              disabled={isSubmittingCreate || !currentPatientId}
+              disabled={isSubmittingCreate}
             >
-              {isSubmittingCreate ? 'Đang lưu...' : 'Lưu hồ sơ'}
+              {isSubmittingCreate ? 'Đang lưu...' : (selectedPatient ? 'Tạo hồ sơ liên kết' : 'Tạo hồ sơ độc lập')}
             </Button>
           </DialogFooter>
         </DialogContent>

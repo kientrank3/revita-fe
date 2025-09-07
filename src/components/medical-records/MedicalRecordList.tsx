@@ -189,7 +189,7 @@ export function MedicalRecordList({
         // Load doctors
         const uniqueDoctorIds = [...new Set(medicalRecords.map(record => record.doctorId).filter((id): id is string => !!id))];
         const doctors = await userService.getDoctorsByIds(uniqueDoctorIds);
-        setDoctorData(doctors as Record<string, DoctorData>);
+        setDoctorData(doctors as unknown as Record<string, DoctorData>);
 
       } catch (error) {
         console.error('Error loading additional data:', error);
@@ -320,7 +320,7 @@ export function MedicalRecordList({
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       Đang tải...
                     </div>
                   </TableCell>

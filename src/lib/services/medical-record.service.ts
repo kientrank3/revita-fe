@@ -32,6 +32,7 @@ class MedicalRecordService {
     return [];
   }
 
+
 //   // Get medical records by doctor
 //   async getByDoctor(doctorId: string): Promise<MedicalRecord[]> {
 //     const response = await api.get(`/medical-records/doctor/${doctorId}/medical-records`);

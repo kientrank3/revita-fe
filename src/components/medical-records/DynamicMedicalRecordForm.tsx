@@ -173,7 +173,7 @@ export function DynamicMedicalRecordForm({
                 onChange={(e) => handleInputChange(field.name, e.target.value)}
                 placeholder={`Nhập ${field.label.toLowerCase()}`}
                 required={isRequired}
-                className="border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
               />
             </div>
           </div>
@@ -347,7 +347,7 @@ export function DynamicMedicalRecordForm({
                           ...attachment,
                           filetype: e.target.value,
                         })}
-                        className="text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
+                        className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-400"
                       />
                       <div className="flex gap-2">
                         <Input
@@ -357,7 +357,7 @@ export function DynamicMedicalRecordForm({
                             ...attachment,
                             url: e.target.value,
                           })}
-                          className="text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
+                          className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-400"
                         />
                         <Button
                           type="button"
@@ -436,7 +436,7 @@ export function DynamicMedicalRecordForm({
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center justify-between text-lg">
             <span className="flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-blue-600" />
+              <Stethoscope className="h-5 w-5 text-blue-500" />
               {isEditing ? 'Chỉnh sửa' : 'Tạo'} bệnh án - {template.name}
             </span>
             <Badge variant="secondary" className="text-xs">{template.specialtyName}</Badge>

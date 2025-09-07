@@ -149,7 +149,7 @@ export default function CreateMedicalRecordPage() {
   };
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6">
+    <div className="container bg-white mx-auto px-8 py-6 space-y-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
@@ -217,7 +217,7 @@ export default function CreateMedicalRecordPage() {
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mx-auto mb-2"></div>
                   <p className="text-xs text-gray-500">Đang tải mẫu bệnh án...</p>
                 </div>
               ) : (
@@ -250,7 +250,7 @@ export default function CreateMedicalRecordPage() {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-blue-600" />
+                          <FileText className="h-4 w-4 text-blue-500" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-gray-900 text-sm truncate">{selectedTemplate.name}</h4>
@@ -312,7 +312,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="min-h-[100px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="min-h-[100px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
                                 />
                               )}
                               
@@ -323,7 +323,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
                                 />
                               )}
                               
@@ -335,7 +335,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, parseFloat(e.target.value) || 0)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
                                 />
                               )}
                               
@@ -346,7 +346,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name] || ''}
                                   onChange={(e) => handleContentChange(field.name, e.target.value)}
                                   required={field.required}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm"
                                 />
                               )}
                               
@@ -355,7 +355,7 @@ export default function CreateMedicalRecordPage() {
                                   value={formData.content?.[field.name]?.toString() || ''}
                                   onValueChange={(value) => handleContentChange(field.name, value === 'true')}
                                 >
-                                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-400 text-sm">
                                     <SelectValue placeholder="Chọn..." />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -393,7 +393,7 @@ export default function CreateMedicalRecordPage() {
                               <label htmlFor="file-upload" className="cursor-pointer">
                                 <div className="flex flex-col items-center gap-2">
                                   <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Paperclip className="h-5 w-5 text-blue-600" />
+                                    <Paperclip className="h-5 w-5 text-blue-500" />
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-900">
@@ -456,7 +456,7 @@ export default function CreateMedicalRecordPage() {
               <CardContent className="p-12 text-center">
                 <div className="max-w-md mx-auto">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FileText className="h-8 w-8 text-blue-600" />
+                    <FileText className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Chọn mẫu bệnh án

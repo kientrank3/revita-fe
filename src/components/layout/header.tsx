@@ -101,7 +101,7 @@ export function AppHeader() {
               <Button variant="ghost" className="flex items-center gap-2 p-2 hover:bg-gray-100 ">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                  <AvatarFallback className="bg-blue-100 text-blue-600 text-sm font-medium">
+                  <AvatarFallback className="bg-blue-100 text-blue-500 text-sm font-medium">
                     {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>

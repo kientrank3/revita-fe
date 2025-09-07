@@ -213,7 +213,7 @@ export default function MedicalRecordDetailPage() {
     return (
       <div className="container mx-auto px-8 py-6">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <span className="ml-2">Đang tải bệnh án...</span>
         </div>
       </div>
@@ -264,7 +264,7 @@ export default function MedicalRecordDetailPage() {
             <p className="text-sm text-gray-600">
               {template.name} • {template.specialtyName}
               {patientProfile && (
-                <span className="ml-2 text-blue-600">
+                <span className="ml-2 text-blue-500">
                   • {patientProfile.name}
                 </span>
               )}

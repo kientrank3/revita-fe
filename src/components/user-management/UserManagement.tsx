@@ -642,7 +642,7 @@ export function UserManagement() {
                         <div className="flex items-center gap-3 ml-2.5">
                           <Avatar className="h-10 w-10 ring-1 ring-gray-200">
                             <AvatarImage src={user.avatar} alt={user.name} />
-                            <AvatarFallback className="bg-blue-100 text-blue-600">
+                            <AvatarFallback className="bg-blue-100 text-blue-500">
                               {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                             </AvatarFallback>
                           </Avatar>
