@@ -1,0 +1,341 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  User,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Stethoscope,
+} from 'lucide-react';
+import { WorkSession, WorkSessionStatusColors } from '@/lib/types/work-session';
+
+interface WorkSessionDetailsProps {
+  isOpen: boolean;
+  onClose: () => void;
+  workSession: WorkSession | null;
+  onEdit?: (session: WorkSession) => void;
+  onDelete?: (sessionId: string) => void;
+  onStatusChange?: (sessionId: string, status: 'APPROVED' | 'REJECTED' | 'CANCELLED') => void;
+  loading?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canChangeStatus?: boolean;
+}
+
+export function WorkSessionDetails({
+  isOpen,
+  onClose,
+  workSession,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  loading = false,
+  canEdit = true,
+  canDelete = true,
+  canChangeStatus = false,
+}: WorkSessionDetailsProps) {
+  if (!workSession) return null;
+
+  const startTime = new Date(workSession.startTime);
+  const endTime = new Date(workSession.endTime);
+  const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+  const hours = Math.floor(duration / 60);
+  const minutes = duration % 60;
+
+  const statusColors = WorkSessionStatusColors[workSession.status];
+  const statusIcon = {
+    PENDING: <AlertCircle className="h-4 w-4" />,
+    APPROVED: <CheckCircle className="h-4 w-4" />,
+    REJECTED: <XCircle className="h-4 w-4" />,
+    CANCELLED: <XCircle className="h-4 w-4" />,
+  };
+
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString('vi-VN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusText = (status: string) => {
+    const statusMap = {
+      PENDING: 'Chờ duyệt',
+      APPROVED: 'Đã duyệt',
+      REJECTED: 'Bị từ chối',
+      CANCELLED: 'Đã hủy',
+    };
+    return statusMap[status as keyof typeof statusMap] || status;
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto border-0 shadow-2xl bg-white">
+        <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-6">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900">Chi tiết lịch làm việc</h2>
+              <DialogDescription className="text-gray-600 mt-1">
+                Thông tin chi tiết về ca làm việc đã đăng ký
+              </DialogDescription>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Status */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {statusIcon[workSession.status]}
+              <span className="font-medium">Trạng thái:</span>
+            </div>
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: statusColors.backgroundColor,
+                borderColor: statusColors.borderColor,
+                color: statusColors.textColor,
+              }}
+            >
+              {getStatusText(workSession.status)}
+            </Badge>
+          </div>
+
+          <Separator />
+
+          {/* Date and Time Information */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Thời gian
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Bắt đầu
+                  </p>
+                  <p className="font-medium">{formatDateTime(startTime)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Kết thúc
+                  </p>
+                  <p className="font-medium">{formatDateTime(endTime)}</p>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Clock className="h-4 w-4" />
+                  <span className="font-medium">Thời lượng:</span>
+                  <span>{hours}h {minutes}m</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Booth Information */}
+          {workSession.booth && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Vị trí làm việc
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div>
+                    <p className="font-medium">{workSession.booth.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Mã phòng: {workSession.booth.boothCode}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      Phòng: {workSession.booth.room.roomName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Chuyên khoa: {workSession.booth.room.specialty.name}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Staff Information */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Nhân viên
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {workSession.doctor && (
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <Stethoscope className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium">{workSession.doctor.auth.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Bác sĩ • Mã: {workSession.doctor.doctorCode}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {workSession.technician && (
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                  <User className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="font-medium">{workSession.technician.auth.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Kỹ thuật viên • Mã: {workSession.technician.technicianCode}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Services */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                Dịch vụ thực hiện ({workSession.services.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {workSession.services.map((service) => (
+                  <div
+                    key={service.id}
+                    className="p-3 border rounded-lg hover:bg-muted/50"
+                  >
+                    <p className="font-medium">{service.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {service.serviceCode}
+                    </p>
+                    {service.description && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {service.description}
+                      </p>
+                    )}
+                    {service.timePerPatient && (
+                      <Badge variant="outline" className="text-xs mt-2">
+                        {service.timePerPatient} phút/bệnh nhân
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Timestamps */}
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>
+              Tạo lúc: {new Date(workSession.createdAt).toLocaleString('vi-VN')}
+            </p>
+            <p>
+              Cập nhật: {new Date(workSession.updatedAt).toLocaleString('vi-VN')}
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {/* Status Change Buttons (for admin) */}
+          {canChangeStatus && workSession.status === 'PENDING' && (
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onStatusChange?.(workSession.id, 'APPROVED')}
+                disabled={loading}
+                className="flex-1 sm:flex-none"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Duyệt
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onStatusChange?.(workSession.id, 'REJECTED')}
+                disabled={loading}
+                className="flex-1 sm:flex-none"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Từ chối
+              </Button>
+            </div>
+          )}
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            {canEdit && (
+              <Button
+                variant="outline"
+                onClick={() => onEdit?.(workSession)}
+                disabled={loading}
+                className="flex-1 sm:flex-none"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Sửa
+              </Button>
+            )}
+            
+            {canDelete && (
+              <Button
+                variant="destructive"
+                onClick={() => onDelete?.(workSession.id)}
+                disabled={loading}
+                className="flex-1 sm:flex-none"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Xóa
+              </Button>
+            )}
+            
+            <Button onClick={onClose} className="flex-1 sm:flex-none">
+              Đóng
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
