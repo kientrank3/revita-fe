@@ -51,7 +51,7 @@ export default function ServiceProcessingPage() {
       console.log('User authenticated:', user);
       console.log('Loading service processing data...');
 
-      loadWorkSession();
+      // loadWorkSession(); // Backend chưa có endpoint này
       loadMyServices();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,7 +77,16 @@ export default function ServiceProcessingPage() {
         limit: 50,
         offset: 0
       });
-      setMyServices(response.data.services);
+      console.log('My services response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data services:', response.data?.services);
+      
+      if (response && response.data && response.data.services) {
+        setMyServices(response.data.services);
+      } else {
+        console.error('Invalid response structure:', response);
+        toast.error('Dữ liệu trả về không đúng định dạng');
+      }
     } catch (error: any) {
       console.error('Error loading my services:', error);
       toast.error(error.response?.data?.message || 'Không thể tải danh sách dịch vụ của bạn');
@@ -226,6 +235,120 @@ export default function ServiceProcessingPage() {
       default:
         return <Clock className="h-4 w-4" />;
     }
+  };
+
+  // Helper function to group services by patient
+  const groupServicesByPatient = (services: typeof myServices) => {
+    const patientMap = new Map();
+    
+    services.forEach(service => {
+      const patientId = service.prescription.patientProfile.id;
+      const patientName = service.prescription.patientProfile.name;
+      const prescriptionCode = service.prescription.prescriptionCode;
+      
+      if (!patientMap.has(patientId)) {
+        patientMap.set(patientId, {
+          patientId,
+          patientName,
+          prescriptionCode,
+          services: []
+        });
+      }
+      
+      patientMap.get(patientId).services.push(service);
+    });
+    
+    return Array.from(patientMap.values());
+  };
+
+  // Patient Service Card Component
+  const PatientServiceCard = ({ 
+    patient, 
+    onQuickStart, 
+    onQuickComplete, 
+    onUpdateResults, 
+    updatingService 
+  }: {
+    patient: {
+      patientId: string;
+      patientName: string;
+      prescriptionCode: string;
+      services: typeof myServices;
+    };
+    onQuickStart?: (serviceId: string) => void;
+    onQuickComplete?: (serviceId: string) => void;
+    onUpdateResults?: (service: any) => void;
+    updatingService: string | null;
+  }) => {
+    const totalPrice = patient.services.reduce((sum, service) => sum + service.service.price, 0);
+    
+    return (
+      <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+        {/* Patient Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h4 className="font-semibold text-lg">{patient.patientName}</h4>
+            <p className="text-sm text-gray-500">{patient.prescriptionCode}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-medium">{totalPrice.toLocaleString()} đ</div>
+            <div className="text-xs text-gray-500">{patient.services.length} dịch vụ</div>
+          </div>
+        </div>
+
+        {/* Services List */}
+        <div className="space-y-2 mb-3">
+          {patient.services.map((service) => (
+            <div key={service.id} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">#{service.order}</span>
+                <span className="font-medium">{service.service.name}</span>
+              </div>
+              <div className="text-gray-600">{service.service.price.toLocaleString()} đ</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {patient.services[0].status === 'WAITING' && onQuickStart && (
+            <Button
+              size="sm"
+              onClick={() => onQuickStart(patient.services[0].id)}
+              disabled={updatingService === patient.services[0].id}
+              className="flex items-center gap-1"
+            >
+              <Play className="h-3 w-3" />
+              {updatingService === patient.services[0].id ? 'Đang xử lý...' : 'Bắt đầu'}
+            </Button>
+          )}
+
+          {patient.services[0].status === 'SERVING' && onQuickComplete && (
+            <Button
+              size="sm"
+              onClick={() => onQuickComplete(patient.services[0].id)}
+              disabled={updatingService === patient.services[0].id}
+              className="flex items-center gap-1"
+            >
+              <Square className="h-3 w-3" />
+              {updatingService === patient.services[0].id ? 'Đang xử lý...' : 'Hoàn thành'}
+            </Button>
+          )}
+
+          {patient.services[0].status === 'WAITING_RESULT' && onUpdateResults && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onUpdateResults(patient.services[0])}
+              className="flex items-center gap-1"
+            >
+              <FileCheck className="h-3 w-3" />
+              Cập nhật kết quả
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // const canUpdateStatus = (currentStatus: ServiceStatus, newStatus: ServiceStatus) => {
@@ -469,77 +592,102 @@ export default function ServiceProcessingPage() {
               <p className="text-xs mt-1">Dịch vụ sẽ xuất hiện khi được phân công</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {myServices.map((service) => (
-                <div
-                  key={service.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(service.status)}
-                      <Badge className={getStatusColor(service.status)}>
-                        {getStatusText(service.status)}
-                      </Badge>
-                      <span className="text-sm text-gray-500">#{service.order}</span>
-                    </div>
-                    <div className="text-sm font-medium">
-                      {service.service.price.toLocaleString()} đ
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 mb-3">
-                    <h4 className="font-medium">{service.service.name}</h4>
-                    <p className="text-sm text-gray-600">{service.service.description}</p>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>{service.service.serviceCode}</span>
-                      <span>•</span>
-                      <span>{service.prescription.patientProfile.name}</span>
-                      <span>•</span>
-                      <span>{service.prescription.prescriptionCode}</span>
+            <div className="space-y-6">
+              {/* Row 1: Đang phục vụ */}
+              {(() => {
+                const servingServices = myServices.filter(s => s.status === 'SERVING');
+                const servingPatients = groupServicesByPatient(servingServices);
+                
+                return servingPatients.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-orange-600" />
+                      Đang phục vụ
+                    </h3>
+                    <div className="grid gap-4">
+                      {servingPatients.map((patient) => (
+                        <PatientServiceCard
+                          key={patient.patientId}
+                          patient={patient}
+                          onQuickComplete={handleQuickComplete}
+                          updatingService={updatingService}
+                        />
+                      ))}
                     </div>
                   </div>
+                );
+              })()}
 
-                  {/* Quick Actions */}
-                  <div className="flex items-center gap-2">
-                    {service.status === 'WAITING' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleQuickStart(service.id)}
-                        disabled={updatingService === service.id}
-                        className="flex items-center gap-1"
-                      >
-                        <Play className="h-3 w-3" />
-                        {updatingService === service.id ? 'Đang xử lý...' : 'Bắt đầu'}
-                      </Button>
-                    )}
-
-                    {service.status === 'SERVING' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleQuickComplete(service.id)}
-                        disabled={updatingService === service.id}
-                        className="flex items-center gap-1"
-                      >
-                        <Square className="h-3 w-3" />
-                        {updatingService === service.id ? 'Đang xử lý...' : 'Hoàn thành'}
-                      </Button>
-                    )}
-
-                    {service.status === 'WAITING_RESULT' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenResultsDialog(service)}
-                        className="flex items-center gap-1"
-                      >
-                        <FileCheck className="h-3 w-3" />
-                        Cập nhật kết quả
-                      </Button>
-                    )}
-                  </div>
+              {/* Row 2: 2 cột - Đang chờ phục vụ và Chờ kết quả */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Cột 1: Đang chờ phục vụ */}
+                <div>
+                  {(() => {
+                    const waitingServices = myServices.filter(s => s.status === 'WAITING');
+                    const waitingPatients = groupServicesByPatient(waitingServices);
+                    
+                    return (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-blue-600" />
+                          Đang chờ phục vụ
+                        </h3>
+                        {waitingPatients.length > 0 ? (
+                          <div className="space-y-4">
+                            {waitingPatients.map((patient) => (
+                              <PatientServiceCard
+                                key={patient.patientId}
+                                patient={patient}
+                                onQuickStart={handleQuickStart}
+                                updatingService={updatingService}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">Không có bệnh nhân đang chờ</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
-              ))}
+
+                {/* Cột 2: Chờ kết quả */}
+                <div>
+                  {(() => {
+                    const waitingResultServices = myServices.filter(s => s.status === 'WAITING_RESULT');
+                    const waitingResultPatients = groupServicesByPatient(waitingResultServices);
+                    
+                    return (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                          Chờ kết quả
+                        </h3>
+                        {waitingResultPatients.length > 0 ? (
+                          <div className="space-y-4">
+                            {waitingResultPatients.map((patient) => (
+                              <PatientServiceCard
+                                key={patient.patientId}
+                                patient={patient}
+                                onUpdateResults={handleOpenResultsDialog}
+                                updatingService={updatingService}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">Không có bệnh nhân chờ kết quả</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
