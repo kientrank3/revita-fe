@@ -20,6 +20,8 @@ import {
 import { Stethoscope } from 'lucide-react';
 import { formatDateForInput } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { useMedicalRecordFileUpload } from '@/lib/hooks/useMedicalRecordFileUpload';
+import { MedicalRecordFileUpload } from './MedicalRecordFileUpload';
 import {
   Select,
   SelectContent,
@@ -37,6 +39,7 @@ interface DynamicMedicalRecordFormProps {
   onCancel: () => void;
   initialData?: Record<string, any>;
   isEditing?: boolean;
+  existingAttachments?: Attachment[];
 }
 
 export function DynamicMedicalRecordForm({
@@ -48,8 +51,37 @@ export function DynamicMedicalRecordForm({
   onCancel,
   initialData = {},
   isEditing = false,
+  existingAttachments = [],
 }: DynamicMedicalRecordFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Check if template supports file uploads
+  const supportsFileUpload = useMemo(() => {
+    if (!template?.fields?.fields) return false;
+    // Check if template has attachments field or if we're editing with existing attachments
+    const hasAttachmentsField = template.fields.fields.some(field => field.name === 'attachments');
+    const hasExistingAttachments = existingAttachments.length > 0;
+    return hasAttachmentsField || hasExistingAttachments;
+  }, [template, existingAttachments]);
+  
+  // File upload hook - only initialize if needed
+  const {
+    files,
+    attachments,
+    error: fileError,
+    addFiles,
+    removeFile,
+    removeAttachment,
+    clearError,
+    setAttachments,
+  } = useMedicalRecordFileUpload();
+
+  // Set existing attachments when component mounts or when existingAttachments change
+  useEffect(() => {
+    if (supportsFileUpload && existingAttachments.length > 0) {
+      setAttachments(existingAttachments);
+    }
+  }, [supportsFileUpload, existingAttachments, setAttachments]);
 
   // Presets and helper options for adapters
   const chiefComplaintOptions = useMemo(
@@ -213,28 +245,6 @@ export function DynamicMedicalRecordForm({
     }));
   };
 
-  const handleArrayFieldChange = (fieldName: string, index: number, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: prev[fieldName]?.map((item: any, i: number) => 
-        i === index ? value : item
-      ) || [],
-    }));
-  };
-
-  const addArrayItem = (fieldName: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: [...(prev[fieldName] || []), {}],
-    }));
-  };
-
-  const removeArrayItem = (fieldName: string, index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: prev[fieldName]?.filter((_: any, i: number) => i !== index) || [],
-    }));
-  };
 
   const renderField = (field: FieldDefinition) => {
     const value = formData[field.name];
@@ -687,90 +697,8 @@ export function DynamicMedicalRecordForm({
 
       case 'array':
         if (field.name === 'attachments') {
-          return (
-            <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    {field.label}
-                    {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                  </h4>
-                </div>
-                <div>
-                  <Input
-                    type="file"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      if (files.length === 0) return;
-                      const mapped = files.map((f) => ({
-                        filename: f.name,
-                        filetype: f.type || 'unknown',
-                        url: '',
-                      }));
-                      const next = [ ...(value || []), ...mapped ];
-                      handleInputChange(field.name, next);
-                    }}
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Uploader demo: chỉ thêm metadata (filename/type). Hãy nhập URL nếu có.</p>
-                </div>
-                <div className="space-y-3">
-                  {(value || []).map((attachment: Attachment, index: number) => (
-                    <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 border rounded-lg bg-gray-50">
-                      <Input
-                        placeholder="Tên file"
-                        value={attachment.filename !== undefined && attachment.filename !== null ? attachment.filename : ''}
-                        onChange={(e) => handleArrayFieldChange(field.name, index, {
-                          ...attachment,
-                          filename: e.target.value,
-                        })}
-                        className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
-                      />
-                      <Input
-                        placeholder="Loại file"
-                        value={attachment.filetype !== undefined && attachment.filetype !== null ? attachment.filetype : ''}
-                        onChange={(e) => handleArrayFieldChange(field.name, index, {
-                          ...attachment,
-                          filetype: e.target.value,
-                        })}
-                        className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-400"
-                      />
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="URL"
-                          value={attachment.url !== undefined && attachment.url !== null ? attachment.url : ''}
-                          onChange={(e) => handleArrayFieldChange(field.name, index, {
-                            ...attachment,
-                            url: e.target.value,
-                          })}
-                          className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-400"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeArrayItem(field.name, index)}
-                          className="text-xs p-1 h-8 w-8"
-                        >
-                          Xóa
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => addArrayItem(field.name)}
-                    className="text-sm"
-                  >
-                    Thêm tệp đính kèm
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
+          // Don't render attachments field in form - it's handled by MedicalRecordFileUpload component
+          return null;
         }
         return null;
 
@@ -830,10 +758,15 @@ export function DynamicMedicalRecordForm({
     setIsSubmitting(true);
     try {
       if (isEditing) {
-        // For editing, just pass the content
-        await onSubmit(formData);
+        // For editing, pass content and files (only if file upload is supported)
+        const updateData = {
+          content: formData,
+          files: supportsFileUpload && files.length > 0 ? files : undefined,
+          appendFiles: true, // Add files to existing ones, don't replace
+        };
+        await onSubmit(updateData);
       } else {
-        // For creating, pass the full CreateMedicalRecordDto
+        // For creating, pass the full CreateMedicalRecordDto with files (only if file upload is supported)
         const submitData: CreateMedicalRecordDto = {
           patientProfileId,
           templateId: template.id,
@@ -841,6 +774,7 @@ export function DynamicMedicalRecordForm({
           appointmentId,
           status: MedicalRecordStatus.DRAFT,
           content: formData,
+          files: supportsFileUpload && files.length > 0 ? files : undefined,
         };
         await onSubmit(submitData);
       }
@@ -872,6 +806,40 @@ export function DynamicMedicalRecordForm({
           </div>
         </CardContent>
       </Card>
+
+      {/* File Upload Section - only show if template supports file uploads */}
+      {supportsFileUpload && (
+        <>
+          <MedicalRecordFileUpload
+            files={files}
+            attachments={attachments}
+            onFilesChange={addFiles}
+            onRemoveFile={removeFile}
+            onRemoveAttachment={removeAttachment}
+            error={fileError}
+            disabled={isSubmitting}
+          />
+
+          {/* Error Display for File Upload */}
+          {fileError && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-red-600">
+                  <span className="text-sm">{fileError}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearError}
+                    className="ml-auto h-6 w-6 p-0"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
 
       <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t pt-4 pb-4 flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel} className="text-sm">

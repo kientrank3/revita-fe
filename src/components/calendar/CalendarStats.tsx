@@ -83,7 +83,7 @@ export function CalendarStats({
   // Show only statistics (sidebar)
   if (showOnlyStats) {
     return (
-      <div className="space-y-3">
+      <div className=" grid grid-cols-4 gap-3">
         {statCards.map((stat, index) => {
           const IconComponent = stat.icon;
           return (

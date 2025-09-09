@@ -126,7 +126,7 @@ export default function CalendarPage() {
         {/* Main Layout: Calendar + Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
           {/* Calendar - Main Content (3/4 width on xl screens) */}
-          <div className="xl:col-span-5">
+          <div className="xl:col-span-6">
             <WorkSessionCalendar
               events={calendarEvents}
               loading={loading}
@@ -134,18 +134,19 @@ export default function CalendarPage() {
               onDateSelect={handleDateSelect}
               view={viewMode}
               onViewChange={setViewMode}
-              height="calc(100vh - 400px)"
+              height="calc(120vh - 400px)"
             />
           </div>
 
           {/* Sidebar - Statistics (1/4 width on xl screens) */}
-          <div className=" xl:col-span-1 space-y-4">
+          
+        </div>
+        <div className=" gap-6">
             <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} />
           </div>
-        </div>
-
         {/* Bottom Modules - Services & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
           <CalendarStats workSessions={workSessions} services={services} showOnlyServices={true} />
           <CalendarStats workSessions={workSessions} services={services} showOnlyStatus={true} />
         </div>
@@ -160,7 +161,6 @@ export default function CalendarPage() {
           setSelectedDate(null);
         }}
         onSubmit={handleFormSubmit}
-        services={services}
         editingSession={editingSession}
         selectedDate={selectedDate || undefined}
         loading={loading}

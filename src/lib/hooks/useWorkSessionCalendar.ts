@@ -30,9 +30,9 @@ export const useWorkSessionCalendar = () => {
   useEffect(() => {
     const loadServices = async () => {
       try {
-        const response = await serviceApi.getAll({ limit: 100 });
-        // Handle different possible response structures
-        const servicesData = response.data?.data || response.data || [];
+        const response = await serviceApi.getAll();
+        // Handle API response structure: { success, message, data: { services: [...] } }
+        const servicesData = response.data?.data?.services || response.data?.services || response.data || [];
         setServices(Array.isArray(servicesData) ? servicesData : []);
       } catch (err) {
         console.error('Failed to load services:', err);
@@ -53,7 +53,9 @@ export const useWorkSessionCalendar = () => {
         endDate: end.toISOString().split('T')[0],
       });
       
-      setWorkSessions(response.data || []);
+      // Handle work session response structure
+      const workSessionsData = response.data || response || [];
+      setWorkSessions(Array.isArray(workSessionsData) ? workSessionsData : []);
     } catch (err) {
       console.error('Failed to load work sessions:', err);
     }

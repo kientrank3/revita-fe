@@ -4,25 +4,23 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Clock, Save, X, AlertTriangle, CheckCircle } from 'lucide-react';
-import { WorkSessionFormData, Service, WorkSession } from '@/lib/types/work-session';
+import { Calendar, Clock, Save, X, AlertTriangle, CheckCircle, Search, Loader2 } from 'lucide-react';
+import { WorkSessionFormData, WorkSession } from '@/lib/types/work-session';
+import { useServices } from '@/lib/hooks/useServices';
 
 interface WorkSessionFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: WorkSessionFormData) => Promise<void>;
-  services: Service[];
   editingSession?: WorkSession | null;
   selectedDate?: Date;
   loading?: boolean;
@@ -32,7 +30,6 @@ export function WorkSessionForm({
   isOpen,
   onClose,
   onSubmit,
-  services = [],
   editingSession,
   selectedDate,
   loading = false,
@@ -45,6 +42,16 @@ export function WorkSessionForm({
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Use services hook to fetch services from API
+  const { 
+    services, 
+    loading: servicesLoading, 
+    error: servicesError, 
+    total: totalServices,
+    filterServices 
+  } = useServices();
 
   // Initialize form data
   useEffect(() => {
@@ -143,13 +150,21 @@ export function WorkSessionForm({
     }));
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    // Filter services immediately (client-side)
+    filterServices(query);
+  };
+
   const selectedServices = (services || []).filter(s => formData.serviceIds.includes(s.id));
   const availableServices = (services || []).filter(s => !formData.serviceIds.includes(s.id));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-none border-0 shadow-2xl bg-white">
-        <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
+        <DialogHeader className="pb-4 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-0 flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 rounded-full bg-gradient-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
@@ -168,9 +183,10 @@ export function WorkSessionForm({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Date and Time */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-hidden p-6 pt-4">
+          <form onSubmit={handleSubmit} className="h-full flex flex-col ">
+            {/* Date and Time */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
             <div className="space-y-2">
               <Label htmlFor="date">Ngày làm việc</Label>
               <Input
@@ -221,149 +237,194 @@ export function WorkSessionForm({
                 </p>
               )}
             </div>
-          </div>
+            </div>
 
-          {/* Session Duration Info */}
-          {formData.startTime && formData.endTime && !errors.endTime && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-blue-600">
-                <Clock className="h-4 w-4" />
-                <span className="font-medium">Thời lượng ca làm việc:</span>
-                <span>
-                  {(() => {
-                    const start = new Date(`${formData.date}T${formData.startTime}`);
-                    const end = new Date(`${formData.date}T${formData.endTime}`);
-                    const duration = (end.getTime() - start.getTime()) / (1000 * 60);
-                    const hours = Math.floor(duration / 60);
-                    const minutes = duration % 60;
-                    return `${hours}h ${minutes}m`;
-                  })()}
-                </span>
+            {/* Session Duration Info */}
+            {formData.startTime && formData.endTime && !errors.endTime && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex-shrink-0">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Clock className="h-4 w-4" />
+                  <span className="font-medium">Thời lượng ca làm việc:</span>
+                  <span>
+                    {(() => {
+                      const start = new Date(`${formData.date}T${formData.startTime}`);
+                      const end = new Date(`${formData.date}T${formData.endTime}`);
+                      const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+                      const hours = Math.floor(duration / 60);
+                      const minutes = duration % 60;
+                      return `${hours}h ${minutes}m`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Service Selection */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="mb-4 flex-shrink-0">
+                <Label className="text-base font-medium">Dịch vụ thực hiện</Label>
+                <p className="text-sm text-muted-foreground">
+                  Chọn các dịch vụ sẽ thực hiện trong ca làm việc này
+                </p>
+                {errors.serviceIds && (
+                  <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {errors.serviceIds}
+                  </p>
+                )}
+                {servicesError && (
+                  <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {servicesError}
+                  </p>
+                )}
+              </div>
+
+              {/* Search Services */}
+              <div className="relative mb-4 flex-shrink-0">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <Input
+                  type="text"
+                  placeholder="Tìm kiếm dịch vụ..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-10"
+                  disabled={servicesLoading}
+                />
+              </div>
+
+              {/* Selected Services - Compact Display */}
+              {selectedServices.length > 0 && (
+                <div className="mb-4 flex-shrink-0">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-700">
+                        Đã chọn {selectedServices.length} dịch vụ
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="inline-flex items-center gap-1 bg-white border border-green-300 rounded-md px-2 py-1 text-xs"
+                        >
+                          <span className="font-medium">{service.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleServiceToggle(service.id, false)}
+                            className="h-4 w-4 p-0 hover:bg-red-100 rounded-full"
+                          >
+                            <X className="h-3 w-3 text-gray-500 hover:text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Available Services - Scrollable List */}
+              <div className="flex-1 h-52">
+                <div className="h-full border border-gray-200 rounded-lg flex flex-col">
+                  <div className="flex-shrink-0 p-3 bg-gray-50 border-b">
+                    <h3 className="text-sm font-medium">
+                      Dịch vụ có sẵn 
+                      {!servicesLoading && ` (${availableServices.length}${searchQuery ? ` / ${totalServices}` : ''})`}
+                    </h3>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto">
+                    {servicesLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Đang tải dịch vụ...</span>
+                        </div>
+                      </div>
+                    ) : servicesError ? (
+                      <div className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2 text-red-500 mb-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span className="text-sm">Không thể tải danh sách dịch vụ</span>
+                        </div>
+                      </div>
+                    ) : availableServices.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="h-8 w-8 text-gray-300" />
+                          <span className="text-sm">
+                            {searchQuery ? 'Không tìm thấy dịch vụ phù hợp' : 'Không có dịch vụ nào'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2">
+                        <div className="space-y-1">
+                          {availableServices.map((service) => (
+                            <div
+                              key={service.id}
+                              className="flex items-center space-x-3 p-2 border rounded-md hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                            >
+                              <Checkbox
+                                id={service.id}
+                                checked={formData.serviceIds.includes(service.id)}
+                                onCheckedChange={(checked) => 
+                                  handleServiceToggle(service.id, checked as boolean)
+                                }
+                              />
+                              <div className="flex-1 min-w-0">
+                                <Label
+                                  htmlFor={service.id}
+                                  className="font-medium cursor-pointer text-sm block truncate"
+                                >
+                                  {service.name}
+                                </Label>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {service.serviceCode}
+                                  {service.description && ` • ${service.description}`}
+                                </p>
+                                {service.timePerPatient && (
+                                  <Badge variant="outline" className="text-xs mt-1">
+                                    {service.timePerPatient} phút/bệnh nhân
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Service Selection */}
-          <div className="space-y-4">
-            <div>
-              <Label className="text-base font-medium">Dịch vụ thực hiện</Label>
-              <p className="text-sm text-muted-foreground">
-                Chọn các dịch vụ sẽ thực hiện trong ca làm việc này
-              </p>
-              {errors.serviceIds && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  {errors.serviceIds}
-                </p>
-              )}
+            {/* Footer Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    {editingSession ? 'Cập nhật' : 'Tạo lịch'}
+                  </div>
+                )}
+              </Button>
             </div>
-
-            {/* Selected Services */}
-            {selectedServices.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-green-700">
-                    Dịch vụ đã chọn ({selectedServices.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {selectedServices.map((service) => (
-                      <div
-                        key={service.id}
-                        className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <div>
-                            <p className="font-medium text-sm">{service.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {service.serviceCode}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleServiceToggle(service.id, false)}
-                          className="h-6 w-6 p-0 hover:bg-red-100"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Available Services */}
-            {availableServices.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">
-                    Dịch vụ có sẵn ({availableServices.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 max-h-60 overflow-y-auto">
-                  <div className="space-y-2">
-                    {availableServices.map((service) => (
-                      <div
-                        key={service.id}
-                        className="flex items-center space-x-3 p-2 border rounded-lg hover:bg-muted/50"
-                      >
-                        <Checkbox
-                          id={service.id}
-                          checked={formData.serviceIds.includes(service.id)}
-                          onCheckedChange={(checked) => 
-                            handleServiceToggle(service.id, checked as boolean)
-                          }
-                        />
-                        <div className="flex-1">
-                          <Label
-                            htmlFor={service.id}
-                            className="font-medium cursor-pointer"
-                          >
-                            {service.name}
-                          </Label>
-                          <p className="text-xs text-muted-foreground">
-                            {service.serviceCode}
-                            {service.description && ` • ${service.description}`}
-                          </p>
-                          {service.timePerPatient && (
-                            <Badge variant="outline" className="text-xs mt-1">
-                              {service.timePerPatient} phút/bệnh nhân
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Hủy
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Đang xử lý...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  {editingSession ? 'Cập nhật' : 'Tạo lịch'}
-                </div>
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

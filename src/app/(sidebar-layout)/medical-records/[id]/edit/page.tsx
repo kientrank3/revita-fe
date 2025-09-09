@@ -256,6 +256,7 @@ export default function EditMedicalRecordPage() {
               onCancel={handleCancel}
               initialData={medicalRecord.content}
               isEditing={true}
+              existingAttachments={medicalRecord.attachments || []}
             />
           ) : (
             <Card>

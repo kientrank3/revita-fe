@@ -57,6 +57,7 @@ interface AuthContextValue extends MiddlewareAuthContext {
   logout: () => void;
   refreshToken: () => Promise<boolean>;
   updateProfile: (data: Partial<AuthUser>) => Promise<boolean>;
+  updateAvatar: (avatarUrl: string) => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
 }
@@ -251,6 +252,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateAvatar = async (avatarUrl: string): Promise<boolean> => {
+    try {
+      setError(null);
+      
+      // Update user data with new avatar URL
+      const updatedUser = { ...state.user, avatar: avatarUrl } as AuthUser;
+
+      // Update stored user data
+      safeLocalStorage.setItem('auth_user', JSON.stringify(updatedUser));
+
+      // Update state
+      setState(prev => ({
+        ...prev,
+        user: updatedUser,
+      }));
+
+      // Update middleware
+      authMiddleware.setCurrentUser(updatedUser);
+
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Cập nhật avatar thất bại';
+      setError(errorMessage);
+      return false;
+    }
+  };
+
   const hasPermission = (permission: string): boolean => {
     return authMiddleware.hasPermission(state.user, permission);
   };
@@ -273,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     refreshToken,
     updateProfile,
+    updateAvatar,
     isLoading: state.isLoading,
     error,
   };

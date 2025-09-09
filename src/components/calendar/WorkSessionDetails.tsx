@@ -101,7 +101,7 @@ export function WorkSessionDetails({
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto border-0 shadow-2xl bg-white">
         <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-6">
           <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+            <div className="p-2 rounded-full bg-gradient-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
