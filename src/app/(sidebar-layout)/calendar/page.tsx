@@ -142,7 +142,7 @@ export default function CalendarPage() {
           
         </div>
         <div className=" gap-6">
-            <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} />
+            <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} viewMode={viewMode} />
           </div>
         {/* Bottom Modules - Services & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

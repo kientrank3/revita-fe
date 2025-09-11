@@ -8,6 +8,7 @@ export type WorkSessionStatus =
 export type UserType = 'DOCTOR' | 'TECHNICIAN';
 
 export interface Service {
+  service?: Service;
   id: string;
   serviceCode: string;
   name: string;
@@ -31,6 +32,13 @@ export interface Booth {
   };
 }
 
+export interface WorkSessionService {
+  id: string;
+  workSessionId: string;
+  serviceId: string;
+  service: Service;
+}
+
 export interface WorkSession {
   id: string;
   startTime: string;
@@ -38,7 +46,7 @@ export interface WorkSession {
   status: WorkSessionStatus;
   nextAvailableAt?: string;
   booth?: Booth;
-  services: Service[];
+  services: WorkSessionService[];
   doctor?: {
     id: string;
     doctorCode: string;
@@ -129,7 +137,7 @@ export interface CalendarEvent {
   extendedProps: {
     workSession: WorkSession;
     status: WorkSessionStatus;
-    services: Service[];
+    services: WorkSessionService[];
     booth?: Booth;
   };
 }
@@ -137,24 +145,24 @@ export interface CalendarEvent {
 // Status colors for calendar events
 export const WorkSessionStatusColors = {
   PENDING: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
-    textColor: '#92400e'
+    backgroundColor: '#FFF7ED', // amber-50
+    borderColor: '#F59E0B',     // amber-500
+    textColor: '#B45309'        // amber-700
   },
   APPROVED: {
-    backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
-    textColor: '#065f46'
+    backgroundColor: '#ECFEFF', // cyan-50
+    borderColor: '#35B8CF',     // brand cyan
+    textColor: '#0E7490'        // cyan-700
   },
   REJECTED: {
-    backgroundColor: '#fee2e2',
-    borderColor: '#ef4444',
-    textColor: '#991b1b'
+    backgroundColor: '#FEF2F2', // red-50
+    borderColor: '#EF4444',     // red-500
+    textColor: '#991B1B'        // red-800
   },
   CANCELLED: {
-    backgroundColor: '#f3f4f6',
-    borderColor: '#6b7280',
-    textColor: '#374151'
+    backgroundColor: '#F8FAFC', // slate-50
+    borderColor: '#94A3B8',     // slate-400
+    textColor: '#334155'        // slate-700
   }
 } as const;
 

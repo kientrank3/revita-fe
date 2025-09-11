@@ -9,8 +9,8 @@ import listPlugin from '@fullcalendar/list';
 import { EventInput, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+// import { Badge } from '@/components/ui/badge';
+import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarEvent, WorkSession } from '@/lib/types/work-session';
 
 // Helper function to get FullCalendar view type
@@ -175,8 +175,8 @@ export function WorkSessionCalendar({
               onClick={() => handleViewChange('month')}
               className={
                 currentView === 'month' 
-                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
-                  : 'text-gray-700 hover:bg-white font-medium'
+                  ? 'bg-[#35b8cf] text-white font-medium' 
+                  : 'text-gray-700 font-medium'
               }
             >
               Tháng
@@ -187,8 +187,8 @@ export function WorkSessionCalendar({
               onClick={() => handleViewChange('week')}
               className={
                 currentView === 'week' 
-                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
-                  : 'text-gray-700 hover:bg-white font-medium'
+                  ? 'bg-[#35b8cf] text-white font-medium' 
+                  : 'text-gray-700 font-medium'
               }
             >
               Tuần
@@ -199,8 +199,8 @@ export function WorkSessionCalendar({
               onClick={() => handleViewChange('day')}
               className={
                 currentView === 'day' 
-                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
-                  : 'text-gray-700 hover:bg-white font-medium'
+                  ? 'bg-[#35b8cf] text-white  font-medium' 
+                  : 'text-gray-700 font-medium'
               }
             >
               Ngày
@@ -215,7 +215,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToPrev}
-              className="border-gray-300 hover:bg-gray-50 text-gray-700"
+              className="border-gray-300  text-gray-700"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -223,7 +223,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToNext}
-              className="border-gray-300 hover:bg-gray-50 text-gray-700"
+              className="border-gray-300 text-gray-700"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -231,7 +231,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="border-gray-300 hover:bg-gray-50 text-gray-700 font-medium ml-2"
+              className="border-gray-300  text-gray-700 font-medium ml-2"
             >
               Hôm nay
             </Button>
@@ -282,11 +282,11 @@ export function WorkSessionCalendar({
                 day: 'Ngày',
                 list: 'Danh sách'
               }}
-              allDayText="Cả ngày"
+              allDayText=""
               noEventsText="Không có lịch làm việc"
-              timeZone="Asia/Ho_Chi_Minh"
+              timeZone="local"
               slotLabelFormat={{
-                hour: '2-digit',
+                hour: '2-digit',  
                 minute: '2-digit',
                 hour12: false
               }}
@@ -295,24 +295,24 @@ export function WorkSessionCalendar({
                 minute: '2-digit',
                 hour12: false
               }}
-              slotMinTime="06:00:00"
-              slotMaxTime="22:00:00"
+              slotMinTime="00:00:00"
+              slotMaxTime="24:00:00"
               eventContent={(eventInfo) => {
-                const getStatusColor = (status: string) => {
-                  switch (status?.toLowerCase()) {
-                    case 'approved':
-                    case 'đã duyệt':
-                      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                    case 'pending':
-                    case 'chờ duyệt':
-                      return 'bg-amber-50 text-amber-700 border-amber-200';
-                    case 'rejected':
-                    case 'từ chối':
-                      return 'bg-red-50 text-red-700 border-red-200';
-                    default:
-                      return 'bg-gray-50 text-gray-700 border-gray-200';
-                  }
-                };
+                // const getStatusColor = (status: string) => {
+                //   switch (status?.toLowerCase()) {
+                //     case 'approved':
+                //     case 'đã duyệt':
+                //       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                //     case 'pending':
+                //     case 'chờ duyệt':
+                //       return 'bg-amber-50 text-amber-700 border-amber-200';
+                //     case 'rejected':
+                //     case 'từ chối':
+                //       return 'bg-red-50 text-red-700 border-red-200';
+                //     default:
+                //       return 'bg-gray-50 text-gray-700 border-gray-200';
+                //   }
+                // };
 
                 const currentViewType = eventInfo.view.type;
                 const isMonthView = currentViewType.includes('dayGrid');
@@ -320,71 +320,66 @@ export function WorkSessionCalendar({
                 const isDayView = currentViewType.includes('timeGridDay');
                 const workSession = eventInfo.event.extendedProps.workSession;
 
-                return (
-                  <div className="h-full p-2 bg-white rounded-md border border-gray-200 shadow-sm hover:shadow-md hover:border-[#35b8cf]/30 transition-all duration-200 group">
-                    <div className="flex flex-col h-full">
-                      {/* Title */}
-                      <div className={`font-medium text-gray-900 group-hover:text-[#35b8cf] transition-colors ${isMonthView ? 'text-xs truncate' : 'text-sm'} ${!isMonthView ? 'leading-tight' : ''}`}>
-                        {eventInfo.event.title || 'Ca làm việc'}
-                      </div>
-                      
-                      {/* Time - Show in all views */}
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                        <span className="text-xs text-gray-600">
-                          {eventInfo.event.start?.toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                          {eventInfo.event.end && (
-                            ` - ${eventInfo.event.end.toLocaleTimeString('vi-VN', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}`
-                          )}
+                // Use status colors from event if available; fallback to brand tint
+                const bgColor = eventInfo.backgroundColor || 'rgba(53, 184, 207, 0.08)';
+                const borderColor = eventInfo.borderColor || '#35b8cf';
+                const textColor = eventInfo.textColor || '#111827';
+
+                // Month: show start-end; Week/Day: use eventInfo.timeText
+                const formatHM = (d?: Date | null) =>
+                  d
+                    ? d.toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                      })
+                    : '';
+                const startHM = formatHM(eventInfo.event.start);
+                const endHM = formatHM(eventInfo.event.end);
+
+                // Month view: compact line with subtle colored chip
+                if (isMonthView) {
+                  return (
+                    <div
+                      className="w-full mx-1 px-2 py-0.5 rounded-sm border transition-colors duration-150 hover:border-[#35b8cf]/40"
+                      style={{ backgroundColor: bgColor, borderColor, color: textColor }}
+                    >
+                      <div className="flex items-center gap-2 text-[11px] leading-4 min-w-0">
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: borderColor }}
+                        />
+                        <span className="tabular-nums opacity-80 flex-shrink-0">
+                          {startHM}{endHM ? ` - ${endHM}` : ''}
                         </span>
-                      </div>
-
-                      {/* Services - Show in week and day view */}
-                      {(isWeekView || isDayView) && workSession?.services && workSession.services.length > 0 && (
-                        <div className="mt-1">
-                          <div className="text-xs text-gray-600">
-                            <span className="font-medium">{workSession.services.length} dịch vụ:</span>
-                            <div className="mt-1">
-                              {workSession.services.slice(0, isDayView ? 3 : 1).map((service: {service?: {name?: string}}, index: number) => (
-                                <div key={index} className="text-xs text-gray-500 truncate">
-                                  • {service.service?.name || `Dịch vụ ${index + 1}`}
-                                </div>
-                              ))}
-                              {workSession.services.length > (isDayView ? 3 : 1) && (
-                                <div className="text-xs text-gray-400">
-                                  +{workSession.services.length - (isDayView ? 3 : 1)} khác
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Location - Show in day view only */}
-                      {isDayView && workSession?.booth?.name && (
-                        <div className="mt-1">
-                          <div className="text-xs text-gray-500">
-                            📍 {workSession.booth.name}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Status Badge */}
-                      <div className="mt-auto pt-1">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${getStatusColor(eventInfo.event.extendedProps.status)}`}
-                        >
-                          {eventInfo.event.extendedProps.status}
-                        </Badge>
+                        {/* <span className="truncate flex-1">{eventInfo.event.title || 'Ca làm việc'}</span> */}
                       </div>
                     </div>
+                  );
+                }
+
+                // Week/Day view: full-height block matching event duration, compact horizontally + extra info
+                return (
+                  <div
+                    className="h-full w-full px-2 py-2 rounded-sm border max-w-52"
+                    style={{ backgroundColor: bgColor, color: textColor, borderColor: 'rgba(0,0,0,0.08)', borderLeft: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}`, borderBottom: `1px solid ${borderColor}`, borderTop: `1px solid ${borderColor}` }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-medium tabular-nums flex-shrink-0">{eventInfo.timeText}</span>
+                      {/* <span className="text-xs truncate flex-1">{eventInfo.event.title || 'Ca làm việc'}</span> */}
+                    </div>
+                    {(isWeekView || isDayView) && (
+                      <div className="mt-0.5 min-w-0">
+                        <div className="flex items-center gap-2 text-[11px] leading-4 text-gray-600 min-w-0">
+                          {/* {Array.isArray(workSession?.services) && workSession.services.length > 0 && (
+                            <span className="whitespace-nowrap flex-shrink-0">{workSession.services.length} dv</span>
+                          )} */}
+                          {workSession?.booth?.name && (
+                            <span className="truncate">📍 {workSession.booth.name}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               }}
@@ -445,6 +440,38 @@ export function WorkSessionCalendar({
           border-radius: 6px;
           font-weight: 500;
           transition: all 0.2s ease;
+        }
+        
+        /* Today cell highlight - month view (dayGrid) */
+        .fc-daygrid-day.fc-day-today {
+          background: rgba(53, 184, 207, 0.03) !important;
+          position: relative;
+        }
+        .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+          color: #0f172a; /* slate-900 */
+          font-weight: 700;
+        }
+        .fc-daygrid-day.fc-day-today::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          // border: 1px solid #35b8cf;
+          border-radius: 8px;
+          pointer-events: none;
+        }
+
+        /* Today column highlight - week/day view (timeGrid) */
+        .fc-timegrid-col.fc-day-today,
+        .fc-timegrid-col.fc-day.fc-day-today,
+        .fc-timegrid-col-frame.fc-scrollgrid-sync-inner:has(.fc-day-today) {
+          background: rgba(53, 184, 207, 0.05) !important;
+        }
+        .fc-timegrid .fc-day-today .fc-timegrid-slot {
+          background: rgba(53, 184, 207, 0.03) !important;
+        }
+        .fc-timegrid-col.fc-day-today .fc-timegrid-axis-cushion {
+          color: #0f172a;
+          font-weight: 600;
         }
         
         .fc-button-primary:hover {

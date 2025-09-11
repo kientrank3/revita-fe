@@ -99,7 +99,7 @@ export function WorkSessionDetails({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto border-0 shadow-2xl bg-white">
-        <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-6">
+        <DialogHeader className="pb-2.5 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-4 mb-4">
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 rounded-full bg-gradient-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
@@ -113,7 +113,7 @@ export function WorkSessionDetails({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Status */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -136,8 +136,8 @@ export function WorkSessionDetails({
 
           {/* Date and Time Information */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
+            <CardHeader className="pb-0.5">
+              <CardTitle className="text-lg flex items-center gap-4">
                 <Clock className="h-5 w-5" />
                 Thời gian
               </CardTitle>
@@ -171,7 +171,7 @@ export function WorkSessionDetails({
           {/* Booth Information */}
           {workSession.booth && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-0.5">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <MapPin className="h-5 w-5" />
                   Vị trí làm việc
@@ -200,7 +200,7 @@ export function WorkSessionDetails({
 
           {/* Staff Information */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-0.5">
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="h-5 w-5" />
                 Nhân viên
@@ -235,30 +235,30 @@ export function WorkSessionDetails({
 
           {/* Services */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-0.5">
               <CardTitle className="text-lg">
                 Dịch vụ thực hiện ({workSession.services.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {workSession.services.map((service) => (
+                {workSession.services.map((serviceItem, index) => (
                   <div
-                    key={service.id}
+                    key={serviceItem.service?.id || `service-${index}`}
                     className="p-3 border rounded-lg hover:bg-muted/50"
                   >
-                    <p className="font-medium">{service.name}</p>
+                    <p className="font-medium">{serviceItem.service?.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {service.serviceCode}
+                      {serviceItem.service?.serviceCode}
                     </p>
-                    {service.description && (
+                    {serviceItem.service?.description && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {service.description}
+                        {serviceItem.service?.description}
                       </p>
                     )}
-                    {service.timePerPatient && (
+                    {serviceItem.service?.timePerPatient && (
                       <Badge variant="outline" className="text-xs mt-2">
-                        {service.timePerPatient} phút/bệnh nhân
+                        {serviceItem.service?.timePerPatient} phút/bệnh nhân
                       </Badge>
                     )}
                   </div>

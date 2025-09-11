@@ -70,7 +70,11 @@ export const useWorkSessionCalendar = () => {
   const calendarEvents = useMemo((): CalendarEvent[] => {
     return workSessions.map((session) => {
       const statusColors = WorkSessionStatusColors[session.status];
-      const serviceNames = session.services.map(s => s.name).join(', ');
+      
+      // Handle new service structure: array of {serviceId, workSessionId, service: {...}}
+      const serviceNames = session.services
+        .map(serviceItem => serviceItem.service?.name || 'Unknown Service')
+        .join(', ');
       
       return {
         id: session.id,
