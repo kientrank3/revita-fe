@@ -152,8 +152,8 @@ export function WorkSessionCalendar({
   }));
 
   return (
-    <Card className="w-full border shadow-sm bg-white">
-      <CardHeader className="space-y-4 pb-4 border-b">
+    <Card className="w-full border border-gray-200 shadow-sm bg-white">
+      <CardHeader className="space-y-4 pb-4 border-b border-gray-200 bg-white">
         {/* Title and View Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-3">
@@ -161,17 +161,23 @@ export function WorkSessionCalendar({
               <CalendarIcon className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Lịch làm việc</h2>
-              <p className="text-sm text-gray-600">Xem và quản lý ca làm việc</p>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Lịch làm việc
+              </h2>
+              <p className="text-sm text-gray-600">Quản lý ca làm việc hiệu quả</p>
             </div>
           </CardTitle>
           
-          <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
             <Button
               variant={currentView === 'month' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => handleViewChange('month')}
-              className={currentView === 'month' ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5]' : 'hover:bg-gray-100'}
+              className={
+                currentView === 'month' 
+                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
+                  : 'text-gray-700 hover:bg-white font-medium'
+              }
             >
               Tháng
             </Button>
@@ -179,7 +185,11 @@ export function WorkSessionCalendar({
               variant={currentView === 'week' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => handleViewChange('week')}
-              className={currentView === 'week' ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5]' : 'hover:bg-gray-100'}
+              className={
+                currentView === 'week' 
+                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
+                  : 'text-gray-700 hover:bg-white font-medium'
+              }
             >
               Tuần
             </Button>
@@ -187,7 +197,11 @@ export function WorkSessionCalendar({
               variant={currentView === 'day' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => handleViewChange('day')}
-              className={currentView === 'day' ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5]' : 'hover:bg-gray-100'}
+              className={
+                currentView === 'day' 
+                  ? 'bg-[#35b8cf] text-white hover:bg-[#2a9bb5] font-medium' 
+                  : 'text-gray-700 hover:bg-white font-medium'
+              }
             >
               Ngày
             </Button>
@@ -201,7 +215,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToPrev}
-              className="hover:bg-gray-50"
+              className="border-gray-300 hover:bg-gray-50 text-gray-700"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -209,7 +223,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToNext}
-              className="hover:bg-gray-50"
+              className="border-gray-300 hover:bg-gray-50 text-gray-700"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -217,7 +231,7 @@ export function WorkSessionCalendar({
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="hover:bg-gray-50"
+              className="border-gray-300 hover:bg-gray-50 text-gray-700 font-medium ml-2"
             >
               Hôm nay
             </Button>
@@ -229,9 +243,9 @@ export function WorkSessionCalendar({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4">
+      <CardContent className="p-2.5">
         {loading ? (
-          <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg border border-gray-200">
             <div className="text-center space-y-4">
               <div className="relative">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 mx-auto"></div>
@@ -283,36 +297,97 @@ export function WorkSessionCalendar({
               }}
               slotMinTime="06:00:00"
               slotMaxTime="22:00:00"
-              eventContent={(eventInfo) => (
-                <div className="p-1 text-xs">
-                  <div className="font-medium truncate">
-                    {eventInfo.event.title}
-                  </div>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {eventInfo.event.start?.toLocaleTimeString('vi-VN', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                      {eventInfo.event.end && (
-                        ` - ${eventInfo.event.end.toLocaleTimeString('vi-VN', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}`
+              eventContent={(eventInfo) => {
+                const getStatusColor = (status: string) => {
+                  switch (status?.toLowerCase()) {
+                    case 'approved':
+                    case 'đã duyệt':
+                      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    case 'pending':
+                    case 'chờ duyệt':
+                      return 'bg-amber-50 text-amber-700 border-amber-200';
+                    case 'rejected':
+                    case 'từ chối':
+                      return 'bg-red-50 text-red-700 border-red-200';
+                    default:
+                      return 'bg-gray-50 text-gray-700 border-gray-200';
+                  }
+                };
+
+                const currentViewType = eventInfo.view.type;
+                const isMonthView = currentViewType.includes('dayGrid');
+                const isWeekView = currentViewType.includes('timeGridWeek');
+                const isDayView = currentViewType.includes('timeGridDay');
+                const workSession = eventInfo.event.extendedProps.workSession;
+
+                return (
+                  <div className="h-full p-2 bg-white rounded-md border border-gray-200 shadow-sm hover:shadow-md hover:border-[#35b8cf]/30 transition-all duration-200 group">
+                    <div className="flex flex-col h-full">
+                      {/* Title */}
+                      <div className={`font-medium text-gray-900 group-hover:text-[#35b8cf] transition-colors ${isMonthView ? 'text-xs truncate' : 'text-sm'} ${!isMonthView ? 'leading-tight' : ''}`}>
+                        {eventInfo.event.title || 'Ca làm việc'}
+                      </div>
+                      
+                      {/* Time - Show in all views */}
+                      <div className="flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                        <span className="text-xs text-gray-600">
+                          {eventInfo.event.start?.toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                          {eventInfo.event.end && (
+                            ` - ${eventInfo.event.end.toLocaleTimeString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}`
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Services - Show in week and day view */}
+                      {(isWeekView || isDayView) && workSession?.services && workSession.services.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-xs text-gray-600">
+                            <span className="font-medium">{workSession.services.length} dịch vụ:</span>
+                            <div className="mt-1">
+                              {workSession.services.slice(0, isDayView ? 3 : 1).map((service: {service?: {name?: string}}, index: number) => (
+                                <div key={index} className="text-xs text-gray-500 truncate">
+                                  • {service.service?.name || `Dịch vụ ${index + 1}`}
+                                </div>
+                              ))}
+                              {workSession.services.length > (isDayView ? 3 : 1) && (
+                                <div className="text-xs text-gray-400">
+                                  +{workSession.services.length - (isDayView ? 3 : 1)} khác
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       )}
-                    </span>
+
+                      {/* Location - Show in day view only */}
+                      {isDayView && workSession?.booth?.name && (
+                        <div className="mt-1">
+                          <div className="text-xs text-gray-500">
+                            📍 {workSession.booth.name}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Status Badge */}
+                      <div className="mt-auto pt-1">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${getStatusColor(eventInfo.event.extendedProps.status)}`}
+                        >
+                          {eventInfo.event.extendedProps.status}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1">
-                    <Badge 
-                      variant="outline" 
-                      className="text-xs"
-                    >
-                      {eventInfo.event.extendedProps.status}
-                    </Badge>
-                  </div>
-                </div>
-              )}
+                );
+              }}
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
               eventClassNames={(arg) => [
                 'cursor-pointer',
@@ -334,21 +409,24 @@ export function WorkSessionCalendar({
       <style jsx global>{`
         .calendar-container {
           background: #ffffff;
-          border-radius: 8px;
-          padding: 0;
+          border-radius: 12px;
+          padding: 4px;
+          border: 1px solid #e5e7eb;
         }
         
         .fc-theme-standard .fc-event {
           border-radius: 6px;
           border: none;
-          padding: 4px 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          transition: all 0.2s ease;
+          padding: 0;
+          background: transparent !important;
+          overflow: hidden;
+          margin: 1px;
+          min-height: 24px;
         }
         
         .fc-theme-standard .fc-event:hover {
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          z-index: 10;
         }
         
         .fc-theme-standard .fc-event-title {
@@ -398,7 +476,7 @@ export function WorkSessionCalendar({
           text-transform: uppercase;
           font-size: 0.75rem;
           letter-spacing: 0.05em;
-          color: #6b7280;
+          color: #374151;
           border: 1px solid #e5e7eb;
           padding: 12px 8px;
         }
@@ -407,11 +485,12 @@ export function WorkSessionCalendar({
           font-size: 0.75rem;
           color: #6b7280;
           font-weight: 500;
+          padding: 4px 8px;
         }
         
         .fc-scrollgrid {
           border: 1px solid #e5e7eb;
-          border-radius: 6px;
+          border-radius: 8px;
           overflow: hidden;
         }
         
@@ -422,6 +501,18 @@ export function WorkSessionCalendar({
         
         .fc-daygrid-day.fc-day-today {
           background: #f0f9ff;
+          position: relative;
+        }
+        
+        .fc-daygrid-day.fc-day-today::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: #35b8cf;
+          z-index: 1;
         }
         
         .fc-timegrid-col.fc-day-today {

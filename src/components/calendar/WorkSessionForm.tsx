@@ -183,7 +183,7 @@ export function WorkSessionForm({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden p-6 pt-4">
+        <div className="flex-1  p-6 pt-4 overflow-y-auto">
           <form onSubmit={handleSubmit} className="h-full flex flex-col ">
             {/* Date and Time */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">

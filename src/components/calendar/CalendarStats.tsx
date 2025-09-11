@@ -160,28 +160,28 @@ export function CalendarStats({
           <div className="grid grid-cols-2 gap-3">
             <Badge
               variant="outline"
-              className="justify-center py-3 bg-yellow-50 border-yellow-300 text-yellow-700 font-medium"
+              className="w-28 justify-center py-3 bg-yellow-50 border-yellow-300 text-yellow-700 font-medium"
             >
               <Clock className="h-4 w-4 mr-2" />
               Chờ duyệt
             </Badge>
             <Badge
               variant="outline"
-              className="justify-center py-3 bg-green-50 border-green-300 text-green-700 font-medium"
+              className="w-28 justify-center py-3 bg-green-50 border-green-300 text-green-700 font-medium"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Đã duyệt
             </Badge>
             <Badge
               variant="outline"
-              className="justify-center py-3 bg-red-50 border-red-300 text-red-700 font-medium"
+              className="w-28 justify-center py-3 bg-red-50 border-red-300 text-red-700 font-medium"
             >
               <X className="h-4 w-4 mr-2" />
               Bị từ chối
             </Badge>
             <Badge
               variant="outline"
-              className="justify-center py-3 bg-gray-50 border-gray-300 text-gray-700 font-medium"
+              className="w-28 justify-center py-3 bg-gray-50 border-gray-300 text-gray-700 font-medium"
             >
               <Activity className="h-4 w-4 mr-2" />
               Đã hủy
@@ -206,7 +206,7 @@ export function CalendarStats({
               style={{ backgroundColor: stat.bgColor }}
             >
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between ">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
                       {stat.title}
