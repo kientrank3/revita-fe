@@ -334,6 +334,11 @@ export function useIsReceptionist() {
   return hasRole('RECEPTIONIST');
 }
 
+export function useIsTechnician() {
+  const { hasRole } = useAuth();
+  return hasRole('TECHNICIAN');
+}
+
 export function useIsPatient() {
   const { hasRole } = useAuth();
   return hasRole('PATIENT');

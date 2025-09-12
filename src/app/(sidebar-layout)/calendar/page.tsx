@@ -10,6 +10,8 @@ import { WorkSessionForm } from '@/components/calendar/WorkSessionForm';
 import { WorkSessionDetails } from '@/components/calendar/WorkSessionDetails';
 import { useWorkSessionCalendar } from '@/lib/hooks/useWorkSessionCalendar';
 import { WorkSession, WorkSessionFormData } from '@/lib/types/work-session';
+import { useAuth, useIsAdmin, useIsDoctor, useIsTechnician } from '@/lib/hooks/useAuth';
+import { AdminWorkSessionManager } from '@/components/calendar/AdminWorkSessionManager';
 
 export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
@@ -17,6 +19,17 @@ export default function CalendarPage() {
   const [editingSession, setEditingSession] = useState<WorkSession | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkSession | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDoctorId] = useState<string | null>(null);
+  const [, setShowDoctorList] = useState(false);
+
+  // Auth hooks
+  const { isLoading: authLoading } = useAuth();
+  const isAdmin = useIsAdmin();
+  const isDoctor = useIsDoctor();
+  const isTechnician = useIsTechnician();
+
+  // Check if user has access to calendar
+  const hasCalendarAccess = isAdmin || isDoctor || isTechnician;
 
   const {
     workSessions,
@@ -33,7 +46,29 @@ export default function CalendarPage() {
     handleUpdateWorkSession,
     handleDeleteWorkSession,
     refreshCalendar,
-  } = useWorkSessionCalendar();
+    // Admin-specific functions
+    handleUpdateWorkSessionStatus,
+    handleCreateWorkSessionForUser,
+    handleUpdateWorkSessionForUser,
+    handleDeleteWorkSessionForUser,
+  } = useWorkSessionCalendar({
+    selectedDoctorId: isAdmin ? selectedDoctorId : undefined,
+    isAdmin,
+    // Only fetch when auth finished determining roles
+    isReady: !authLoading,
+  });
+
+  // Access control - redirect if no permission
+  if (!hasCalendarAccess) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Không có quyền truy cập</h1>
+          <p className="text-gray-600">Bạn không có quyền xem trang quản lý lịch làm việc.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle calendar event click
   const handleEventClick = (workSession: WorkSession) => {
@@ -53,10 +88,18 @@ export default function CalendarPage() {
   const handleFormSubmit = async (formData: WorkSessionFormData) => {
     try {
       if (editingSession) {
-        await handleUpdateWorkSession(editingSession.id, formData);
+        if (isAdmin && selectedDoctorId) {
+          await handleUpdateWorkSessionForUser(editingSession.id, formData, selectedDoctorId);
+        } else {
+          await handleUpdateWorkSession(editingSession.id, formData);
+        }
         toast.success('Cập nhật lịch làm việc thành công!');
       } else {
-        await handleCreateWorkSession(formData);
+        if (isAdmin && selectedDoctorId) {
+          await handleCreateWorkSessionForUser(formData, selectedDoctorId);
+        } else {
+          await handleCreateWorkSession(formData);
+        }
         toast.success('Tạo lịch làm việc thành công!');
       }
       setShowForm(false);
@@ -77,12 +120,27 @@ export default function CalendarPage() {
   // Handle delete session
   const handleDeleteSession = async (sessionId: string) => {
     try {
-      await handleDeleteWorkSession(sessionId);
+      if (isAdmin && selectedDoctorId) {
+        await handleDeleteWorkSessionForUser(sessionId, selectedDoctorId);
+      } else {
+        await handleDeleteWorkSession(sessionId);
+      }
       toast.success('Xóa lịch làm việc thành công!');
       setShowDetails(false);
       setSelectedSession(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa');
+    }
+  };
+
+
+
+  const handleStatusUpdate = async (sessionId: string, status: string) => {
+    try {
+      await handleUpdateWorkSessionStatus(sessionId, status);
+      toast.success('Cập nhật trạng thái thành công!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật trạng thái');
     }
   };
 
@@ -112,6 +170,9 @@ export default function CalendarPage() {
           loading={loading}
           onRefresh={handleRefresh}
           onCreateNew={handleCreateNew}
+          isAdmin={isAdmin}
+          selectedDoctorId={selectedDoctorId}
+          onShowDoctorList={() => setShowDoctorList(true)}
         />
 
         {/* Error Display */}
@@ -125,7 +186,7 @@ export default function CalendarPage() {
 
         {/* Main Layout: Calendar + Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
-          {/* Calendar - Main Content (3/4 width on xl screens) */}
+          {/* Calendar - Main Content */}
           <div className="xl:col-span-6">
             <WorkSessionCalendar
               events={calendarEvents}
@@ -137,12 +198,9 @@ export default function CalendarPage() {
               height="calc(120vh - 400px)"
             />
           </div>
-
-          {/* Sidebar - Statistics (1/4 width on xl screens) */}
-          
         </div>
         <div className=" gap-6">
-            <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} viewMode={viewMode} />
+            <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} />
           </div>
         {/* Bottom Modules - Services & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -175,11 +233,26 @@ export default function CalendarPage() {
         workSession={selectedSession}
         onEdit={handleEditSession}
         onDelete={handleDeleteSession}
+        onStatusUpdate={handleStatusUpdate}
         loading={loading}
         canEdit={true}
         canDelete={true}
-        canChangeStatus={false} // Only admin can change status
+        canChangeStatus={isAdmin} // Only admin can change status
+        isAdmin={isAdmin}
       />
+
+      {/* Admin-specific modals */}
+      {isAdmin && (
+        <>
+          <AdminWorkSessionManager
+            workSessions={workSessions}
+            onUpdateStatus={handleStatusUpdate}
+            onEdit={handleEditSession}
+            onDelete={handleDeleteSession}
+            loading={loading}
+          />
+        </>
+      )}
     </div>
   );
 }

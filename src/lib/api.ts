@@ -410,7 +410,7 @@ export const serviceApi = {
 
 // Work Session Management API
 export const workSessionApi = {
-  // Tạo work sessions
+  // Tạo work sessions (Doctor/Technician/Admin)
   create: (data: {
     workSessions: {
       startTime: string;
@@ -420,11 +420,11 @@ export const workSessionApi = {
   }) =>
     api.post('/work-sessions', data),
   
-  // Lấy lịch làm việc của tôi
+  // Lấy lịch làm việc của tôi (Doctor/Technician)
   getMySchedule: (params?: { startDate?: string; endDate?: string }) =>
     api.get('/work-sessions/my-schedule', { params }),
   
-  // Lấy work sessions của user khác (admin only)
+  // Lấy work sessions của user khác (Admin only)
   getUserWorkSessions: (userId: string, params: {
     userType: 'DOCTOR' | 'TECHNICIAN';
     startDate?: string;
@@ -432,11 +432,11 @@ export const workSessionApi = {
   }) =>
     api.get(`/work-sessions/user/${userId}`, { params }),
   
-  // Lấy tất cả work sessions (admin only)
+  // Lấy tất cả work sessions (Admin only)
   getAll: (params?: {
     startDate?: string;
     endDate?: string;
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    status?: 'PENDING' | 'APPROVED' | 'IN_PROGRESS' | 'CANCELED' | 'COMPLETED';
     userType?: 'DOCTOR' | 'TECHNICIAN';
     limit?: number;
     offset?: number;
@@ -447,25 +447,84 @@ export const workSessionApi = {
   getById: (id: string) =>
     api.get(`/work-sessions/${id}`),
   
-  // Lấy work sessions theo booth
+  // Lấy work sessions theo booth (Admin only)
   getByBooth: (boothId: string, params?: { startDate?: string; endDate?: string }) =>
     api.get(`/work-sessions/booth/${boothId}`, { params }),
   
-  // Lấy work sessions theo ngày
+  // Lấy work sessions theo ngày (Admin only)
   getByDate: (date: string, params?: { userType?: 'DOCTOR' | 'TECHNICIAN' }) =>
     api.get(`/work-sessions/date/${date}`, { params }),
   
-  // Cập nhật work session
+  // Cập nhật work session (Doctor/Technician/Admin)
   update: (id: string, data: {
     startTime?: string;
     endTime?: string;
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    status?: 'PENDING' | 'APPROVED' | 'IN_PROGRESS' | 'CANCELED' | 'COMPLETED';
     boothId?: string;
     serviceIds?: string[];
   }) =>
     api.put(`/work-sessions/${id}`, data),
   
-  // Xóa work session
+  // Xóa work session (Doctor/Technician/Admin)
   delete: (id: string) =>
     api.delete(`/work-sessions/${id}`),
+  
+  // Kiểm tra xung đột thời gian (Conflict validation)
+  validateConflict: (data: {
+    workSessions: {
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+    }[];
+  }) =>
+    api.post('/work-sessions/validate-conflict', data),
+  
+  // Kiểm tra quyền truy cập (Permission validation)
+  validatePermission: (userId: string, userType: 'DOCTOR' | 'TECHNICIAN') =>
+    api.get(`/work-sessions/validate-permission/${userId}?userType=${userType}`),
+  
+  // Utility functions for common operations
+  
+  // Tạo work session với validation tự động
+  createWithValidation: async (data: {
+    workSessions: {
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+    }[];
+  }) => {
+    // First validate for conflicts
+    const conflictResult = await api.post('/work-sessions/validate-conflict', data);
+    if (conflictResult.data.hasConflict) {
+      throw new Error(`Conflict detected: ${conflictResult.data.message}`);
+    }
+    // If no conflict, create the work sessions
+    return api.post('/work-sessions', data);
+  },
+  
+  // Lấy work sessions với pagination và filtering
+  getWithFilters: (params: {
+    startDate?: string;
+    endDate?: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    userType?: 'DOCTOR' | 'TECHNICIAN';
+    userId?: string;
+    boothId?: string;
+    date?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const { userId, boothId, date, ...otherParams } = params;
+    
+    if (userId) {
+      return api.get(`/work-sessions/user/${userId}`, { params: otherParams });
+    }
+    if (boothId) {
+      return api.get(`/work-sessions/booth/${boothId}`, { params: otherParams });
+    }
+    if (date) {
+      return api.get(`/work-sessions/date/${date}`, { params: otherParams });
+    }
+    return api.get('/work-sessions', { params: otherParams });
+  },
 };

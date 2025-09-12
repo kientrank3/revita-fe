@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWorkSessionManagement } from './useWorkSessionManagement';
-import { serviceApi } from '@/lib/api';
+import { serviceApi, workSessionApi } from '@/lib/api';
 import {
   WorkSession,
   CalendarEvent,
@@ -9,7 +10,15 @@ import {
   WorkSessionFormData,
 } from '@/lib/types/work-session';
 
-export const useWorkSessionCalendar = () => {
+interface UseWorkSessionCalendarOptions {
+  selectedDoctorId?: string | null;
+  isAdmin?: boolean;
+  // Prevent initial fetch until auth/role is determined by caller
+  isReady?: boolean;
+}
+
+export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = {}) => {
+  const { selectedDoctorId, isAdmin = false, isReady = true } = options;
   const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -45,13 +54,33 @@ export const useWorkSessionCalendar = () => {
   // Load work sessions when date changes
   const loadWorkSessions = useCallback(async (startDate?: Date, endDate?: Date) => {
     try {
+      // Avoid fetching until auth/role is ready
+      if (!isReady) return;
       const start = startDate || new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
       const end = endDate || new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
       
-      const response = await getMySchedule({
-        startDate: start.toISOString().split('T')[0],
-        endDate: end.toISOString().split('T')[0],
-      });
+      let response;
+      
+      if (isAdmin && selectedDoctorId) {
+        // Admin viewing specific doctor's schedule
+        response = await workSessionApi.getUserWorkSessions(selectedDoctorId, {
+          userType: 'DOCTOR',
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+        });
+      } else if (isAdmin) {
+        // Admin viewing all work sessions
+        response = await workSessionApi.getAll({
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+        });
+      } else {
+        // Regular user viewing their own schedule
+        response = await getMySchedule({
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+        });
+      }
       
       // Handle work session response structure
       const workSessionsData = response.data || response || [];
@@ -59,7 +88,7 @@ export const useWorkSessionCalendar = () => {
     } catch (err) {
       console.error('Failed to load work sessions:', err);
     }
-  }, [selectedDate, getMySchedule]);
+  }, [selectedDate, getMySchedule, isAdmin, selectedDoctorId, isReady]);
 
   // Load work sessions when component mounts or date changes
   useEffect(() => {
@@ -96,7 +125,6 @@ export const useWorkSessionCalendar = () => {
 
   // Create new work session
   const handleCreateWorkSession = useCallback(async (formData: WorkSessionFormData) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sessionDate = new Date(formData.date);
     const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
     const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
@@ -213,6 +241,71 @@ export const useWorkSessionCalendar = () => {
     return !validation.hasConflict;
   }, [validateTimeConflicts, workSessions]);
 
+  // Admin-specific functions
+  const handleUpdateWorkSessionStatus = useCallback(async (sessionId: string, status: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await workSessionApi.update(sessionId, { status: status as any });
+    await loadWorkSessions();
+  }, [loadWorkSessions]);
+
+  const handleCreateWorkSessionForUser = useCallback(async (formData: WorkSessionFormData, userId: string) => {
+    const sessionDate = new Date(formData.date);
+    const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+    const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+
+    const createData = {
+      workSessions: [{
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        serviceIds: formData.serviceIds,
+      }],
+    };
+
+    await workSessionApi.create(createData);
+    await loadWorkSessions();
+  }, [loadWorkSessions]);
+
+  const handleUpdateWorkSessionForUser = useCallback(async (
+    sessionId: string, 
+    updateData: Partial<WorkSessionFormData>,
+    userId: string
+  ) => {
+    const session = workSessions.find(s => s.id === sessionId);
+    if (!session) {
+      throw new Error('Không tìm thấy lịch làm việc');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updatePayload: any = {};
+
+    if (updateData.startTime || updateData.endTime || updateData.date) {
+      const currentStart = new Date(session.startTime);
+      const currentEnd = new Date(session.endTime);
+      
+      const date = updateData.date || currentStart.toISOString().split('T')[0];
+      const startTime = updateData.startTime || currentStart.toTimeString().slice(0, 5);
+      const endTime = updateData.endTime || currentEnd.toTimeString().slice(0, 5);
+
+      const startDateTime = new Date(`${date}T${startTime}`);
+      const endDateTime = new Date(`${date}T${endTime}`);
+
+      updatePayload.startTime = startDateTime.toISOString();
+      updatePayload.endTime = endDateTime.toISOString();
+    }
+
+    if (updateData.serviceIds) {
+      updatePayload.serviceIds = updateData.serviceIds;
+    }
+
+    await workSessionApi.update(sessionId, updatePayload);
+    await loadWorkSessions();
+  }, [workSessions, loadWorkSessions]);
+
+  const handleDeleteWorkSessionForUser = useCallback(async (sessionId: string, userId: string) => {
+    await workSessionApi.delete(sessionId);
+    await loadWorkSessions();
+  }, [loadWorkSessions]);
+
   // Refresh calendar data
   const refreshCalendar = useCallback(async () => {
     await loadWorkSessions();
@@ -239,5 +332,11 @@ export const useWorkSessionCalendar = () => {
     isTimeSlotAvailable,
     refreshCalendar,
     loadWorkSessions,
+    
+    // Admin-specific functions
+    handleUpdateWorkSessionStatus,
+    handleCreateWorkSessionForUser,
+    handleUpdateWorkSessionForUser,
+    handleDeleteWorkSessionForUser,
   };
 };

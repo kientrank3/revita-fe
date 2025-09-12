@@ -2,8 +2,9 @@
 export type WorkSessionStatus = 
   | 'PENDING'
   | 'APPROVED' 
-  | 'REJECTED'
-  | 'CANCELLED';
+  | 'IN_PROGRESS'
+  | 'CANCELED'
+  | 'COMPLETED';
 
 export type UserType = 'DOCTOR' | 'TECHNICIAN';
 
@@ -53,6 +54,8 @@ export interface WorkSession {
     name: string;
     auth: {
       name: string;
+      phone?: string;
+      avatar?: string;
       email?: string;
     };
   };
@@ -102,28 +105,9 @@ export interface GetUserWorkSessionsQuery {
 }
 
 // Response Types
-export interface WorkSessionResponse {
-  success: boolean;
-  message: string;
-  data: WorkSession;
-}
-
-export interface WorkSessionsResponse {
-  success: boolean;
-  message: string;
-  data: WorkSession[];
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-  };
-}
-
-export interface CreateWorkSessionResponse {
-  success: boolean;
-  message: string;
-  data: WorkSession[];
-}
+export type WorkSessionResponse = WorkSessionApiResponse<WorkSession>;
+export type WorkSessionsResponse = WorkSessionApiResponse<WorkSession[]>;
+export type CreateWorkSessionResponse = WorkSessionApiResponse<WorkSession[]>;
 
 // Calendar Event Type for FullCalendar
 export interface CalendarEvent {
@@ -154,15 +138,20 @@ export const WorkSessionStatusColors = {
     borderColor: '#35B8CF',     // brand cyan
     textColor: '#0E7490'        // cyan-700
   },
-  REJECTED: {
+  IN_PROGRESS: {
+    backgroundColor: '#FEF3C7', // yellow-100
+    borderColor: '#F59E0B',     // amber-500
+    textColor: '#92400E'        // amber-800
+  },
+  CANCELED: {
     backgroundColor: '#FEF2F2', // red-50
     borderColor: '#EF4444',     // red-500
     textColor: '#991B1B'        // red-800
   },
-  CANCELLED: {
-    backgroundColor: '#F8FAFC', // slate-50
-    borderColor: '#94A3B8',     // slate-400
-    textColor: '#334155'        // slate-700
+  COMPLETED: {
+    backgroundColor: '#F0FDF4', // green-50
+    borderColor: '#22C55E',     // green-500
+    textColor: '#166534'        // green-800
   }
 } as const;
 
@@ -186,3 +175,40 @@ export interface ConflictValidationResult {
   conflicts: WorkSessionConflict[];
   message?: string;
 }
+
+// Permission validation types
+export interface PermissionValidationResult {
+  hasPermission: boolean;
+  message?: string;
+  userRole?: string;
+  targetUserRole?: string;
+}
+
+// API request/response types for validation
+export interface ValidateConflictRequest {
+  workSessions: {
+    startTime: string;
+    endTime: string;
+    serviceIds: string[];
+  }[];
+}
+
+export interface ValidatePermissionRequest {
+  userId: string;
+  userType: 'DOCTOR' | 'TECHNICIAN';
+}
+
+// Enhanced response types for API collection
+export interface WorkSessionApiResponse<T = unknown> {
+  success: boolean;
+  message: string;
+  data: T;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
+export type ConflictValidationResponse = WorkSessionApiResponse<ConflictValidationResult>;
+export type PermissionValidationResponse = WorkSessionApiResponse<PermissionValidationResult>;

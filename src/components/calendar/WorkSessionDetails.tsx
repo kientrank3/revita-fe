@@ -32,11 +32,12 @@ interface WorkSessionDetailsProps {
   workSession: WorkSession | null;
   onEdit?: (session: WorkSession) => void;
   onDelete?: (sessionId: string) => void;
-  onStatusChange?: (sessionId: string, status: 'APPROVED' | 'REJECTED' | 'CANCELLED') => void;
+  onStatusUpdate?: (sessionId: string, status: string) => void;
   loading?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
   canChangeStatus?: boolean;
+  isAdmin?: boolean;
 }
 
 export function WorkSessionDetails({
@@ -45,11 +46,13 @@ export function WorkSessionDetails({
   workSession,
   onEdit,
   onDelete,
-  onStatusChange,
+  onStatusUpdate,
   loading = false,
   canEdit = true,
   canDelete = true,
   canChangeStatus = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isAdmin = false,
 }: WorkSessionDetailsProps) {
   if (!workSession) return null;
 
@@ -63,8 +66,9 @@ export function WorkSessionDetails({
   const statusIcon = {
     PENDING: <AlertCircle className="h-4 w-4" />,
     APPROVED: <CheckCircle className="h-4 w-4" />,
-    REJECTED: <XCircle className="h-4 w-4" />,
-    CANCELLED: <XCircle className="h-4 w-4" />,
+    IN_PROGRESS: <Clock className="h-4 w-4" />,
+    CANCELED: <XCircle className="h-4 w-4" />,
+    COMPLETED: <CheckCircle className="h-4 w-4" />,
   };
 
   const formatDateTime = (date: Date) => {
@@ -90,8 +94,9 @@ export function WorkSessionDetails({
     const statusMap = {
       PENDING: 'Chờ duyệt',
       APPROVED: 'Đã duyệt',
-      REJECTED: 'Bị từ chối',
-      CANCELLED: 'Đã hủy',
+      IN_PROGRESS: 'Đang tiến hành',
+      CANCELED: 'Đã hủy',
+      COMPLETED: 'Hoàn thành',
     };
     return statusMap[status as keyof typeof statusMap] || status;
   };
@@ -285,7 +290,7 @@ export function WorkSessionDetails({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onStatusChange?.(workSession.id, 'APPROVED')}
+                onClick={() => onStatusUpdate?.(workSession.id, 'APPROVED')}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >
@@ -295,12 +300,12 @@ export function WorkSessionDetails({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onStatusChange?.(workSession.id, 'REJECTED')}
+                onClick={() => onStatusUpdate?.(workSession.id, 'CANCELED')}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >
                 <XCircle className="h-4 w-4 mr-2" />
-                Từ chối
+                Hủy
               </Button>
             </div>
           )}

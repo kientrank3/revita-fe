@@ -7,9 +7,18 @@ interface CalendarHeaderProps {
   loading?: boolean;
   onRefresh: () => void;
   onCreateNew: () => void;
+  isAdmin?: boolean;
+  selectedDoctorId?: string | null;
+  onShowDoctorList?: () => void;
 }
 
-export function CalendarHeader({ loading, onRefresh, onCreateNew }: CalendarHeaderProps) {
+export function CalendarHeader({ 
+  loading, 
+  onRefresh, 
+  onCreateNew, 
+  isAdmin = false, 
+  selectedDoctorId,
+}: CalendarHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div className="space-y-1">
@@ -17,17 +26,27 @@ export function CalendarHeader({ loading, onRefresh, onCreateNew }: CalendarHead
           Lịch làm việc
         </h1>
         <p className="text-gray-600">
-          Quản lý và đăng ký lịch làm việc cho bác sĩ
+          {isAdmin 
+            ? 'Quản lý lịch làm việc cho tất cả bác sĩ và kỹ thuật viên'
+            : 'Quản lý và đăng ký lịch làm việc'
+          }
         </p>
+        {isAdmin && selectedDoctorId && (
+          <p className="text-sm text-[#35b8cf] font-medium">
+            Đang xem lịch của bác sĩ đã chọn
+          </p>
+        )}
       </div>
       
       <div className="flex items-center gap-3">
+       
+        
         <Button
           variant="outline"
           size="sm"
           onClick={onRefresh}
           disabled={loading}
-          className="border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+          className="border-gray-300 hover:bg-gray-200 hover:text-black"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Làm mới

@@ -31,7 +31,7 @@ export function CalendarStats({
   const getStatistics = () => {
     const pending = workSessions.filter(s => s.status === 'PENDING').length;
     const approved = workSessions.filter(s => s.status === 'APPROVED').length;
-    const rejected = workSessions.filter(s => s.status === 'REJECTED').length;
+    const rejected = workSessions.filter(s => s.status === 'CANCELED').length;
     const total = workSessions.length;
     
     // Calculate today's sessions
@@ -78,12 +78,20 @@ export function CalendarStats({
       bgColor: '#ecfdf5',
       description: 'Đã được phê duyệt'
     },
+    {
+      title: 'Đã hủy',
+      value: stats.rejected,
+      icon: X,
+      color: '#ef4444',
+      bgColor: '#fef2f2',
+      description: 'Các ca đã bị hủy'
+    },
   ];
 
   // Show only statistics (sidebar)
   if (showOnlyStats) {
     return (
-      <div className=" grid grid-cols-4 gap-3">
+      <div className=" grid grid-cols-5 gap-3">
         {statCards.map((stat, index) => {
           const IconComponent = stat.icon;
           return (
@@ -167,9 +175,9 @@ export function CalendarStats({
             </Badge>
             <Badge
               variant="outline"
-              className="w-28 justify-center py-3 bg-green-50 border-green-300 text-green-700 font-medium"
+              className="w-28 justify-center py-3 bg-blue-50 border-blue-300 text-blue-400 font-medium"
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
+              <Activity className="h-4 w-4 mr-2" />
               Đã duyệt
             </Badge>
             <Badge
@@ -177,14 +185,14 @@ export function CalendarStats({
               className="w-28 justify-center py-3 bg-red-50 border-red-300 text-red-700 font-medium"
             >
               <X className="h-4 w-4 mr-2" />
-              Bị từ chối
+              Đã hủy
             </Badge>
             <Badge
               variant="outline"
-              className="w-28 justify-center py-3 bg-gray-50 border-gray-300 text-gray-700 font-medium"
+              className="w-28 justify-center py-3 bg-green-50 border-green-300 text-green-500 font-medium"
             >
-              <Activity className="h-4 w-4 mr-2" />
-              Đã hủy
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Hoàn thành
             </Badge>
           </div>
         </CardContent>
@@ -264,7 +272,7 @@ export function CalendarStats({
             </Badge>
             <Badge
               variant="outline"
-              className="w-full justify-center py-1 bg-green-50 border-green-300 text-green-700"
+              className="w-full justify-center py-1 bg-blue-50 border-blue-300 text-blue-500"
             >
               Đã duyệt
             </Badge>
@@ -272,13 +280,13 @@ export function CalendarStats({
               variant="outline"
               className="w-full justify-center py-1 bg-red-50 border-red-300 text-red-700"
             >
-              Bị từ chối
+              Đã hủy
             </Badge>
             <Badge
               variant="outline"
-              className="w-full justify-center py-1 bg-gray-50 border-gray-300 text-gray-700"
+              className="w-full justify-center py-1 bg-green-50 border-green-300 text-green-400"
             >
-              Đã hủy
+              Đã hoàn thành
             </Badge>
           </div>
         </CardContent>
