@@ -197,6 +197,9 @@ export default function CalendarPage() {
               view={viewMode}
               onViewChange={setViewMode}
               height="calc(120vh - 400px)"
+              isAdmin={isAdmin}
+              selectedDoctorId={isAdmin ? selectedDoctorId : null}
+              isReady={!authLoading}
             />
           </div>
         </div>

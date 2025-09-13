@@ -84,9 +84,7 @@ export function DoctorWorkSessionManager({
         if (dateFrom) params.startDate = dateFrom;
         if (dateTo) params.endDate = dateTo;
         const resp = await workSessionApi.getMySchedule(params);
-        console.log('Doctor sessions API response:', resp);
         const data = resp.data?.data || resp.data || [];
-        console.log('Doctor sessions data:', data);
         setDoctorSessions(Array.isArray(data) ? data : []);
         setPage(1);
       } catch (error) {
@@ -107,13 +105,6 @@ export function DoctorWorkSessionManager({
              session.doctor?.auth?.email === user?.email ||
              session.doctor?.auth?.phone === user?.phone;
     });
-
-  // Debug logging
-  console.log('DoctorWorkSessionManager - currentDoctorId:', currentDoctorId);
-  console.log('DoctorWorkSessionManager - user:', user);
-  console.log('DoctorWorkSessionManager - workSessions prop:', workSessions);
-  console.log('DoctorWorkSessionManager - doctorSessions:', doctorSessions);
-  console.log('DoctorWorkSessionManager - sessionsToUse:', sessionsToUse);
 
   // Filter sessions by status
   const filteredSessions = sessionsToUse.filter(session => {

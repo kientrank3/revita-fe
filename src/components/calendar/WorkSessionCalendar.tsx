@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarEvent, WorkSession } from '@/lib/types/work-session';
+import { useWorkSessionCalendar } from '@/lib/hooks/useWorkSessionCalendar';
 
 // Helper function to get FullCalendar view type
 const getViewType = (view: 'month' | 'week' | 'day') => {
@@ -36,6 +37,9 @@ interface WorkSessionCalendarProps {
   view?: 'month' | 'week' | 'day';
   onViewChange?: (view: 'month' | 'week' | 'day') => void;
   height?: string | number;
+  isAdmin?: boolean;
+  selectedDoctorId?: string | null;
+  isReady?: boolean;
 }
 
 export function WorkSessionCalendar({
@@ -47,10 +51,20 @@ export function WorkSessionCalendar({
   view = 'month',
   onViewChange,
   height = '100%',
+  isAdmin = false,
+  selectedDoctorId = null,
+  isReady = true,
 }: WorkSessionCalendarProps) {
   const calendarRef = useRef<FullCalendar>(null);
   const [currentTitle, setCurrentTitle] = useState('');
   const [currentView, setCurrentView] = useState<'month' | 'week' | 'day'>(view);
+  const [loadedEvents, setLoadedEvents] = useState<CalendarEvent[]>([]);
+  const {loadEvents} = useWorkSessionCalendar({
+    selectedDoctorId,
+    isAdmin,
+    isReady,
+  });
+
 
   // Update title when calendar is ready
   useEffect(() => {
@@ -78,41 +92,169 @@ export function WorkSessionCalendar({
     }
   }, [view]);
 
+  // Load events for month view when component mounts or view changes
+  useEffect(() => {
+    const loadInitialEvents = async () => {
+      if (currentView === 'month') {
+        const calendarApi = calendarRef.current?.getApi();
+        if (calendarApi) {
+          const currentDate = calendarApi.getDate();
+          const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          
+          try {
+            const newEvents = await loadEvents(startDate, endDate);
+            setLoadedEvents(newEvents || []);
+          } catch (error) {
+            console.error('Failed to load initial events for month view:', error);
+          }
+        }
+      } else {
+        // Clear loaded events for week/day view
+        setLoadedEvents([]);
+      }
+    };
+
+    loadInitialEvents();
+  }, [currentView, loadEvents]);
+
+  // Load events when date changes (for week/day view when month changes)
+  const handleDateChange = async (dateInfo: { view: { title: string; calendar: { getDate: () => Date } } }) => {
+    setCurrentTitle(dateInfo.view.title);
+    
+    // Load events when month changes for any view
+    const currentDate = dateInfo.view.calendar.getDate();
+    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    try {
+      const newEvents = await loadEvents(startDate, endDate);
+      setLoadedEvents(newEvents || []);
+    } catch (error) {
+      console.error('Failed to load events for month change:', error);
+    }
+  };
+
   // Navigation functions
-  const goToPrev = () => {
+  const goToPrev = async () => {
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
+      const currentDate = calendarApi.getDate();
+      const prevDate = new Date(currentDate);
+      
+      // Calculate previous date based on view
+      if (currentView === 'month') {
+        prevDate.setMonth(prevDate.getMonth() - 1);
+      } else if (currentView === 'week') {
+        prevDate.setDate(prevDate.getDate() - 7);
+      } else if (currentView === 'day') {
+        prevDate.setDate(prevDate.getDate() - 1);
+      }
+      
+      // Load events for the new month (if month changed)
+      const currentMonth = currentDate.getMonth();
+      const prevMonth = prevDate.getMonth();
+      
+      if (currentMonth !== prevMonth) {
+        const startDate = new Date(prevDate.getFullYear(), prevDate.getMonth(), 1);
+        const endDate = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0);
+        
+        try {
+          const newEvents = await loadEvents(startDate, endDate);
+          setLoadedEvents(newEvents || []);
+          console.log('Loaded events for previous month:', newEvents);
+        } catch (error) {
+          console.error('Failed to load events for previous month:', error);
+        }
+      }
+      
       calendarApi.prev();
       setCurrentTitle(calendarApi.view.title);
     }
   };
 
-  const goToNext = () => {
+  const goToNext = async () => {
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
+      const currentDate = calendarApi.getDate();
+      const nextDate = new Date(currentDate);
+      
+      // Calculate next date based on view
+      if (currentView === 'month') {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      } else if (currentView === 'week') {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else if (currentView === 'day') {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+      
+      // Load events for the new month (if month changed)
+      const currentMonth = currentDate.getMonth();
+      const nextMonth = nextDate.getMonth();
+      
+      if (currentMonth !== nextMonth) {
+        const startDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+        const endDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+        
+        try {
+          const newEvents = await loadEvents(startDate, endDate);
+          setLoadedEvents(newEvents || []);
+          console.log('Loaded events for next month:', newEvents);
+        } catch (error) {
+          console.error('Failed to load events for next month:', error);
+        }
+      }
+      
       calendarApi.next();
       setCurrentTitle(calendarApi.view.title);
     }
   };
 
-  const goToToday = () => {
+  const goToToday = async () => {
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       calendarApi.today();
       setCurrentTitle(calendarApi.view.title);
+      
+      // Load events for current month when going to today
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      try {
+        const newEvents = await loadEvents(startDate, endDate);
+        setLoadedEvents(newEvents || []);
+      } catch (error) {
+        console.error('Failed to load events for today month:', error);
+      }
     }
   };
 
   // View change function
-  const handleViewChange = (newView: 'month' | 'week' | 'day') => {
-    console.log('Changing view to:', newView);
+  const handleViewChange = async (newView: 'month' | 'week' | 'day') => {
     setCurrentView(newView);
     const calendarApi = calendarRef.current?.getApi();
     if (calendarApi) {
       const viewType = getViewType(newView);
-      console.log('FullCalendar view type:', viewType);
       calendarApi.changeView(viewType);
       setCurrentTitle(calendarApi.view.title);
+      
+      // Load events for month view
+      if (newView === 'month') {
+        const currentDate = calendarApi.getDate();
+        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        
+        try {
+          const newEvents = await loadEvents(startDate, endDate);
+          setLoadedEvents(newEvents || []);
+        } catch (error) {
+          console.error('Failed to load events for month view:', error);
+        }
+      } else {
+        // Clear loaded events for week/day view
+        setLoadedEvents([]);
+      }
     }
     onViewChange?.(newView);
   };
@@ -140,7 +282,10 @@ export function WorkSessionCalendar({
     }
   };
 
-  const calendarEvents: EventInput[] = events.map(event => ({
+  // Use loaded events if available, otherwise fallback to original events
+  const displayEvents = loadedEvents.length > 0 ? loadedEvents : events;
+  
+  const calendarEvents: EventInput[] = displayEvents.map(event => ({
     id: event.id,
     title: event.title,
     start: event.start,
@@ -393,9 +538,7 @@ export function WorkSessionCalendar({
                 'border',
                 'overflow-hidden'
               ]}
-              datesSet={(dateInfo) => {
-                setCurrentTitle(dateInfo.view.title);
-              }}
+              datesSet={handleDateChange}
             />
           </div>
         )}
