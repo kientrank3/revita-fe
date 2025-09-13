@@ -250,6 +250,7 @@ export default function StaffProfile() {
       case 'RECEPTIONIST': return 'Lễ tân';
       case 'CASHIER': return 'Thu ngân';
       case 'PATIENT': return 'Bệnh nhân';
+      case 'TECHNICIAN': return 'Kỹ thuật';
       default: return 'Người dùng';
     }
   };

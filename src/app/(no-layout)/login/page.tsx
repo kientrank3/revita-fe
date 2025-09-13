@@ -123,7 +123,7 @@ export default function LoginPage() {
   }
 
   const handleBack = () => {
-    router.back()
+    router.push("/")
   }
 
   const handleForgotPassword = () => {
@@ -143,9 +143,8 @@ export default function LoginPage() {
       </button>
 
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-lg mb-6 p-2">
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-2 p-2">
             <Image
               src="/logos/LogoRevita-v2-noneBG.png"
               alt="Revita Clinic Logo"
@@ -154,8 +153,8 @@ export default function LoginPage() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Chào mừng trở lại!</h1>
-          <p className="text-gray-600">Đăng nhập để tiếp tục sử dụng dịch vụ</p>
+          <h1 className="text-2xl font-bold text-gray-900 ">Chào mừng trở lại!</h1>
+          {/* <p className="text-gray-600">Đăng nhập để tiếp tục sử dụng dịch vụ</p> */}
         </div>
 
         {/* Form Card */}
@@ -169,7 +168,7 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6 pb-8">
+          <CardContent className="space-y-6 pb-2">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Identifier Input Field */}
               <div className="space-y-2">
@@ -251,7 +250,7 @@ export default function LoginPage() {
               </Button>
 
               {/* Divider */}
-              <div className="relative my-6">
+              <div className="relative my-2.5">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
@@ -314,7 +313,7 @@ export default function LoginPage() {
             Bằng cách đăng nhập, bạn đồng ý với{" "}
             <a href="/terms" className="text-primary hover:underline">
               Điều khoản dịch vụ
-            </a>{" "}
+            </a>{" "} <br />
             và{" "}
             <a href="/privacy" className="text-primary hover:underline">
               Chính sách bảo mật

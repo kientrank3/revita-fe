@@ -128,6 +128,7 @@ export function Profile() {
       case 'RECEPTIONIST': return 'Lễ tân';
       case 'CASHIER': return 'Thu ngân';
       case 'PATIENT': return 'Bệnh nhân';
+      case 'TECHNICIAN': return 'Kỹ thuật';
       default: return role;
     }
   };

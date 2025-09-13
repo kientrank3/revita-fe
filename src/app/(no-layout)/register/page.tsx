@@ -55,8 +55,8 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-lg mb-6 p-2">
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-2 p-2">
             <Image
               src="/logos/LogoRevita-v2-noneBG.png"
               alt="Revita Clinic Logo"
@@ -65,8 +65,8 @@ export default function RegisterPage() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Chào mừng đến với Revita!</h1>
-          <p className="text-gray-600">Tạo tài khoản mới để đặt lịch khám</p>
+          <h1 className="text-2xl font-bold text-gray-900 ">Chào mừng đến với Revita!</h1>
+          {/* <p className="text-gray-600">Tạo tài khoản mới để đặt lịch khám</p> */}
         </div>
 
         {/* Form Card */}

@@ -12,6 +12,7 @@ import { useWorkSessionCalendar } from '@/lib/hooks/useWorkSessionCalendar';
 import { WorkSession, WorkSessionFormData } from '@/lib/types/work-session';
 import { useAuth, useIsAdmin, useIsDoctor, useIsTechnician } from '@/lib/hooks/useAuth';
 import { AdminWorkSessionManager } from '@/components/calendar/AdminWorkSessionManager';
+import { DoctorWorkSessionManager } from '@/components/calendar/DoctorWorkSessionManager';
 
 export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +24,7 @@ export default function CalendarPage() {
   const [, setShowDoctorList] = useState(false);
 
   // Auth hooks
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, user } = useAuth();
   const isAdmin = useIsAdmin();
   const isDoctor = useIsDoctor();
   const isTechnician = useIsTechnician();
@@ -250,6 +251,21 @@ export default function CalendarPage() {
             onEdit={handleEditSession}
             onDelete={handleDeleteSession}
             loading={loading}
+          />
+        </>
+      )}
+
+      {/* Doctor-specific modals */}
+      {isDoctor && user?.id && (
+        <>
+          <DoctorWorkSessionManager
+            workSessions={workSessions}
+            onUpdateStatus={handleStatusUpdate}
+            onEdit={handleEditSession}
+            onDelete={handleDeleteSession}
+            loading={loading}
+            currentDoctorId={user.id}
+            user={user}
           />
         </>
       )}
