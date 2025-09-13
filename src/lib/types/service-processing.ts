@@ -19,7 +19,9 @@ export interface Service {
 }
 
 export interface PrescriptionService {
-  id: string;
+  id?: string; // Optional - may not exist in some API responses
+  prescriptionId: string;
+  serviceId: string;
   service: Service;
   status: ServiceStatus;
   order: number;
@@ -27,6 +29,8 @@ export interface PrescriptionService {
   startedAt: string | null;
   completedAt: string | null;
   results: string[];
+  doctorId?: string;
+  technicianId?: string | null;
 }
 
 export interface PatientProfile {
@@ -80,88 +84,71 @@ export interface WorkSession {
 }
 
 export interface ScanPrescriptionResponse {
-  success: boolean;
-  message: string;
-  data: {
-    prescription: Prescription;
-    services: PrescriptionService[];
-  };
+  prescription: Prescription;
+  services: PrescriptionService[];
 }
 
 export interface UpdateServiceStatusRequest {
-  prescriptionServiceId: string;
+  prescriptionId: string;
+  serviceId: string;
   status: ServiceStatus;
   note?: string;
 }
 
 export interface UpdateServiceStatusResponse {
-  success: boolean;
-  message: string;
-  data: {
-    prescriptionService: PrescriptionService & {
-      doctor?: Doctor;
-      technician?: Technician;
-    };
-    prescription: {
-      id: string;
-      prescriptionCode: string;
-      status: string;
-    };
+  service: PrescriptionService & {
+    doctor?: Doctor;
+    technician?: Technician;
   };
+  nextService?: PrescriptionService & {
+    doctor?: Doctor;
+    technician?: Technician;
+  };
+  message: string;
 }
 
 export interface UpdateServiceResultsRequest {
-  prescriptionServiceId: string;
+  prescriptionId: string;
+  serviceId: string;
   results: string[];
   note?: string;
 }
 
 export interface UpdateServiceResultsResponse {
-  success: boolean;
+  service: PrescriptionService & {
+    doctor?: Doctor;
+    technician?: Technician;
+  };
   message: string;
-  data: {
-    prescriptionService: PrescriptionService & {
-      doctor?: Doctor;
-      technician?: Technician;
-    };
+}
+
+export interface UploadResultFilesResponse {
+  urls: string[];
+  message: string;
+}
+
+export interface GetMyServicesResponse {
+  services: (PrescriptionService & {
     prescription: {
       id: string;
       prescriptionCode: string;
       status: string;
+      patientProfile: PatientProfile;
     };
-  };
-}
-
-export interface GetMyServicesResponse {
-  success: boolean;
-  message: string;
-  data: {
-    services: (PrescriptionService & {
-      prescription: {
-        id: string;
-        prescriptionCode: string;
-        status: string;
-        patientProfile: PatientProfile;
-      };
-    })[];
-    total: number;
-    limit: number;
-    offset: number;
-  };
+  })[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface GetWorkSessionResponse {
-  success: boolean;
-  message: string;
-  data: {
-    workSession: WorkSession;
-    user: {
-      id: string;
-      role: string;
-      technicianCode?: string;
-      doctorCode?: string;
-      name: string;
-    };
+  workSession: WorkSession;
+  user: {
+    id: string;
+    role: string;
+    technicianCode?: string;
+    doctorCode?: string;
+    name: string;
   };
 }
 

@@ -457,7 +457,7 @@ export default function InvoicesPage() {
         };
 
         const pdfDoc = pdfMake.createPdf(docDefinition as any);
-        pdfDoc.download(`Phieu-huong-dan-${pdfData.invoiceCode}.pdf`);
+        pdfDoc.download(`Phieu-huong-dan-${pdfData.prescriptionInfo?.prescriptionCode || prescription?.prescriptionCode}.pdf`);
       }
 
       toast.success(`Đã xuất ${type === 'invoice' ? 'hóa đơn' : 'phiếu hướng dẫn'} thành công!`);
@@ -467,7 +467,7 @@ export default function InvoicesPage() {
       // Fallback: suggest using print function
       toast.info('Bạn có thể dùng nút "In" để lưu PDF thay thế');
     }
-  }, [confirmResult]);
+  }, [confirmResult, paymentMethod, preview, user, prescription]);
 
   const availableServices: Service[] = useMemo(() => {
     if (!prescription) return [];
@@ -630,9 +630,10 @@ export default function InvoicesPage() {
       setTimeout(() => {
         exportSectionAsPdf('invoice', confirmData);
         if (confirmData.routingAssignments?.length) {
+          toast.info('Đang xuất phiếu hướng dẫn... Nếu không thấy tệp tải xuống, hãy bấm "Tải PDF phiếu hướng dẫn".');
           setTimeout(() => {
             exportSectionAsPdf('routing', confirmData);
-          }, 1000); // Delay routing export to avoid conflicts
+          }, 1500); // Longer delay to avoid multiple-download blocking
         }
       }, 200);
 
@@ -666,9 +667,10 @@ export default function InvoicesPage() {
       setTimeout(() => {
         exportSectionAsPdf('invoice', data);
         if (data.routingAssignments?.length) {
+          toast.info('Đang xuất phiếu hướng dẫn... Nếu không thấy tệp tải xuống, hãy bấm "Tải PDF phiếu hướng dẫn".');
           setTimeout(() => {
             exportSectionAsPdf('routing', data);
-          }, 1000); // Delay routing export to avoid conflicts
+          }, 1500); // Longer delay to avoid multiple-download blocking
         }
       }, 200);
 

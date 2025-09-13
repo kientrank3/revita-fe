@@ -5,6 +5,7 @@ import {
   UpdateServiceStatusResponse,
   UpdateServiceResultsRequest,
   UpdateServiceResultsResponse,
+  UploadResultFilesResponse,
   GetMyServicesResponse,
   GetWorkSessionResponse,
   ServiceStatus
@@ -23,15 +24,54 @@ class ServiceProcessingService {
     return response.data;
   }
 
-  // 2. UPDATE SERVICE STATUS
+  // 2. UPDATE SERVICE STATUS - General status update with note
   async updateServiceStatus(data: UpdateServiceStatusRequest): Promise<UpdateServiceStatusResponse> {
+    console.log('📝 Updating service status:', {
+      prescriptionId: data.prescriptionId,
+      serviceId: data.serviceId,
+      status: data.status,
+      note: data.note
+    });
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
     const response = await api.put(`${this.baseUrl}/prescription-service/status`, data);
+    console.log('🔄 Service status updated:', response.data);
     return response.data;
   }
 
   // 3. UPDATE SERVICE RESULTS
   async updateServiceResults(data: UpdateServiceResultsRequest): Promise<UpdateServiceResultsResponse> {
+    console.log('📝 Updating service results:', {
+      prescriptionId: data.prescriptionId,
+      serviceId: data.serviceId,
+      resultsCount: data.results.length,
+      note: data.note
+    });
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
     const response = await api.put(`${this.baseUrl}/prescription-service/results`, data);
+    console.log('📋 Service results updated:', response.data);
+    return response.data;
+  }
+
+  // 8. UPLOAD RESULT FILES
+  async uploadResultFiles(files: File[]): Promise<UploadResultFilesResponse> {
+    console.log('📤 Uploading result files:', files.length, 'files');
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
+    const formData = new FormData();
+    files.forEach((file, index) => {
+      console.log(`📎 File ${index + 1}:`, file.name, `(${file.size} bytes)`);
+      formData.append('files', file);
+    });
+
+    const response = await api.post(`${this.baseUrl}/upload-results`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    console.log('✅ Files uploaded successfully:', response.data);
     return response.data;
   }
 
@@ -45,16 +85,17 @@ class ServiceProcessingService {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append('status', params.status);
     if (params?.workSessionId) queryParams.append('workSessionId', params.workSessionId);
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) queryParams.append('offset', params.offset.toString());
 
     const queryString = queryParams.toString();
     const url = queryString ? `${this.baseUrl}/my-services?${queryString}` : `${this.baseUrl}/my-services`;
 
-    console.log('Calling GET MY SERVICES:', url);
-    console.log('JWT Token should be in Authorization header automatically');
+    console.log('🔍 Calling GET MY SERVICES:', url);
+    console.log('🔐 JWT Token should be in Authorization header automatically');
 
     const response = await api.get(url);
+    console.log('📋 My Services Response:', response.data);
     return response.data;
   }
 
@@ -67,15 +108,33 @@ class ServiceProcessingService {
     return response.data;
   }
 
-  // 6. START SERVICE (SHORTCUT)
-  async startService(prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> {
-    const response = await api.post(`${this.baseUrl}/prescription-service/${prescriptionServiceId}/start`);
+  // 6. START SERVICE (SHORTCUT) - WAITING → SERVING
+  async startService(prescriptionId: string, serviceId: string): Promise<UpdateServiceStatusResponse> {
+    console.log('▶️ Starting service:', { prescriptionId, serviceId });
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
+    const response = await api.post(`${this.baseUrl}/prescription-service/start`, {
+      prescriptionId,
+      serviceId,
+      status: 'SERVING',
+      note: 'Bắt đầu thực hiện dịch vụ'
+    });
+    console.log('✅ Service started successfully:', response.data);
     return response.data;
   }
 
-  // 7. COMPLETE SERVICE (SHORTCUT)
-  async completeService(prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> {
-    const response = await api.post(`${this.baseUrl}/prescription-service/${prescriptionServiceId}/complete`);
+  // 7. COMPLETE SERVICE (SHORTCUT) - SERVING → WAITING_RESULT
+  async completeService(prescriptionId: string, serviceId: string): Promise<UpdateServiceStatusResponse> {
+    console.log('✅ Completing service:', { prescriptionId, serviceId });
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
+    const response = await api.post(`${this.baseUrl}/prescription-service/complete`, {
+      prescriptionId,
+      serviceId,
+      status: 'WAITING_RESULT',
+      note: 'Hoàn thành thực hiện dịch vụ'
+    });
+    console.log('🎯 Service completed successfully:', response.data);
     return response.data;
   }
 }
