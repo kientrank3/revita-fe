@@ -107,7 +107,7 @@ export function AppHeader() {
                 </Avatar>
                 <div className="hidden md:flex flex-col items-start">
                   <span className="text-sm font-medium text-gray-900">{user.name}</span>
-                  <span className="text-xs text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</span>
+                  <span className="text-xs text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : user.role === 'CASHIER' ? 'Thu ngân' : 'Kỹ thuật'}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -115,7 +115,7 @@ export function AppHeader() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : 'Thu ngân'}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.role === 'ADMIN' ? 'Quản trị viên' : user.role === 'DOCTOR' ? 'Bác sĩ' : user.role === 'RECEPTIONIST' ? 'Lễ tân' : user.role === 'PATIENT' ? 'Bệnh nhân' : user.role === 'CASHIER' ? 'Thu ngân' : 'Kỹ thuật'}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

@@ -31,6 +31,7 @@ export interface MedicalRecord {
   appointmentId?: string;
   status: MedicalRecordStatus;
   content: Record<string, any>;
+  attachments?: Attachment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -48,11 +49,14 @@ export interface CreateMedicalRecordDto {
   appointmentId?: string;
   status?: MedicalRecordStatus;
   content: Record<string, any>;
+  files?: File[];
 }
 
 export interface UpdateMedicalRecordDto {
   content?: Record<string, any>;
   status?: MedicalRecordStatus;
+  files?: File[];
+  appendFiles?: boolean;
 }
 
 export interface VitalSigns {

@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
     
     return NextResponse.json(wrappedResponse);
   } catch (error) {
-    console.error('Update service status API error:', error);
+    console.error('Update service status error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
