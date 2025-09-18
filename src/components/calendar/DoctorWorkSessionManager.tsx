@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Calendar, Clock, Edit, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { DoctorAppointmentsPanel } from '@/components/calendar/DoctorAppointmentsPanel';
 import { WorkSession, WorkSessionStatus } from '@/lib/types/work-session';
 import { workSessionApi } from '@/lib/api';
 import { format } from 'date-fns';
@@ -65,6 +66,7 @@ export function DoctorWorkSessionManager({
   user,
 }: DoctorWorkSessionManagerProps) {
   const [showManager, setShowManager] = useState(false);
+  const [showAppointments, setShowAppointments] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [sortBy] = useState<'date' | 'status'>('date');
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -165,6 +167,14 @@ export function DoctorWorkSessionManager({
       >
         <Calendar className="h-4 w-4 mr-2" />
         Lịch làm việc của tôi
+      </Button>
+      <Button
+        onClick={() => setShowAppointments(true)}
+        variant="outline"
+        className="fixed bottom-20 right-6 z-50 shadow-lg"
+      >
+        <Calendar className="h-4 w-4 mr-2" />
+        Lịch hẹn của tôi
       </Button>
 
       {/* Sidebar Manager */}
@@ -396,6 +406,7 @@ export function DoctorWorkSessionManager({
                 </CardContent>
               </Card>
             </div>
+            
 
             {/* Pagination Controls */}
             <div className="flex items-center justify-between py-3">
@@ -432,6 +443,28 @@ export function DoctorWorkSessionManager({
                 </Button>
               </div>
             </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Appointments Sidebar */}
+      <Sheet open={showAppointments} onOpenChange={setShowAppointments}>
+        <SheetContent side="right" className="bg-white w-[92vw] md:w-[70vw] lg:w-[50vw] xl:w-[45vw] 2xl:w-[40vw] max-w-none sm:max-w-none p-0">
+          <SheetHeader className="px-8 py-5 border-b">
+            <SheetTitle className="flex items-center gap-3 text-lg">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <Calendar className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <div className="font-semibold">Lịch hẹn của tôi</div>
+                <div className="text-sm font-normal text-gray-600 mt-1">
+                  Xem và xác thực slot lịch hẹn bệnh nhân
+                </div>
+              </div>
+            </SheetTitle>
+          </SheetHeader>
+          <div className="px-8 py-5">
+            <DoctorAppointmentsPanel asSheet />
           </div>
         </SheetContent>
       </Sheet>

@@ -528,3 +528,49 @@ export const workSessionApi = {
     return api.get('/work-sessions', { params: otherParams });
   },
 };
+
+// Appointment Booking API
+export const appointmentBookingApi = {
+  // Get all specialties
+  getSpecialties: () =>
+    api.get('/appointment-booking/specialties'),
+
+  // Get doctors by specialty
+  getDoctorsBySpecialty: (specialtyId: string) =>
+    api.get(`/appointment-booking/specialties/${specialtyId}/doctors`),
+
+  // Get available doctors by specialty and date
+  getAvailableDoctors: (params: { specialtyId: string; date: string }) =>
+    api.get('/appointment-booking/doctors/available', { params }),
+
+  // Get doctor services for specific date
+  getDoctorServices: (doctorId: string, params: { date: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/services`, { params }),
+
+  // Get available time slots for doctor, service and date
+  getAvailableSlots: (doctorId: string, params: { serviceId: string; date: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/available-slots`, { params }),
+
+  // Get doctor working days for a month
+  getDoctorWorkingDays: (doctorId: string, params: { month: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/working-days`, { params }),
+
+  // Book an appointment
+  bookAppointment: (data: {
+    patientProfileId: string;
+    doctorId: string;
+    serviceId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+  }) =>
+    api.post('/appointment-booking/appointments', data),
+
+  // Get patient appointments
+  getPatientAppointments: () =>
+    api.get('/appointment-booking/patient/appointments'),
+
+  // Get doctor appointments (requires doctor auth token)
+  getDoctorAppointments: () =>
+    api.get('/appointment-booking/doctor/appointments'),
+};

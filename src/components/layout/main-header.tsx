@@ -119,13 +119,18 @@ export function MainHeader() {
                 {/* Patient specific actions */}
                 {user.role === 'PATIENT' && (
                   <div className="hidden sm:flex items-center space-x-2">
+                    <Button asChild size="sm">
+                      <Link href="/booking">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Đặt lịch
+                      </Link>
+                    </Button>
                     <Button asChild variant="outline" size="sm">
-                      <Link href="/appointments">
+                      <Link href="/my-appointments">
                         <Calendar className="h-4 w-4 mr-2" />
                         Lịch hẹn
                       </Link>
                     </Button>
-                    
                   </div>
                 )}
 
@@ -238,7 +243,15 @@ export function MainHeader() {
                 <>
                   <div className="border-t border-gray-200 my-2"></div>
                   <Link
-                    href="/appointments"
+                    href="/booking"
+                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Calendar className="h-4 w-4 inline mr-2" />
+                    Đặt lịch
+                  </Link>
+                  <Link
+                    href="/my-appointments"
                     className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >

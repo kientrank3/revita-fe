@@ -1,0 +1,1007 @@
+- Mô tả luồng xử lý:
+    Luồng nền (bắt buộc trước khi đặt)
+    Đăng nhập bệnh nhân → lấy patientAccessToken
+    POST /auth/login → dùng token này cho mọi request đặt lịch cần auth.
+    Khám phá danh mục (public):
+    Lấy chuyên khoa:
+    GET /appointment-booking/specialties → chọn specialtyId
+    (Tuỳ nhu cầu) Lấy danh sách bác sĩ theo chuyên khoa:
+    GET /appointment-booking/specialties/{specialtyId}/doctors → xem thông tin bác sĩ, lấy doctorId
+    A) Luồng “Đặt theo ngày”
+    Mục tiêu: người dùng chọn chuyên khoa + ngày trước, sau đó chọn bác sĩ có ca và slot giờ.
+    Chọn chuyên khoa → có specialtyId
+    Chọn ngày → có appointmentDate (YYYY-MM-DD)
+    Tìm bác sĩ có làm trong ngày đó
+    GET /appointment-booking/doctors/available?specialtyId={specialtyId}&date={appointmentDate}
+    Trả: { ..., date, doctors: [{ doctorId, doctorName, workSessionStart, workSessionEnd, booth*, room* }] }
+    Chọn bác sĩ → có doctorId
+    Lấy dịch vụ của bác sĩ theo ngày (để biết giá, thời lượng, ràng buộc slot)
+    GET /appointment-booking/doctors/{doctorId}/services?date={appointmentDate}
+    Chọn serviceId phù hợp (timePerPatient quyết định bước nhảy slot)
+    Lấy slot trống theo dịch vụ & ngày
+    GET /appointment-booking/doctors/{doctorId}/available-slots?serviceId={serviceId}&date={appointmentDate}
+    Trả: { ..., slots: [{ startTime, endTime, isAvailable }] }
+    Đặt lịch (cần token bệnh nhân)
+    POST /appointment-booking/appointments
+    Body: { patientProfileId, doctorId, serviceId, date, startTime, endTime }
+    Trả: { appointmentId, appointmentCode, status }
+    (Tuỳ chọn) Xác minh slot đã bị giữ
+    Gọi lại available-slots cùng tham số để thấy isAvailable=false cho slot đã book.
+    B) Luồng “Đặt theo bác sĩ”
+    Mục tiêu: người dùng chọn bác sĩ trước, xem lịch làm việc theo tháng, rồi chọn ngày và slot.
+    Chọn chuyên khoa (tuỳ chọn, để lọc) → hoặc bỏ qua nếu đã biết bác sĩ
+    Chọn bác sĩ → có doctorId
+    Xem ngày bác sĩ làm trong tháng
+    Xác định appointmentMonth (YYYY-MM hoặc MM/YYYY tuỳ hiển thị)
+    GET /appointment-booking/doctors/{doctorId}/working-days?month={appointmentMonth}
+    Trả: { workingDays: ["2025-09-15", ...] } → disable ngày ngoài danh sách
+    Chọn ngày trong workingDays → có appointmentDate
+    Lấy dịch vụ của bác sĩ theo ngày
+    GET /appointment-booking/doctors/{doctorId}/services?date={appointmentDate} → chọn serviceId
+    Lấy slot trống theo dịch vụ & ngày
+    GET /appointment-booking/doctors/{doctorId}/available-slots?serviceId={serviceId}&date={appointmentDate}
+    Đặt lịch
+    POST /appointment-booking/appointments như luồng A
+    (Tuỳ chọn) Kiểm chứng slot
+    Gọi lại available-slots để confirm slot vừa đặt đã không còn trống.
+    C) Luồng tra cứu sau khi đặt (hậu kiểm & lịch sử)
+    Lịch của bệnh nhân
+    GET /appointment-booking/patient/appointments (Auth: bệnh nhân)
+    → Xem tổng số, danh sách lịch, phục vụ màn hình “Lịch của tôi”.
+    Gợi ý ánh xạ UI ↔ API (theo đúng mô tả của bạn)
+    Tab Theo ngày
+    Dropdown Chuyên khoa → /specialties
+    Lưới tháng (chọn ngày)
+    Danh sách bác sĩ làm việc ngày đó → /doctors/available?specialtyId&date
+    Chọn bác sĩ →
+    Dịch vụ theo ngày → /doctors/{doctorId}/services?date
+    Slot theo dịch vụ → /doctors/{doctorId}/available-slots?serviceId&date
+    Nút Đặt lịch → POST /appointments
+    Tab Theo bác sĩ
+    Autocomplete bác sĩ (có thể lấy từ /specialties/{id}/doctors hoặc danh mục nội bộ)
+    Lưới tháng hiển thị ngày có ca → /doctors/{doctorId}/working-days?month
+    Sau khi chọn ngày → quy trình Dịch vụ → Slot → Đặt lịch như trên.
+- Script postman: {
+  "info": {
+    "name": "Appointment Booking Complete API",
+    "description": "Complete Postman collection for testing appointment booking system with authentication",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{adminIdentifier}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has accessToken\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('accessToken');",
+                  "    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+                  "    console.log('Admin accessToken:', jsonData.accessToken);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has user data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Doctor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{doctorIdentifier}}\",\n  \"password\": \"{{doctorPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has accessToken\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('accessToken');",
+                  "    pm.collectionVariables.set('doctorAccessToken', jsonData.accessToken);",
+                  "    console.log('Doctor accessToken:', jsonData.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"patient@clinic.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has accessToken\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('accessToken');",
+                  "    pm.collectionVariables.set('patientAccessToken', jsonData.accessToken);",
+                  "    console.log('Patient accessToken:', jsonData.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Appointment Booking",
+      "item": [
+        {
+          "name": "Get Specialties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/specialties",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "specialties"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has specialties array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+                  "    ",
+                  "    // Save first specialty ID for next requests",
+                  "    if (jsonData.length > 0) {",
+                  "        pm.collectionVariables.set('specialtyId', jsonData[0].id);",
+                  "        console.log('Specialty ID:', jsonData[0].id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Doctors by Specialty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/specialties/{{specialtyId}}/doctors",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "specialties", "{{specialtyId}}", "doctors"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has doctors data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('doctors');",
+                  "    pm.expect(jsonData.doctors).to.be.an('array');",
+                  "    console.log('Doctors response:', jsonData);",
+                  "    ",
+                  "    // Save first doctor ID for next requests",
+                  "    if (jsonData.doctors.length > 0) {",
+                  "        pm.collectionVariables.set('doctorId', jsonData.doctors[0].doctorId);",
+                  "        console.log('Doctor ID set to:', jsonData.doctors[0].doctorId);",
+                  "    } else {",
+                  "        console.log('No doctors found in response');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Available Doctors by Specialty and Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/doctors/available?specialtyId={{specialtyId}}&date={{appointmentDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "doctors", "available"],
+              "query": [
+                {
+                  "key": "specialtyId",
+                  "value": "{{specialtyId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "{{appointmentDate}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has doctors array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    ",
+                  "    // Save first doctor ID for next requests",
+                  "    if (jsonData.length > 0) {",
+                  "        pm.collectionVariables.set('availableDoctorId', jsonData[0].doctorId);",
+                  "        console.log('Available Doctor ID:', jsonData[0].doctorId);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Doctor Services for Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/doctors/{{doctorId}}/services?date={{appointmentDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "doctors", "{{doctorId}}", "services"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{appointmentDate}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has services array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('services');",
+                  "    pm.expect(jsonData.services).to.be.an('array');",
+                  "    ",
+                  "    // Save first service ID for next requests",
+                  "    if (jsonData.services.length > 0) {",
+                  "        pm.collectionVariables.set('serviceId', jsonData.services[0].serviceId);",
+                  "        console.log('Service ID:', jsonData.services[0].serviceId);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Available Slots for Service and Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/doctors/{{doctorId}}/available-slots?serviceId={{serviceId}}&date={{appointmentDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "doctors", "{{doctorId}}", "available-slots"],
+              "query": [
+                {
+                  "key": "serviceId",
+                  "value": "{{serviceId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "{{appointmentDate}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has slots array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('slots');",
+                  "    pm.expect(jsonData.slots).to.be.an('array');",
+                  "    ",
+                  "    // Find first available slot",
+                  "    var availableSlots = jsonData.slots.filter(function(slot) {",
+                  "        return slot.isAvailable === true;",
+                  "    });",
+                  "    ",
+                  "    if (availableSlots.length > 0) {",
+                  "        pm.collectionVariables.set('startTime', availableSlots[0].startTime);",
+                  "        pm.collectionVariables.set('endTime', availableSlots[0].endTime);",
+                  "        console.log('Available slot:', availableSlots[0].startTime, '-', availableSlots[0].endTime);",
+                  "    } else {",
+                  "        console.log('No available slots found');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Book Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientProfileId\": \"{{patientProfileId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"serviceId\": \"{{serviceId}}\",\n  \"date\": \"{{appointmentDate}}\",\n  \"startTime\": \"{{startTime}}\",\n  \"endTime\": \"{{endTime}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "appointments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has appointment data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('appointmentId');",
+                  "    pm.expect(jsonData).to.have.property('appointmentCode');",
+                  "    ",
+                  "    // Save appointment details for later use",
+                  "    pm.collectionVariables.set('bookedAppointmentId', jsonData.appointmentId);",
+                  "    pm.collectionVariables.set('bookedAppointmentCode', jsonData.appointmentCode);",
+                  "    console.log('Booked appointment:', jsonData.appointmentCode);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Doctor Working Days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/doctors/{{doctorId}}/working-days?month={{appointmentMonth}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "doctors", "{{doctorId}}", "working-days"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{appointmentMonth}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has workingDays array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('workingDays');",
+                  "    pm.expect(jsonData.workingDays).to.be.an('array');",
+                  "    console.log('Working days:', jsonData.workingDays);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Patient Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/patient/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "patient", "appointments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has appointments array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    console.log('Patient appointments count:', jsonData.length);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Slots After Booking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointment-booking/doctors/{{doctorId}}/available-slots?serviceId={{serviceId}}&date={{appointmentDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointment-booking", "doctors", "{{doctorId}}", "available-slots"],
+              "query": [
+                {
+                  "key": "serviceId",
+                  "value": "{{serviceId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "{{appointmentDate}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Previously booked slot should be unavailable\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('slots');",
+                  "    ",
+                  "    var startTime = pm.collectionVariables.get('startTime');",
+                  "    var bookedSlot = jsonData.slots.find(function(slot) {",
+                  "        return slot.startTime === startTime;",
+                  "    });",
+                  "    ",
+                  "    if (bookedSlot) {",
+                  "        pm.expect(bookedSlot.isAvailable).to.be.false;",
+                  "        console.log('Booked slot is now unavailable:', startTime);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "doctorAccessToken",
+      "value": ""
+    },
+    {
+      "key": "patientAccessToken",
+      "value": ""
+    },
+    {
+      "key": "specialtyId",
+      "value": ""
+    },
+    {
+      "key": "doctorId",
+      "value": ""
+    },
+    {
+      "key": "availableDoctorId",
+      "value": ""
+    },
+    {
+      "key": "serviceId",
+      "value": ""
+    },
+    {
+      "key": "startTime",
+      "value": ""
+    },
+    {
+      "key": "endTime",
+      "value": ""
+    },
+    {
+      "key": "bookedAppointmentId",
+      "value": ""
+    },
+    {
+      "key": "bookedAppointmentCode",
+      "value": ""
+    }
+  ]
+}
+
+- {{baseUrl}}/appointment-booking/specialties
+=> trả về dạng :{
+    "specialties": [
+        {
+            "specialtyId": "36557c78-b463-42be-8bd9-4c57aa33c370",
+            "specialtyCode": "BỎNG",
+            "name": "Bỏng"
+        },
+        {
+            "specialtyId": "85d883db-56ab-40cd-9d63-28fa4f6f03fd",
+            "specialtyCode": "BONG",
+            "name": "Bỏng"
+        },
+        {
+            "specialtyId": "b84b4c4b-7d64-480d-a36f-de344116640b",
+            "specialtyCode": "CHUANDOANHINHANH",
+            "name": "Chuẩn đoán hình ảnh"
+        },
+        {
+            "specialtyId": "3205fbdb-ce5f-4111-aa2e-a5191691f771",
+            "specialtyCode": "DA_LIỄU",
+            "name": "Da liễu"
+        },
+        {
+            "specialtyId": "83b18b46-cd39-47a8-95ae-03c59c33762f",
+            "specialtyCode": "DALIEU",
+            "name": "Da liễu"
+        },
+        {
+            "specialtyId": "6a48e55b-5f6d-452b-ab74-63c2a3e1086f",
+            "specialtyCode": "HUYETHOCTRUYENMAU",
+            "name": "Huyết học/truyền máu"
+        },
+        {
+            "specialtyId": "8f5fe4c5-5f37-4d2d-a2de-b5b195cc6ca5",
+            "specialtyCode": "HUYẾT_HỌC/TRUYỀN_MÁU",
+            "name": "Huyết học/truyền máu"
+        },
+        {
+            "specialtyId": "769e759e-c430-449c-8cc9-d24b654e3809",
+            "specialtyCode": "MAT",
+            "name": "Mắt"
+        },
+        {
+            "specialtyId": "662f7811-7e12-465c-b1c4-1c472304e6ee",
+            "specialtyCode": "MẮT",
+            "name": "Mắt"
+        },
+        {
+            "specialtyId": "5809d14d-b9c0-4d7c-8cac-f8718bc88384",
+            "specialtyCode": "NGOẠI_KHOA",
+            "name": "Ngoại khoa"
+        },
+        {
+            "specialtyId": "28499e10-0897-45f2-823d-5515a9166c96",
+            "specialtyCode": "NGOAIKHOA",
+            "name": "Ngoại khoa"
+        },
+        {
+            "specialtyId": "b0e28355-e21d-4dff-9da0-09198f9d663d",
+            "specialtyCode": "NGOẠI_TRÚ_CHUNG",
+            "name": "Ngoại trú chung"
+        },
+        {
+            "specialtyId": "106ab99a-2392-4404-a2c3-6ed7295a09a2",
+            "specialtyCode": "NGOAITRUCHUNG",
+            "name": "Ngoại trú chung"
+        },
+        {
+            "specialtyId": "f1a0381e-1258-40c2-bbb6-e3d3a7b3978d",
+            "specialtyCode": "NHI_KHOA",
+            "name": "Nhi khoa"
+        },
+        {
+            "specialtyId": "4705febf-9b9a-47e1-9a8a-94d98aa97428",
+            "specialtyCode": "NHIKHOA",
+            "name": "Nhi khoa"
+        },
+        {
+            "specialtyId": "4c7d8f3b-94f0-4163-a952-77a3c3f86e08",
+            "specialtyCode": "NOITONGQUAT",
+            "name": "Nội tổng quát"
+        },
+        {
+            "specialtyId": "09c84c16-70c1-4400-82ba-dae195a6704c",
+            "specialtyCode": "NỘI_TỔNG_QUÁT",
+            "name": "Nội tổng quát"
+        },
+        {
+            "specialtyId": "c1312e17-8440-47a2-b99a-f09338518360",
+            "specialtyCode": "PHUKHOA",
+            "name": "Phụ khoa"
+        },
+        {
+            "specialtyId": "6fbfafbd-1222-488d-b186-e6620693e884",
+            "specialtyCode": "PHỤ_KHOA",
+            "name": "Phụ khoa"
+        },
+        {
+            "specialtyId": "f078c185-3f7a-4d99-b99d-450716328700",
+            "specialtyCode": "PHUCHOICHNANG",
+            "name": "Phục hồi chức năng"
+        },
+        {
+            "specialtyId": "92a275b6-e826-486d-890a-a330249c322e",
+            "specialtyCode": "PHỤC_HỒI_CHỨC_NĂNG",
+            "name": "Phục hồi chức năng"
+        },
+        {
+            "specialtyId": "bd95e01f-1e5c-4659-bef4-c5523e6cd45b",
+            "specialtyCode": "RĂNG_HÀM_MẶT",
+            "name": "Răng hàm mặt"
+        },
+        {
+            "specialtyId": "235a9490-5db6-4946-967c-7425fb07d8f6",
+            "specialtyCode": "RANGHAMMAT",
+            "name": "Răng hàm mặt"
+        },
+        {
+            "specialtyId": "66016d57-6b43-462f-88d8-33851ce62c9f",
+            "specialtyCode": "SẢN_KHOA",
+            "name": "Sản khoa"
+        },
+        {
+            "specialtyId": "92d973e8-55ef-402f-a6c7-d9b4412fd9f5",
+            "specialtyCode": "SANKHOA",
+            "name": "Sản khoa"
+        },
+        {
+            "specialtyId": "b5226be8-a49b-4b36-8117-748d6824b4c4",
+            "specialtyCode": "TAI_MŨI_HỌNG",
+            "name": "Tai mũi họng"
+        },
+        {
+            "specialtyId": "e24187e1-5a4a-4556-a6f6-c17a4118541d",
+            "specialtyCode": "TAIMUIHONG",
+            "name": "Tai mũi họng"
+        },
+        {
+            "specialtyId": "c89b8223-0908-41c6-926c-27d94288308d",
+            "specialtyCode": "TRUYỀN_NHIỄM",
+            "name": "Truyền nhiễm"
+        },
+        {
+            "specialtyId": "9456d147-795a-4319-ab51-960503b0e6a4",
+            "specialtyCode": "TRUYENNHI",
+            "name": "Truyền nhiễm"
+        },
+        {
+            "specialtyId": "5b7617cf-4d64-4838-acb0-08d2c594dc7a",
+            "specialtyCode": "TAMTHAN",
+            "name": "Tâm thần"
+        },
+        {
+            "specialtyId": "9778f0d2-ee1c-4ce9-b412-63c6b2539e71",
+            "specialtyCode": "TÂM_THẦN",
+            "name": "Tâm thần"
+        },
+        {
+            "specialtyId": "57eccb5b-f257-420a-871f-13e9e1f45f3b",
+            "specialtyCode": "UNG_BƯỚU",
+            "name": "Ung bướu"
+        },
+        {
+            "specialtyId": "8bfcd296-590f-4790-ba5a-5c17d5e2df4d",
+            "specialtyCode": "UNGBUOU",
+            "name": "Ung bướu"
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/specialties/{{specialtyId}}/doctors
+=> trả về dạng: {
+    "specialtyId": "36557c78-b463-42be-8bd9-4c57aa33c370",
+    "specialtyName": "Bỏng",
+    "doctors": [
+        {
+            "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+            "doctorCode": "DOC001",
+            "doctorName": "Trần Đình Kiên",
+            "rating": 4.8,
+            "yearsExperience": 10,
+            "description": "Chuyên gia nội tổng quát"
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/doctors/available?specialtyId={{specialtyId}}&date={{appointmentDate}}
+=> trả về dạng: {
+    "specialtyId": "36557c78-b463-42be-8bd9-4c57aa33c370",
+    "specialtyName": "Bỏng",
+    "date": "2025-09-29",
+    "doctors": [
+        {
+            "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+            "doctorCode": "DOC001",
+            "doctorName": "Trần Đình Kiên",
+            "specialtyId": "36557c78-b463-42be-8bd9-4c57aa33c370",
+            "specialtyName": "Bỏng",
+            "rating": 4.8,
+            "workSessionStart": "2025-09-29T06:00:00.000Z",
+            "workSessionEnd": "2025-09-29T09:00:00.000Z",
+            "boothId": "a400bb9d-5379-48dc-9d58-9fec1b313e1c",
+            "boothName": "Buồng 1",
+            "roomName": "Phòng Nội 101"
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/doctors/{{doctorId}}/services?date={{appointmentDate}}
+=> trả về dạng: {
+    "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+    "doctorName": "Trần Đình Kiên",
+    "date": "2025-09-29",
+    "services": [
+        {
+            "serviceId": "25b809db-a990-4741-be9a-cab92da8f087",
+            "serviceName": "Chăm sóc giảm nhẹ",
+            "serviceCode": "PALLIATIVE",
+            "price": 200000,
+            "timePerPatient": 25,
+            "description": "Điều trị triệu chứng nâng cao chất lượng cuộc sống."
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/doctors/{{doctorId}}/available-slots?serviceId={{serviceId}}&date={{appointmentDate}}
+=> trả về dạng: {
+    "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+    "doctorName": "Trần Đình Kiên",
+    "serviceId": "25b809db-a990-4741-be9a-cab92da8f087",
+    "serviceName": "Chăm sóc giảm nhẹ",
+    "date": "2025-09-29",
+    "workSessionStart": "2025-09-29T06:00:00.000Z",
+    "workSessionEnd": "2025-09-29T09:00:00.000Z",
+    "slots": [
+        {
+            "startTime": "06:00",
+            "endTime": "06:25",
+            "isAvailable": true
+        },
+        {
+            "startTime": "06:25",
+            "endTime": "06:50",
+            "isAvailable": true
+        },
+        {
+            "startTime": "06:50",
+            "endTime": "07:15",
+            "isAvailable": true
+        },
+        {
+            "startTime": "07:15",
+            "endTime": "07:40",
+            "isAvailable": true
+        },
+        {
+            "startTime": "07:40",
+            "endTime": "08:05",
+            "isAvailable": true
+        },
+        {
+            "startTime": "08:05",
+            "endTime": "08:30",
+            "isAvailable": true
+        },
+        {
+            "startTime": "08:30",
+            "endTime": "08:55",
+            "isAvailable": true
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/doctors/{{doctorId}}/working-days?month={{appointmentMonth}}
+=> trả về dạng: {
+    "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+    "doctorName": "Trần Đình Kiên",
+    "month": "09/2025",
+    "workingDays": [
+        "2025-09-15",
+        "2025-09-16",
+        "2025-09-18",
+        "2025-09-19",
+        "2025-09-20",
+        "2025-09-21",
+        "2025-09-22",
+        "2025-09-26",
+        "2025-09-29",
+        "2025-09-30"
+    ]
+}
+- {{baseUrl}}/appointment-booking/patient/appointments
+=> trả về dạng: {
+    "patientId": "3c586c38-876a-4221-8f66-4d584352df46",
+    "patientName": "Nguyễn Thanh Cảnh",
+    "totalAppointments": 0,
+    "appointments": []
+}
+- {{baseUrl}}/appointment-booking/doctors/{{doctorId}}/available-slots?serviceId={{serviceId}}&date={{appointmentDate}}
+=> trả về dạng: {
+    "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+    "doctorName": "Trần Đình Kiên",
+    "serviceId": "25b809db-a990-4741-be9a-cab92da8f087",
+    "serviceName": "Chăm sóc giảm nhẹ",
+    "date": "2025-09-29",
+    "workSessionStart": "2025-09-29T06:00:00.000Z",
+    "workSessionEnd": "2025-09-29T09:00:00.000Z",
+    "slots": [
+        {
+            "startTime": "06:00",
+            "endTime": "06:25",
+            "isAvailable": true
+        },
+        {
+            "startTime": "06:25",
+            "endTime": "06:50",
+            "isAvailable": true
+        },
+        {
+            "startTime": "06:50",
+            "endTime": "07:15",
+            "isAvailable": true
+        },
+        {
+            "startTime": "07:15",
+            "endTime": "07:40",
+            "isAvailable": true
+        },
+        {
+            "startTime": "07:40",
+            "endTime": "08:05",
+            "isAvailable": true
+        },
+        {
+            "startTime": "08:05",
+            "endTime": "08:30",
+            "isAvailable": true
+        },
+        {
+            "startTime": "08:30",
+            "endTime": "08:55",
+            "isAvailable": true
+        }
+    ]
+}
+- {{baseUrl}}/appointment-booking/appointments
+=> trả về dạng: {
+    "appointmentId": "47bab56f-db12-4003-8fd3-d21281d82e12",
+    "appointmentCode": "APT-1758172653605",
+    "doctorId": "94e51869-4e36-43ab-93cb-94fa8f5720d4",
+    "doctorName": "Trần Đình Kiên",
+    "patientProfileId": "87e7a36f-b085-46f3-a954-28cd3e2e0896",
+    "patientName": "Bệnh nhân 20",
+    "serviceId": "25b809db-a990-4741-be9a-cab92da8f087",
+    "serviceName": "Chăm sóc giảm nhẹ",
+    "date": "2025-09-29",
+    "startTime": "06:00",
+    "endTime": "06:25",
+    "status": "PENDING",
+    "createdAt": "2025-09-18T05:17:33.625Z"
+}
