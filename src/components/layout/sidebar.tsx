@@ -84,7 +84,15 @@ const getMenuItems = () => {
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["DOCTOR", "TECHNICIAN"],
-		}
+		},
+		{
+			title: "Màn hình tiếp nhận",
+			url: "/reception",
+			icon: Users,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["RECEPTIONIST"],
+		},
 	];
 
 	return baseItems;

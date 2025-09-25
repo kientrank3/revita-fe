@@ -1,0 +1,103 @@
+import api from '../config';
+import {
+  GetCountersResponse,
+  OpenCounterRequest,
+  OpenCounterResponse,
+  CloseCounterRequest,
+  CloseCounterResponse,
+  GetCurrentCounterResponse,
+  GetCurrentPatientResponse,
+  QueueResponseNormalized,
+  QueueStatusRaw,
+  CallNextPatientResponse,
+  SkipCurrentPatientResponse,
+  MarkServedResponse,
+} from '../types/reception';
+
+class ReceptionService {
+  private countersBase = '/receptionists/counters';
+  private assignBase = '/counter-assignment';
+
+  async getAllCounters(): Promise<GetCountersResponse> {
+    const res = await api.get(this.countersBase);
+    return res.data;
+  }
+
+  async getCurrentCounter(): Promise<GetCurrentCounterResponse | null> {
+    try {
+      const res = await api.get(`${this.countersBase}/current`);
+      return res.data;
+    } catch (e: any) {
+      if (e.response?.status === 404) return null;
+      throw e;
+    }
+  }
+
+  async openCounter(data: OpenCounterRequest): Promise<OpenCounterResponse> {
+    const res = await api.post(`${this.countersBase}/open`, data);
+    return res.data;
+  }
+
+  async closeCounter(data: CloseCounterRequest): Promise<CloseCounterResponse> {
+    const res = await api.post(`${this.countersBase}/close`, data);
+    return res.data;
+  }
+
+  async getCurrentPatient(counterId: string): Promise<GetCurrentPatientResponse> {
+    const res = await api.get(`${this.assignBase}/counters/${counterId}/current-patient`);
+    return res.data;
+  }
+
+  async getCounterQueue(counterId: string): Promise<QueueResponseNormalized> {
+    const res = await api.get(`${this.assignBase}/counters/${counterId}/queue`);
+    const data = res.data;
+    if (Array.isArray(data)) {
+      return { queue: data, total: data.length };
+    }
+    // If backend wraps
+    if (Array.isArray(data?.queue)) {
+      return { queue: data.queue, total: data.queue.length };
+    }
+    return { queue: [], total: 0 };
+  }
+
+  async getCounterQueueStatus(counterId: string): Promise<QueueStatusRaw> {
+    const res = await api.get(`${this.assignBase}/counters/${counterId}/queue-status`);
+    const raw = res.data;
+    if (raw && raw.success !== undefined && raw.status) return raw as QueueStatusRaw;
+    return { success: true, status: raw?.status ?? {} } as QueueStatusRaw;
+  }
+
+  async callNextPatient(counterId: string): Promise<CallNextPatientResponse> {
+    const res = await api.post(`${this.assignBase}/next-patient/${counterId}`);
+    const d = res.data;
+    return {
+      success: d.success ?? d.ok ?? false,
+      message: d.message,
+      patient: d.patient,
+    };
+  }
+
+  async skipCurrentPatient(counterId: string): Promise<SkipCurrentPatientResponse> {
+    const res = await api.post(`${this.assignBase}/skip-current/${counterId}`);
+    const d = res.data;
+    return {
+      success: d.success ?? d.ok ?? false,
+      message: d.message,
+      patient: d.patient,
+      skippedPatient: d.skippedPatient,
+    };
+  }
+
+  async markPatientServed(counterId: string): Promise<MarkServedResponse> {
+    const res = await api.post(`${this.assignBase}/mark-served/${counterId}`);
+    const d = res.data;
+    return {
+      success: d.success ?? d.ok ?? false,
+      message: d.message,
+    };
+  }
+}
+
+export const receptionService = new ReceptionService();
+
