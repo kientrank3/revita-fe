@@ -503,13 +503,16 @@ export default function ServiceProcessingPage() {
   };
 
   // Patient Service Card Component
-  const PatientServiceCard = ({ 
-    patient, 
-    onQuickStart, 
-    onQuickComplete, 
-    onUpdateResults, 
+  const PatientServiceCard = ({
+    patient,
+    onQuickStart,
+    onQuickComplete,
+    onUpdateResults,
     updatingService,
-    isFirstInQueue = false
+    isFirstInQueue = false,
+    showStartButton = true,
+    showNextBadge = false,
+    hideCard = false
   }: {
     patient: {
       patientId: string;
@@ -527,16 +530,28 @@ export default function ServiceProcessingPage() {
     onUpdateResults?: (service: any) => void;
     updatingService: string | null;
     isFirstInQueue?: boolean;
+    showStartButton?: boolean;
+    showNextBadge?: boolean;
+    hideCard?: boolean;
   }) => {
     const totalPrice = patient.services.reduce((sum, service) => sum + service.service.price, 0);
     
+    // Nếu hideCard là true thì không render gì cả
+    if (hideCard) {
+      return null;
+    }
+
     return (
       <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
         {/* Patient Header */}
         <div className="flex items-center justify-between mb-3">
-          <div>
+          <div className="flex items-center gap-2">
             <h4 className="font-semibold text-lg">{patient.patientName}</h4>
-            <p className="text-sm text-gray-500">{patient.prescriptionCode}</p>
+            {showNextBadge && (
+              <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                Kế tiếp
+              </Badge>
+            )}
           </div>
           <div className="text-right">
             <div className="text-sm font-medium">{totalPrice.toLocaleString()} đ</div>
@@ -627,7 +642,7 @@ export default function ServiceProcessingPage() {
 
           return (
             <div className="flex justify-center gap-4 pt-2 border-t border-gray-200">
-              {waitingServices.length > 0 && onQuickStart && (
+              {waitingServices.length > 0 && onQuickStart && showStartButton && (
                 <Button
                   size="sm"
                   onClick={() => {
@@ -955,7 +970,7 @@ export default function ServiceProcessingPage() {
                       <div>
                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                           <Clock className="h-5 w-5 text-blue-600" />
-                          Đang chờ phục vụ
+                          Đang chờ phục vụ ({Math.min(waitingPatients.length, 2)})
                         </h3>
                         {waitingPatients.length > 0 ? (
                           <div className="space-y-4">
@@ -966,6 +981,9 @@ export default function ServiceProcessingPage() {
                                 onQuickStart={handleQuickStart}
                                 updatingService={updatingService}
                                 isFirstInQueue={index === 0}
+                                showStartButton={index === 0} // Chỉ bệnh nhân đầu tiên có nút bắt đầu
+                                showNextBadge={index === 1} // Chỉ bệnh nhân thứ hai có badge "Kế tiếp"
+                                hideCard={index > 1} // Ẩn các bệnh nhân từ thứ 3 trở đi
                               />
                             ))}
                           </div>

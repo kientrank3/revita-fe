@@ -642,7 +642,7 @@ export default function InvoicesPage() {
       // Reload trang sau 4 giây để reset về trạng thái ban đầu (đủ thời gian export PDF)
       setTimeout(() => {
         window.location.reload();
-      }, 4000);
+      }, 40000);
 
     } catch (err: any) {
       console.error('Payment error:', err);
