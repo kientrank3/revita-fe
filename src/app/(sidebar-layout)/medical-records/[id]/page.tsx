@@ -22,6 +22,7 @@ import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { toast } from 'sonner';
 import { MedicalRecordViewer } from '@/components/medical-records/MedicalRecordViewer';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
+import { MedicalRecordAttachments } from '@/components/medical-records/MedicalRecordAttachments';
 import { Badge } from '@/components/ui/badge';
 import { Doctor } from '@/lib/types/user';
 
@@ -454,8 +455,16 @@ export default function MedicalRecordDetailPage() {
           />
         </div>
 
-        {/* Right Column - Prescriptions */}
-        <div className="lg:col-span-1">
+        {/* Right Column - Prescriptions & Attachments */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Attachments */}
+          {medicalRecord.attachments && medicalRecord.attachments.length > 0 && (
+            <MedicalRecordAttachments 
+              attachments={medicalRecord.attachments}
+              showTitle={true}
+            />
+          )}
+          
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -569,6 +578,7 @@ export default function MedicalRecordDetailPage() {
               onCancel={handleCancel}
               initialData={medicalRecord.content}
               isEditing={true}
+              existingAttachments={medicalRecord.attachments || []}
             />
           ) : (
             <div className="text-center py-8">

@@ -51,14 +51,68 @@ class MedicalRecordService {
   // Create new medical record
   async create(data: CreateMedicalRecordDto): Promise<MedicalRecord> {
     console.log('data', data);
-    const response = await api.post('/medical-records', data);
-    return unwrapObjectResponse<MedicalRecord>(response.data);
+    
+    // Check if we have files to upload
+    if (data.files && data.files.length > 0) {
+      const formData = new FormData();
+      
+      // Add files
+      data.files.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Add other fields
+      formData.append('patientProfileId', data.patientProfileId);
+      formData.append('templateId', data.templateId);
+      if (data.doctorId) formData.append('doctorId', data.doctorId);
+      if (data.appointmentId) formData.append('appointmentId', data.appointmentId);
+      if (data.status) formData.append('status', data.status);
+      formData.append('content', JSON.stringify(data.content));
+      
+      const response = await api.post('/medical-records', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return unwrapObjectResponse<MedicalRecord>(response.data);
+    } else {
+      // No files, send as JSON
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { files, ...jsonData } = data;
+      const response = await api.post('/medical-records', jsonData);
+      return unwrapObjectResponse<MedicalRecord>(response.data);
+    }
   }
 
   // Update medical record
   async update(id: string, data: UpdateMedicalRecordDto): Promise<MedicalRecord> {
-    const response = await api.patch(`/medical-records/${id}`, data);
-    return unwrapObjectResponse<MedicalRecord>(response.data);
+    // Check if we have files to upload
+    if (data.files && data.files.length > 0) {
+      const formData = new FormData();
+      
+      // Add files
+      data.files.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Add other fields
+      if (data.content) formData.append('content', JSON.stringify(data.content));
+      if (data.status) formData.append('status', data.status);
+      if (data.appendFiles !== undefined) formData.append('appendFiles', data.appendFiles.toString());
+      
+      const response = await api.patch(`/medical-records/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return unwrapObjectResponse<MedicalRecord>(response.data);
+    } else {
+      // No files, send as JSON
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { files, appendFiles, ...jsonData } = data;
+      const response = await api.patch(`/medical-records/${id}`, jsonData);
+      return unwrapObjectResponse<MedicalRecord>(response.data);
+    }
   }
 
   // Delete medical record

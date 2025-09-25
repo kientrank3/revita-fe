@@ -1,29 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   User, 
   Mail, 
   Edit, 
   Save, 
   X,
-  LogOut
+  LogOut,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useAvatarUpload } from '@/lib/hooks/useAvatarUpload';
 
 export function UserProfile() {
   const { user, logout, isLoading } = useAuth();
+  const { uploadAvatar, isUploading, error: uploadError, clearError } = useAvatarUpload();
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) {
     return (
@@ -68,6 +75,29 @@ export function UserProfile() {
     }));
   };
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      clearError();
+      setUploadSuccess(false);
+      const success = await uploadAvatar(file);
+      if (success) {
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        // Show success message
+        setUploadSuccess(true);
+        // Auto hide success message after 3 seconds
+        setTimeout(() => setUploadSuccess(false), 3000);
+      }
+    }
+  };
+
 
 
   const getInitials = (name: string) => {
@@ -81,6 +111,46 @@ export function UserProfile() {
 
   return (
     <div className="space-y-6">
+      {/* Upload Success Display */}
+      {uploadSuccess && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <Save className="h-4 w-4" />
+              <span className="text-sm">Avatar đã được cập nhật thành công!</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setUploadSuccess(false)}
+                className="ml-auto h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Error Display */}
+      {uploadError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <X className="h-4 w-4" />
+              <span className="text-sm">{uploadError}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearError}
+                className="ml-auto h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Profile Header */}
       <Card>
         <CardHeader>
@@ -116,12 +186,68 @@ export function UserProfile() {
         </CardHeader>
         <CardContent>
           <div className="flex items-start gap-6">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatar || ''} alt={user.name} />
-              <AvatarFallback className="text-lg">
-                {user.name ? getInitials(user.name) : user.email.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="space-y-3">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative group cursor-pointer">
+                      <Avatar className="h-20 w-20">
+                        <AvatarImage src={user.avatar || ''} alt={user.name} />
+                        <AvatarFallback className="text-lg">
+                          {user.name ? getInitials(user.name) : user.email.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      {/* Avatar upload overlay */}
+                      <div 
+                        className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={handleAvatarClick}
+                      >
+                        {isUploading ? (
+                          <Upload className="h-6 w-6 text-white animate-spin" />
+                        ) : (
+                          <Camera className="h-6 w-6 text-white" />
+                        )}
+                      </div>
+                      
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        disabled={isUploading}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Click để thay đổi avatar</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              {/* Upload Avatar Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAvatarClick}
+                disabled={isUploading}
+                className="w-20 text-xs"
+              >
+                {isUploading ? (
+                  <>
+                    <Upload className="h-3 w-3 mr-1 animate-spin" />
+                    Đang tải...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-3 w-3 mr-1" />
+                    Đổi ảnh
+                  </>
+                )}
+              </Button>
+            </div>
             
             <div className="flex-1 space-y-4">
               {isEditing ? (

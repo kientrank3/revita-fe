@@ -747,7 +747,6 @@ export default function MedicalRecordsPage() {
             <Button variant="outline" onClick={()=>setIsCreateProfileOpen(false)}>Đóng</Button>
             <Button
               onClick={async()=>{
-                console.log('createForm', createForm);
                 if (!currentPatientId) return;
                 if (isSubmittingCreate) return;
                 

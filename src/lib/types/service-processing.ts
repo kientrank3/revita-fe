@@ -9,6 +9,41 @@ export type ServiceStatus =
   | 'CANCELLED'
   | 'NOT_STARTED';
 
+// DTO Types matching backend
+export interface SearchServiceDto {
+  query: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetAllServicesDto {
+  limit?: number;
+  offset?: number;
+}
+
+export interface ScanPrescriptionDto {
+  prescriptionCode: string;
+}
+
+export interface UpdateServiceStatusDto {
+  prescriptionServiceId: string;
+  status: ServiceStatus;
+  note?: string;
+}
+
+export interface UpdateServiceResultsDto {
+  prescriptionServiceId: string;
+  results: string[];
+  note?: string;
+}
+
+export interface GetServicesDto {
+  status?: ServiceStatus;
+  workSessionId?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface Service {
   id: string;
   serviceCode: string;

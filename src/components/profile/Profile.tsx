@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAvatarUpload } from '@/lib/hooks/useAvatarUpload';
 import { 
   User, 
   Edit, 
@@ -21,7 +23,9 @@ import {
   Calendar,
   Shield,
   GraduationCap,
-  Heart
+  Heart,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { authApi, userApi } from '@/lib/api';
@@ -71,10 +75,13 @@ interface UpdateProfileForm {
 }
 export function Profile() {
   const { user } = useAuth();
+  const { uploadAvatar, isUploading, error: uploadError, clearError } = useAvatarUpload();
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editForm, setEditForm] = useState<UpdateProfileForm>({
     name: '',
@@ -121,6 +128,7 @@ export function Profile() {
       case 'RECEPTIONIST': return 'Lễ tân';
       case 'CASHIER': return 'Thu ngân';
       case 'PATIENT': return 'Bệnh nhân';
+      case 'TECHNICIAN': return 'Kỹ thuật';
       default: return role;
     }
   };
@@ -179,6 +187,31 @@ export function Profile() {
       loyaltyPoints: '',
       adminCode: '',
     });
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      clearError();
+      setUploadSuccess(false);
+      const success = await uploadAvatar(file);
+      if (success) {
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        // Show success message
+        setUploadSuccess(true);
+        // Auto hide success message after 3 seconds
+        setTimeout(() => setUploadSuccess(false), 3000);
+        // Refresh profile data to get updated avatar
+        await fetchProfileData();
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -315,6 +348,46 @@ export function Profile() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className=" mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Upload Success Display */}
+        {uploadSuccess && (
+          <Card className="border-green-200 bg-green-50 mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-green-600">
+                <Save className="h-4 w-4" />
+                <span className="text-sm">Avatar đã được cập nhật thành công!</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setUploadSuccess(false)}
+                  className="ml-auto h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Upload Error Display */}
+        {uploadError && (
+          <Card className="border-red-200 bg-red-50 mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-red-600">
+                <X className="h-4 w-4" />
+                <span className="text-sm">{uploadError}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearError}
+                  className="ml-auto h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -365,17 +438,52 @@ export function Profile() {
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="flex flex-col items-center space-y-4">
-                <div className="relative">
-                  <Avatar className="h-24 w-24 border-2 border-gray-200">
-                    <AvatarImage src={profileData.avatar} alt={profileData.name} />
-                    <AvatarFallback className="bg-gray-100 text-gray-600 text-lg font-semibold">
-                      {getInitials(profileData.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute -bottom-1 -right-1 bg-primary w-5 h-5 rounded-full border-2 border-white flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                  </div>
+                <div className="space-y-3 flex flex-col items-center">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="relative group cursor-pointer">
+                          <Avatar className="h-24 w-24 border-2 border-gray-200">
+                            <AvatarImage src={profileData.avatar} alt={profileData.name} />
+                            <AvatarFallback className="bg-gray-100 text-gray-600 text-lg font-semibold">
+                              {getInitials(profileData.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          {/* Avatar upload overlay */}
+                          <div 
+                            className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={handleAvatarClick}
+                          >
+                            {isUploading ? (
+                              <Upload className="h-6 w-6 text-white animate-spin" />
+                            ) : (
+                              <Camera className="h-6 w-6 text-white" />
+                            )}
+                          </div>
+                          
+                          <div className="absolute -bottom-1 -right-1 bg-primary w-5 h-5 rounded-full border-2 border-white flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                          </div>
+                          
+                          {/* Hidden file input */}
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            className="hidden"
+                            onChange={handleFileChange}
+                            disabled={isUploading}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Click để thay đổi avatar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
+                
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">{profileData.name}</h3>
                   <Badge 

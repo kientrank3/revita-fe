@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     console.log('Wrapped response:', wrappedResponse);
     return NextResponse.json(wrappedResponse);
   } catch (error) {
-    console.error('My services API error:', error);
+    console.error('Get my services error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -351,3 +351,180 @@ export const patientProfileApi = {
   delete: (patientProfileId: string) =>
     api.delete(`/patient-profiles/${patientProfileId}`),
 };
+
+// Service Management API
+export const serviceApi = {
+  // Tìm kiếm dịch vụ
+  search: (params: { query: string; limit?: number; offset?: number }) =>
+    api.get('/services/search', { params }),
+  
+  // Lấy tất cả dịch vụ
+  getAll: (params?: { limit?: number; offset?: number }) =>
+    api.get('/services', { params }),
+  
+  // Lấy dịch vụ theo ID
+  getById: (id: string) =>
+    api.get(`/services/${id}`),
+  
+  // Quét mã phiếu chỉ định
+  scanPrescription: (data: { prescriptionCode: string }) =>
+    api.post('/services/scan-prescription', data),
+  
+  // Cập nhật trạng thái dịch vụ
+  updateStatus: (data: {
+    prescriptionServiceId: string;
+    status: 'PENDING' | 'WAITING' | 'SERVING' | 'WAITING_RESULT' | 'COMPLETED' | 'DELAYED' | 'CANCELLED';
+    note?: string;
+  }) =>
+    api.put('/services/prescription-service/status', data),
+  
+  // Cập nhật kết quả dịch vụ
+  updateResults: (data: {
+    prescriptionServiceId: string;
+    results: string[];
+    note?: string;
+  }) =>
+    api.put('/services/prescription-service/results', data),
+  
+  // Lấy danh sách dịch vụ của user hiện tại
+  getMyServices: (params?: {
+    status?: 'PENDING' | 'WAITING' | 'SERVING' | 'WAITING_RESULT' | 'COMPLETED' | 'DELAYED' | 'CANCELLED';
+    workSessionId?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
+    api.get('/services/my-services', { params }),
+  
+  // Lấy thông tin work session hiện tại
+  getCurrentWorkSession: () =>
+    api.get('/services/work-session'),
+  
+  // Bắt đầu thực hiện dịch vụ (chuyển sang SERVING)
+  startService: (prescriptionServiceId: string) =>
+    api.post(`/services/prescription-service/${prescriptionServiceId}/start`),
+  
+  // Hoàn thành dịch vụ (chuyển sang WAITING_RESULT)
+  completeService: (prescriptionServiceId: string) =>
+    api.post(`/services/prescription-service/${prescriptionServiceId}/complete`),
+};
+
+// Work Session Management API
+export const workSessionApi = {
+  // Tạo work sessions (Doctor/Technician/Admin)
+  create: (data: {
+    workSessions: {
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+    }[];
+  }) =>
+    api.post('/work-sessions', data),
+  
+  // Lấy lịch làm việc của tôi (Doctor/Technician)
+  getMySchedule: (params?: { startDate?: string; endDate?: string }) =>
+    api.get('/work-sessions/my-schedule', { params }),
+  
+  // Lấy work sessions của user khác (Admin only)
+  getUserWorkSessions: (userId: string, params: {
+    userType: 'DOCTOR' | 'TECHNICIAN';
+    startDate?: string;
+    endDate?: string;
+  }) =>
+    api.get(`/work-sessions/user/${userId}`, { params }),
+  
+  // Lấy tất cả work sessions (Admin only)
+  getAll: (params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: 'PENDING' | 'APPROVED' | 'IN_PROGRESS' | 'CANCELED' | 'COMPLETED';
+    userType?: 'DOCTOR' | 'TECHNICIAN';
+    limit?: number;
+    offset?: number;
+  }) =>
+    api.get('/work-sessions', { params }),
+  
+  // Lấy work session theo ID
+  getById: (id: string) =>
+    api.get(`/work-sessions/${id}`),
+  
+  // Lấy work sessions theo booth (Admin only)
+  getByBooth: (boothId: string, params?: { startDate?: string; endDate?: string }) =>
+    api.get(`/work-sessions/booth/${boothId}`, { params }),
+  
+  // Lấy work sessions theo ngày (Admin only)
+  getByDate: (date: string, params?: { userType?: 'DOCTOR' | 'TECHNICIAN' }) =>
+    api.get(`/work-sessions/date/${date}`, { params }),
+  
+  // Cập nhật work session (Doctor/Technician/Admin)
+  update: (id: string, data: {
+    startTime?: string;
+    endTime?: string;
+    status?: 'PENDING' | 'APPROVED' | 'IN_PROGRESS' | 'CANCELED' | 'COMPLETED';
+    boothId?: string;
+    serviceIds?: string[];
+  }) =>
+    api.put(`/work-sessions/${id}`, data),
+  
+  // Xóa work session (Doctor/Technician/Admin)
+  delete: (id: string) =>
+    api.delete(`/work-sessions/${id}`),
+  
+  // Kiểm tra xung đột thời gian (Conflict validation)
+  validateConflict: (data: {
+    workSessions: {
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+    }[];
+  }) =>
+    api.post('/work-sessions/validate-conflict', data),
+  
+  // Kiểm tra quyền truy cập (Permission validation)
+  validatePermission: (userId: string, userType: 'DOCTOR' | 'TECHNICIAN') =>
+    api.get(`/work-sessions/validate-permission/${userId}?userType=${userType}`),
+  
+  // Utility functions for common operations
+  
+  // Tạo work session với validation tự động
+  createWithValidation: async (data: {
+    workSessions: {
+      startTime: string;
+      endTime: string;
+      serviceIds: string[];
+    }[];
+  }) => {
+    // First validate for conflicts
+    const conflictResult = await api.post('/work-sessions/validate-conflict', data);
+    if (conflictResult.data.hasConflict) {
+      throw new Error(`Conflict detected: ${conflictResult.data.message}`);
+    }
+    // If no conflict, create the work sessions
+    return api.post('/work-sessions', data);
+  },
+  
+  // Lấy work sessions với pagination và filtering
+  getWithFilters: (params: {
+    startDate?: string;
+    endDate?: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    userType?: 'DOCTOR' | 'TECHNICIAN';
+    userId?: string;
+    boothId?: string;
+    date?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const { userId, boothId, date, ...otherParams } = params;
+    
+    if (userId) {
+      return api.get(`/work-sessions/user/${userId}`, { params: otherParams });
+    }
+    if (boothId) {
+      return api.get(`/work-sessions/booth/${boothId}`, { params: otherParams });
+    }
+    if (date) {
+      return api.get(`/work-sessions/date/${date}`, { params: otherParams });
+    }
+    return api.get('/work-sessions', { params: otherParams });
+  },
+};
