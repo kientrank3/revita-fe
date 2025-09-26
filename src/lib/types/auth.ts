@@ -149,6 +149,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionValue[]> = {
   ],
   CASHIER: [
   ],
+  TECHNICIAN: [
+  ],
 };
 
 // Route permissions mapping

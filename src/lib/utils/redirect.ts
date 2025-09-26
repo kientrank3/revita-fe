@@ -11,6 +11,7 @@ export function getRedirectPathByRole(role: UserRole): string {
     case 'DOCTOR':
     case 'RECEPTIONIST':
     case 'CASHIER':
+    case 'TECHNICIAN':
       return '/dashboard';
     case 'PATIENT':
       return '/';
@@ -25,7 +26,7 @@ export function getRedirectPathByRole(role: UserRole): string {
  * @returns True if should use sidebar layout
  */
 export function shouldUseSidebarLayout(role: UserRole): boolean {
-  const staffRoles: UserRole[] = ['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'CASHIER'];
+  const staffRoles: UserRole[] = ['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'CASHIER', 'TECHNICIAN'];
   return staffRoles.includes(role);
 }
 
