@@ -574,3 +574,12 @@ export const appointmentBookingApi = {
   getDoctorAppointments: () =>
     api.get('/appointment-booking/doctor/appointments'),
 };
+
+// AI Chatbot API
+export const aiChatbotApi = {
+  chat: (data: {
+    message: string;
+    conversationId?: string;
+    userId?: string;
+  }) => api.post('/ai-chatbot/chat', data, { timeout: 120000 }),
+};

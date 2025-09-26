@@ -2,6 +2,7 @@
 import { MainFooter } from "@/components/layout/main-footer";
 import { MainHeader } from "@/components/layout/main-header";
 import { Toaster } from "@/components/ui/sonner";
+import { ChatbotFAB } from "@/components/chatbot/ChatbotFAB";
 
 export default function MainLayout({
   children,
@@ -16,6 +17,7 @@ export default function MainLayout({
         {children}
       </main>
       <MainFooter />
+      <ChatbotFAB />
     </div>
   );
 }

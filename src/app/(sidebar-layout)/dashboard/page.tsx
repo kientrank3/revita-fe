@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ChatbotFAB } from "@/components/chatbot/ChatbotFAB";
 import { 
   Users, 
   FileText, 
@@ -197,6 +198,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      <ChatbotFAB />
     </div>
   );
 }
