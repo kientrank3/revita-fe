@@ -298,9 +298,12 @@ export default function InvoicesPage() {
     };
   }, [confirmResult?.transaction?.qrCode]);
 
-  const exportSectionAsPdf = useCallback(async (type: 'invoice' | 'routing', data?: any) => {
+  const exportSectionAsPdf = useCallback(async (type: 'invoice' | 'routing', data?: any, customCustomerMoney?: number) => {
     const pdfData = data || confirmResult;
     if (!pdfData) return;
+    
+    // Use custom customer money if provided, otherwise use global state
+    const customerMoneyValue = customCustomerMoney !== undefined ? customCustomerMoney : parseInt(customerMoney) || 0;
 
     const formatCurrency = (value?: number | null) => {
       if (typeof value !== 'number') return '';
@@ -414,11 +417,11 @@ export default function InvoicesPage() {
               body: [
                 [
                   { text: 'Tiền khách đưa:', fontSize: 11 },
-                  { text: `${parseInt(customerMoney || '0').toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
+                  { text: `${customerMoneyValue.toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
                 ],
                 [
                   { text: 'Tiền thối lại:', fontSize: 11 },
-                  { text: `${(parseInt(customerMoney || '0') - pdfData.totalAmount).toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
+                  { text: `${(customerMoneyValue - pdfData.totalAmount).toLocaleString()} đ`, fontSize: 11, alignment: 'right' }
                 ]
               ]
             },
@@ -478,12 +481,6 @@ export default function InvoicesPage() {
                               }
                             ]
                           : []),
-                        {
-                          text: `Chuỗi QR: ${pdfData.transaction.qrCode}`,
-                          fontSize: 9,
-                          color: '#6b21a8',
-                          margin: [0, 6, 0, 0]
-                        }
                       ]
                     },
                     {
@@ -714,7 +711,7 @@ export default function InvoicesPage() {
       // Fallback: suggest using print function
       toast.info('Bạn có thể dùng nút "In" để lưu PDF thay thế');
     }
-  }, [confirmResult, paymentMethod, preview, user, prescription]);
+  }, [confirmResult, paymentMethod, preview, user, prescription, customerMoney]);
 
   const availableServices: Service[] = useMemo(() => {
     if (!prescription) return [];
@@ -1090,20 +1087,79 @@ export default function InvoicesPage() {
       setSocketLog(prev => [`connect_error: ${err?.message || 'unknown'}`, ...prev].slice(0, 10));
     });
 
-    // When payment succeeded (webhook processed), refresh and finalize
+    // When payment succeeded (webhook processed), get invoice details and download PDF
     socket.on('invoice_payment_success', async (payload: any) => {
       try {
+        const invoiceId = payload?.data?.invoiceId || payload?.invoiceId;
         const invoiceCode = payload?.data?.invoiceCode || payload?.invoiceCode;
         const targetCashier = payload?.data?.cashierId || payload?.cashierId;
-        if (!invoiceCode) return;
+        
+        if (!invoiceId) {
+          console.log('No invoiceId in payload, trying invoiceCode:', invoiceCode);
+          return;
+        }
         if (targetCashier && targetCashier !== cashierId) return;
 
-        const { data } = await cashierApi.confirmPayment({ invoiceCode, cashierId });
-        if (data?.paymentStatus && ['PAID', 'SUCCEEDED'].includes(data.paymentStatus)) {
-          finalizePaidInvoice(data);
+        // Call new API to get invoice details
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        
+        const response = await fetch(`${API_BASE_URL}/invoice-payments/invoice-by-id/${invoiceId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch invoice details:', response.status, response.statusText);
+          return;
+        }
+
+        const invoiceResponse = await response.json();
+        console.log('Invoice details received:', invoiceResponse);
+
+        if (invoiceResponse?.success && invoiceResponse?.data) {
+          const invoiceData = invoiceResponse.data;
+          
+          // Transform the data to match expected format
+          const transformedData = {
+            invoiceCode: invoiceData.invoiceCode,
+            totalAmount: invoiceData.totalAmount,
+            paymentStatus: invoiceData.paymentStatus,
+            paymentMethod: invoiceData.paymentMethod,
+            patientInfo: {
+              name: invoiceData.patientProfile?.name,
+              dateOfBirth: invoiceData.patientProfile?.dateOfBirth,
+              gender: invoiceData.patientProfile?.gender,
+            },
+            prescriptionInfo: {
+              prescriptionCode: invoiceData.invoiceDetails?.[0]?.prescription?.prescriptionCode,
+              status: invoiceData.invoiceDetails?.[0]?.prescription?.status,
+              doctorName: invoiceData.invoiceDetails?.[0]?.prescription?.doctor?.auth?.name,
+            },
+            invoiceDetails: invoiceData.invoiceDetails?.map((detail: any) => ({
+              serviceCode: detail.service?.serviceCode,
+              serviceName: detail.service?.name,
+              price: detail.service?.price,
+            })) || [],
+            routingAssignments: [], // This might need to be populated from another API
+            transaction: invoiceData.paymentTransactions?.[0] || null,
+          };
+
+          // Auto download PDF immediately with correct payment data
+          setTimeout(() => {
+            exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
+          }, 500);
+
+          // Show success message
+          toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
         }
       } catch (error) {
-        // ignore
+        console.error('Error processing payment success:', error);
+        toast.error('Có lỗi xảy ra khi xử lý thanh toán thành công');
       }
     });
 
