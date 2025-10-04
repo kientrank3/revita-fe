@@ -528,3 +528,202 @@ export const workSessionApi = {
     return api.get('/work-sessions', { params: otherParams });
   },
 };
+
+// Appointment Booking API
+export const appointmentBookingApi = {
+  // Get all specialties
+  getSpecialties: () =>
+    api.get('/appointment-booking/specialties'),
+
+  // Get doctors by specialty
+  getDoctorsBySpecialty: (specialtyId: string) =>
+    api.get(`/appointment-booking/specialties/${specialtyId}/doctors`),
+
+  // Get available doctors by specialty and date
+  getAvailableDoctors: (params: { specialtyId: string; date: string }) =>
+    api.get('/appointment-booking/doctors/available', { params }),
+
+  // Get doctor services for specific date
+  getDoctorServices: (doctorId: string, params: { date: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/services`, { params }),
+
+  // Get available time slots for doctor, service and date
+  getAvailableSlots: (doctorId: string, params: { serviceId: string; date: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/available-slots`, { params }),
+
+  // Get doctor working days for a month
+  getDoctorWorkingDays: (doctorId: string, params: { month: string }) =>
+    api.get(`/appointment-booking/doctors/${doctorId}/working-days`, { params }),
+
+  // Book an appointment
+  bookAppointment: (data: {
+    patientProfileId: string;
+    doctorId: string;
+    serviceId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+  }) =>
+    api.post('/appointment-booking/appointments', data),
+
+  // Get patient appointments
+  getPatientAppointments: () =>
+    api.get('/appointment-booking/patient/appointments'),
+
+  // Get doctor appointments (requires doctor auth token)
+  getDoctorAppointments: () =>
+    api.get('/appointment-booking/doctor/appointments'),
+};
+
+// AI Chatbot API
+export const aiChatbotApi = {
+  chat: (data: {
+    message: string;
+    conversationId?: string;
+    userId?: string;
+  }) => api.post('/ai-chatbot/chat', data, { timeout: 120000 }),
+};
+
+// Medication Prescription API
+export const medicationPrescriptionApi = {
+  // Create medication prescription (Doctor only)
+  create: (data: {
+    patientProfileId: string;
+    medicalRecordId?: string;
+    note?: string;
+    status?: 'DRAFT' | 'SIGNED' | 'CANCELLED';
+    items: {
+      name: string;
+      ndc?: string;
+      strength?: string;
+      dosageForm?: string;
+      route?: string;
+      dose?: number;
+      doseUnit?: string;
+      frequency?: string;
+      durationDays?: number;
+      quantity?: number;
+      quantityUnit?: string;
+      instructions?: string;
+    }[];
+  }) =>
+    api.post('/medication-prescriptions', data),
+
+  // Get medication prescription by code (Doctor/Patient)
+  getByCode: (code: string) =>
+    api.get(`/medication-prescriptions/${encodeURIComponent(code)}`),
+
+  // Update medication prescription (Doctor only)
+  update: (id: string, data: {
+    note?: string;
+    status?: 'DRAFT' | 'SIGNED' | 'CANCELLED';
+    items?: {
+      name: string;
+      ndc?: string;
+      strength?: string;
+      dosageForm?: string;
+      route?: string;
+      dose?: number;
+      doseUnit?: string;
+      frequency?: string;
+      durationDays?: number;
+      quantity?: number;
+      quantityUnit?: string;
+      instructions?: string;
+    }[];
+  }) =>
+    api.patch(`/medication-prescriptions/${id}`, data),
+
+  // Delete medication prescription (Doctor only)
+  delete: (id: string) =>
+    api.delete(`/medication-prescriptions/${id}`),
+
+  // Get patient's medication prescriptions
+  getPatientPrescriptions: (params?: { page?: number; limit?: number }) =>
+    api.get('/medication-prescriptions', {
+      params: params
+        ? {
+            limit: params.limit,
+            skip: params.page && params.limit ? (params.page - 1) * params.limit : undefined,
+          }
+        : undefined,
+    }),
+
+  // Get doctor's medication prescriptions
+  getDoctorPrescriptions: (params?: { page?: number; limit?: number }) =>
+    api.get('/medication-prescriptions/mine', {
+      params: params
+        ? {
+            limit: params.limit,
+            skip: params.page && params.limit ? (params.page - 1) * params.limit : undefined,
+          }
+        : undefined,
+    }),
+
+  // Get medication prescriptions by medical record
+  getByMedicalRecord: (medicalRecordId: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/medication-prescriptions/medical-record/${medicalRecordId}`, {
+      params: params
+        ? {
+            limit: params.limit,
+            skip: params.page && params.limit ? (params.page - 1) * params.limit : undefined,
+          }
+        : undefined,
+    }),
+};
+
+// Drug Search API (OpenFDA)
+export const drugSearchApi = {
+  // Search drugs by query
+  search: (
+    query: string,
+    params?: { page?: number; limit?: number; skip?: number }
+  ) =>
+    api.get(
+      `/medication-prescriptions/drugs/search/${encodeURIComponent(query)}`,
+      {
+        params:
+          params && (params.page || params.limit || params.skip)
+            ? {
+                limit: params.limit,
+                skip:
+                  params.skip !== undefined
+                    ? params.skip
+                    : params.page && params.limit
+                    ? (params.page - 1) * params.limit
+                    : undefined,
+              }
+            : undefined,
+      }
+    ),
+
+  // Search drugs by a specific field and value
+  searchByField: (
+    field: string,
+    value: string,
+    params?: { page?: number; limit?: number; skip?: number }
+  ) =>
+    api.get(
+      `/medication-prescriptions/drugs/search/by-field/${encodeURIComponent(
+        field
+      )}/${encodeURIComponent(value)}`,
+      {
+        params:
+          params && (params.page || params.limit || params.skip)
+            ? {
+                limit: params.limit,
+                skip:
+                  params.skip !== undefined
+                    ? params.skip
+                    : params.page && params.limit
+                    ? (params.page - 1) * params.limit
+                    : undefined,
+              }
+            : undefined,
+      }
+    ),
+
+  // Get drug by NDC
+  getByNdc: (ndc: string) =>
+    api.get(`/medication-prescriptions/drugs/ndc/${ndc}`),
+};

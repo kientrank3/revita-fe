@@ -78,6 +78,7 @@ export function MedicalRecordList({
   // onDelete,
   isLoading = false,
 }: MedicalRecordListProps) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const safeMedicalRecords = Array.isArray(medicalRecords) ? medicalRecords : [];
   const safeTemplates = Array.isArray(templates) ? templates : [];
   const [searchTerm, setSearchTerm] = useState('');
