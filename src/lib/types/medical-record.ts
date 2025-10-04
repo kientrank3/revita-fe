@@ -40,6 +40,7 @@ export enum MedicalRecordStatus {
   DRAFT = 'DRAFT',
   COMPLETED = 'COMPLETED',
   IN_PROGRESS = 'IN_PROGRESS',
+  CANCELLED = "CANCELLED",
 }
 
 export interface CreateMedicalRecordDto {

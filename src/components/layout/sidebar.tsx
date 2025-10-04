@@ -11,7 +11,7 @@ import {
 	FileTextIcon,
 	Home,
 	Library,
-	User,
+	Pill,
 	Users,
 } from "lucide-react";
 
@@ -43,7 +43,7 @@ const getMenuItems = () => {
 			icon: CalendarDays,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: undefined,
+			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 		},
 		{
 			title: "Báo cáo",
@@ -51,7 +51,7 @@ const getMenuItems = () => {
 			icon: ChartColumn,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: undefined,
+			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 		},
 		{
 			title: "Quản lý bệnh án",
@@ -83,7 +83,15 @@ const getMenuItems = () => {
 			icon: FileTextIcon,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["DOCTOR", "TECHNICIAN"],
+			roles: ["DOCTOR", "TECHNICIAN", "ADMIN"],
+		},
+		{
+			title: "Quản lý đơn thuốc",
+			url: "/medication-prescriptions",
+			icon: Pill,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["DOCTOR","ADMIN"],
 		}
 	];
 
