@@ -131,6 +131,12 @@ export function MainHeader() {
                         Lịch hẹn
                       </Link>
                     </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/my-patient-profiles">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Hồ sơ bệnh nhân
+                      </Link>
+                    </Button>
                   </div>
                 )}
 
@@ -259,12 +265,12 @@ export function MainHeader() {
                     Lịch hẹn
                   </Link>
                   <Link
-                    href="/medical-records"
+                    href="/my-patient-profiles"
                     className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <FileText className="h-4 w-4 inline mr-2" />
-                    Hồ sơ bệnh án
+                    Hồ sơ bệnh nhân
                   </Link>
                 </>
               )}

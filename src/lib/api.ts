@@ -649,6 +649,17 @@ export const medicationPrescriptionApi = {
         : undefined,
     }),
 
+  // Get medication prescriptions by patient profile (for patient)
+  getPrescriptionsByPatientProfile: (patientProfileId: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/medication-prescriptions/mine/profiles/${patientProfileId}`, {
+      params: params
+        ? {
+            limit: params.limit,
+            skip: params.page && params.limit ? (params.page - 1) * params.limit : undefined,
+          }
+        : undefined,
+    }),
+
   // Get doctor's medication prescriptions
   getDoctorPrescriptions: (params?: { page?: number; limit?: number }) =>
     api.get('/medication-prescriptions/mine', {
