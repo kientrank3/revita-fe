@@ -1,17 +1,40 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PatientProfile } from '@/lib/api';
-import { Calendar, FileText, User, MapPin, Phone, CreditCard } from 'lucide-react';
+import { patientProfileApi, PatientProfile } from '@/lib/api';
+import { Calendar, FileText, User, MapPin, Phone, CreditCard, Pencil } from 'lucide-react';
 import Link from 'next/link';
 
 interface PatientProfileCardProps {
-  profile: PatientProfile;
+  profile?: PatientProfile;
+  patientProfileId?: string;
+  showActions?: boolean;
 }
 
-export function PatientProfileCard({ profile }: PatientProfileCardProps) {
+export function PatientProfileCard({ profile: profileProp, patientProfileId, showActions = true }: PatientProfileCardProps) {
+  const [profile, setProfile] = useState<PatientProfile | undefined>(profileProp);
+
+  useEffect(() => {
+    setProfile(profileProp);
+  }, [profileProp]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!patientProfileId) return;
+      try {
+        const res = await patientProfileApi.getById(patientProfileId);
+        setProfile(res.data);
+      } catch {
+        // silently fail; UI will show fallbacks
+      }
+    };
+    if (!profileProp && patientProfileId) {
+      fetchProfile();
+    }
+  }, [patientProfileId, profileProp]);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
@@ -29,6 +52,21 @@ export function PatientProfileCard({ profile }: PatientProfileCardProps) {
     return age;
   };
 
+  if (!profile) {
+    return null;
+  }
+
+  const safeName = profile.name ?? '—';
+  const safeGender = (profile.gender || '').toString().toLowerCase();
+  const isMale = safeGender === 'male' || safeGender === 'nam' || safeGender === 'm';
+  const dob = profile.dateOfBirth ? formatDate(profile.dateOfBirth) : '—';
+  const ageText = profile.dateOfBirth ? `${getAge(profile.dateOfBirth)} tuổi` : '—';
+  const address = profile.address ?? '—';
+  const occupation = profile.occupation ?? '—';
+  const relationship = profile.relationship ?? '—';
+  const emergency = profile.emergencyContact;
+  const healthInsurance = profile.healthInsurance;
+
   return (
     <Card className="w-full hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="pb-3">
@@ -39,20 +77,20 @@ export function PatientProfileCard({ profile }: PatientProfileCardProps) {
             </div>
             <div>
               <CardTitle className="text-lg font-semibold text-gray-900">
-                {profile.name}
+                {safeName}
               </CardTitle>
               <div className="flex items-center space-x-2 mt-1">
                 <Badge variant="outline" className="text-xs">
-                  {profile.gender === 'MALE' ? 'Nam' : 'Nữ'}
+                  {isMale ? 'Nam' : 'Nữ'}
                 </Badge>
                 <span className="text-sm text-gray-500">
-                  {getAge(profile.dateOfBirth)} tuổi
+                  {ageText}
                 </span>
               </div>
             </div>
           </div>
           <Badge variant="secondary" className="text-xs">
-            {profile.relationship}
+            {relationship}
           </Badge>
         </div>
       </CardHeader>
@@ -62,56 +100,64 @@ export function PatientProfileCard({ profile }: PatientProfileCardProps) {
         <div className="space-y-2">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Calendar className="h-4 w-4" />
-            <span>Sinh ngày: {formatDate(profile.dateOfBirth)}</span>
+            <span>Sinh ngày: {dob}</span>
           </div>
           
           <div className="flex items-start space-x-2 text-sm text-gray-600">
             <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{profile.address}</span>
+            <span>{address}</span>
           </div>
           
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <User className="h-4 w-4" />
-            <span>Nghề nghiệp: {profile.occupation}</span>
+            <span>Nghề nghiệp: {occupation}</span>
           </div>
           
-          {profile.emergencyContact && (
+          {emergency && (
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Phone className="h-4 w-4" />
               <span>
-                Liên hệ khẩn cấp: {profile.emergencyContact.name} 
-                ({profile.emergencyContact.relationship}) - {profile.emergencyContact.phone}
+                Liên hệ khẩn cấp: {emergency.name || '—'} 
+                ({emergency.relationship || '—'}) - {emergency.phone || '—'}
               </span>
             </div>
           )}
           
-          {profile.healthInsurance && (
+          {healthInsurance && (
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <CreditCard className="h-4 w-4" />
-              <span>BHYT: {profile.healthInsurance}</span>
+              <span>BHYT: {healthInsurance}</span>
             </div>
           )}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex space-x-2 pt-3 border-t border-gray-100">
-          <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link href={`/patient-profiles/${profile.id}/medical-records`}>
-              <FileText className="h-4 w-4 mr-2" />
-              Bệnh án
-            </Link>
-          </Button>
-          <Button asChild size="sm" className="flex-1">
-            <Link href={`/patient-profiles/${profile.id}/prescriptions`}>
-              <FileText className="h-4 w-4 mr-2" />
-              Đơn thuốc
-            </Link>
-          </Button>
-        </div>
+        {showActions && (
+          <div className="flex space-x-2 pt-3 border-t border-gray-100">
+            <Button asChild variant="outline" size="sm" className="flex-1">
+              <Link href={`/patient-profiles/${profile.id}/medical-records`}>
+                <FileText className="h-4 w-4 mr-2" />
+                Bệnh án
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="flex-1">
+              <Link href={`/patient-profiles/${profile.id}/prescriptions`}>
+                <FileText className="h-4 w-4 mr-2" />
+                Đơn thuốc
+              </Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm" className="flex-1">
+              <Link href={`/patient-profiles/${profile.id}/edit`}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Sửa hồ sơ
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {/* Created Date */}
         <div className="text-xs text-gray-400 pt-2 border-t border-gray-50">
-          Tạo ngày: {formatDate(profile.createdAt)}
+          Tạo ngày: {profile.createdAt ? formatDate(profile.createdAt) : '—'}
         </div>
       </CardContent>
     </Card>

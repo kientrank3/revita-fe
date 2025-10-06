@@ -110,6 +110,9 @@ export function MainHeader() {
             >
               Liên hệ
             </Link>
+            <Link href="/drug-search" className="text-gray-600 hover:text-primary transition-colors duration-200">
+              Tra cứu thuốc
+            </Link>
           </nav>
 
           {/* User Actions */}
@@ -137,6 +140,7 @@ export function MainHeader() {
                         Hồ sơ bệnh nhân
                       </Link>
                     </Button>
+                    
                   </div>
                 )}
 
@@ -271,6 +275,14 @@ export function MainHeader() {
                   >
                     <FileText className="h-4 w-4 inline mr-2" />
                     Hồ sơ bệnh nhân
+                  </Link>
+                  <Link
+                    href="/drug-search"
+                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <FileText className="h-4 w-4 inline mr-2" />
+                    Tìm thuốc
                   </Link>
                 </>
               )}

@@ -22,8 +22,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
   const [loading, setLoading] = useState(false);
   const [, setSelectedDrug] = useState<DrugSearchResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [mode, setMode] = useState<'query' | 'field'>('query');
-  const [fieldKey, setFieldKey] = useState<string>('openfda.brand_name');
+  const [mode, setMode] = useState<'exact' | 'partial'>('partial');
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -32,8 +31,8 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
       setLoading(true);
       setHasSearched(true);
       const response =
-        mode === 'field'
-          ? await drugSearchApi.searchByField(fieldKey, searchTerm, { limit: 20 })
+        mode === 'partial'
+          ? await drugSearchApi.searchPartial(searchTerm, { limit: 20 })
           : await drugSearchApi.search(searchTerm, { limit: 20 });
       setSearchResults(response.data.results || []);
     } catch (error) {
@@ -63,41 +62,17 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
       <div className="space-y-4">
         {/* Mode Selection */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="w-full sm:w-48 flex-shrink-0">
-            <Select value={mode} onValueChange={(v) => setMode(v as 'query' | 'field')}>
+          <div className="w-full sm:w-56 flex-shrink-0">
+            <Select value={mode} onValueChange={(v) => setMode(v as 'exact' | 'partial')}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Chế độ tìm" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="query">Theo từ khóa</SelectItem>
-                <SelectItem value="field">Theo trường</SelectItem>
+                <SelectItem value="partial">Tìm khớp từ khóa</SelectItem>
+                <SelectItem value="exact">Tìm khớp chính xác</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          {mode === 'field' && (
-            <div className="w-full sm:w-64 flex-shrink-0">
-              <Select value={fieldKey} onValueChange={setFieldKey}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Chọn trường" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="openfda.brand_name">Tên thương mại (brand)</SelectItem>
-                  <SelectItem value="openfda.generic_name">Tên gốc/hoạt chất</SelectItem>
-                  <SelectItem value="openfda.substance_name">Hoạt chất</SelectItem>
-                  <SelectItem value="indications_and_usage">Chỉ định</SelectItem>
-                  <SelectItem value="openfda.manufacturer_name">Nhà sản xuất</SelectItem>
-                  <SelectItem value="openfda.route">Đường dùng</SelectItem>
-                  <SelectItem value="pharmacological_class">Nhóm dược lý</SelectItem>
-                  <SelectItem value="contraindications">Chống chỉ định</SelectItem>
-                  <SelectItem value="warnings">Cảnh báo</SelectItem>
-                  <SelectItem value="drug_interactions">Tương tác thuốc</SelectItem>
-                  <SelectItem value="openfda.dosage_form">Dạng bào chế</SelectItem>
-                  <SelectItem value="openfda.application_number">Số đăng ký</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </div>
 
         {/* Search Input and Button */}
@@ -105,7 +80,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
           <div className="flex-1 relative min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder={mode === 'field' ? 'Nhập giá trị cần tìm theo trường...' : 'Tìm kiếm thuốc theo tên, hoạt chất...'}
+              placeholder={mode === 'exact' ? 'Nhập từ khóa khớp chính xác...' : 'Nhập từ khóa để tìm tương đối...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -187,11 +162,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
                             </p>
                           )}
                         </div>
-                        {drug.product_ndc && (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 font-mono text-xs">
-                            NDC: {drug.product_ndc}
-                          </Badge>
-                        )}
+                        {/* NDC removed per new backend spec */}
                       </div>
 
                       {/* Basic Information Grid */}
@@ -299,12 +270,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Thương hiệu (Brand)</label>
                                     <p className="text-sm font-semibold text-gray-900">{drug.openfda?.brand_name || '—'}</p>
                                   </div>
-                                  {drug.product_ndc && (
-                                    <div className="bg-white p-3 rounded-lg">
-                                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">NDC Code</label>
-                                      <p className="text-sm font-mono font-semibold text-gray-900">{drug.product_ndc}</p>
-                                    </div>
-                                  )}
+                                  {/* NDC removed per new backend spec */}
                                   {drug.openfda?.manufacturer_name && (
                                     <div className="bg-white p-3 rounded-lg">
                                       <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Nhà sản xuất</label>

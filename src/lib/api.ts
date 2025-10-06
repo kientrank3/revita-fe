@@ -345,7 +345,7 @@ export const patientProfileApi = {
   
   // Cập nhật patient profile
   update: (patientProfileId: string, data: Partial<CreatePatientProfileDto>) =>
-    api.put(`/patient-profiles/${patientProfileId}`, data),
+    api.patch(`/patient-profiles/${patientProfileId}`, data),
   
   // Xóa patient profile
   delete: (patientProfileId: string) =>
@@ -685,7 +685,7 @@ export const medicationPrescriptionApi = {
 
 // Drug Search API (OpenFDA)
 export const drugSearchApi = {
-  // Search drugs by query
+  // Exact search
   search: (
     query: string,
     params?: { page?: number; limit?: number; skip?: number }
@@ -708,16 +708,13 @@ export const drugSearchApi = {
       }
     ),
 
-  // Search drugs by a specific field and value
-  searchByField: (
-    field: string,
-    value: string,
+  // Partial search
+  searchPartial: (
+    query: string,
     params?: { page?: number; limit?: number; skip?: number }
   ) =>
     api.get(
-      `/medication-prescriptions/drugs/search/by-field/${encodeURIComponent(
-        field
-      )}/${encodeURIComponent(value)}`,
+      `/medication-prescriptions/drugs/search-partial/${encodeURIComponent(query)}`,
       {
         params:
           params && (params.page || params.limit || params.skip)
@@ -733,8 +730,4 @@ export const drugSearchApi = {
             : undefined,
       }
     ),
-
-  // Get drug by NDC
-  getByNdc: (ndc: string) =>
-    api.get(`/medication-prescriptions/drugs/ndc/${ndc}`),
 };

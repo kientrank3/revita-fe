@@ -85,7 +85,11 @@ export default function MedicalRecordsPage() {
         occupation: patientProfile.occupation || '',
         healthInsurance: patientProfile.healthInsurance || '',
         relationship: patientProfile.relationship || '',
-        emergencyContact: { name: '', phone: '', relationship: '' },
+        emergencyContact: {
+          name: patientProfile.emergencyContact?.name || '',
+          phone: patientProfile.emergencyContact?.phone || '',
+          relationship: patientProfile.emergencyContact?.relationship || '',
+        },
       });
     } else {
       setCurrentPatientId(null);
@@ -502,7 +506,7 @@ export default function MedicalRecordsPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Họ và tên <span className="text-red-500">*</span></Label>
+                <Label className='pb-1.5'>Họ và tên <span className="text-red-500">*</span></Label>
                 <Input 
                   value={editForm.name} 
                   onChange={(e)=>setEditForm({...editForm, name: e.target.value})} 
@@ -510,7 +514,7 @@ export default function MedicalRecordsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Ngày sinh <span className="text-red-500">*</span></Label>
+                <Label className='pb-1.5'>Ngày sinh <span className="text-red-500">*</span></Label>
                 <Input 
                   type="date" 
                   value={editForm.dateOfBirth} 
@@ -519,18 +523,18 @@ export default function MedicalRecordsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Giới tính <span className="text-red-500">*</span></Label>
+                <Label className='pb-1.5'>Giới tính <span className="text-red-500">*</span></Label>
                 <Select value={editForm.gender} onValueChange={(v)=>setEditForm({...editForm, gender: v as GenderOption})}>
                   <SelectTrigger><SelectValue placeholder="Chọn giới tính" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Nam</SelectItem>
                     <SelectItem value="female">Nữ</SelectItem>
-                    <SelectItem value="OTHER">Khác</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Nghề nghiệp</Label>
+                <Label className='pb-1.5'>Nghề nghiệp</Label>
                 <Input value={editForm.occupation} onChange={(e)=>setEditForm({...editForm, occupation: e.target.value})} />
               </div>
             </div>
@@ -544,28 +548,28 @@ export default function MedicalRecordsPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>LH khẩn cấp - Họ tên</Label>
+                <Label className='pb-1.5'>LH khẩn cấp - Họ tên</Label>
                 <Input value={editForm.emergencyContact.name} onChange={(e)=>setEditForm({...editForm, emergencyContact: {...editForm.emergencyContact, name: e.target.value}})} />
               </div>
               <div className="space-y-1">
-                <Label>LH khẩn cấp - SĐT</Label>
+                <Label className='pb-1.5'>LH khẩn cấp - SĐT</Label>
                 <Input value={editForm.emergencyContact.phone} onChange={(e)=>setEditForm({...editForm, emergencyContact: {...editForm.emergencyContact, phone: e.target.value}})} />
               </div>
               <div className="space-y-1">
-                <Label>LHKC - Quan hệ</Label>
+                <Label className='pb-1.5'>LHKC - Quan hệ</Label>
                 <Input value={editForm.emergencyContact.relationship} onChange={(e)=>setEditForm({...editForm, emergencyContact: {...editForm.emergencyContact, relationship: e.target.value}})} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Số BHYT</Label>
+                <Label className='pb-1.5'>Số BHYT</Label>
                 <Input value={editForm.healthInsurance} onChange={(e)=>setEditForm({...editForm, healthInsurance: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <Label>Quan hệ với chủ thẻ</Label>
+                <Label className='pb-1.5'>Quan hệ với chủ thẻ</Label>
                 <Select value={editForm.relationship} onValueChange={(v)=>setEditForm({...editForm, relationship: v})}>
                   <SelectTrigger><SelectValue placeholder="Chọn quan hệ" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent >
                     <SelectItem value="Chính chủ">Chính chủ</SelectItem>
                     <SelectItem value="Vợ/Chồng">Vợ/Chồng</SelectItem>
                     <SelectItem value="Con">Con</SelectItem>
@@ -607,17 +611,19 @@ export default function MedicalRecordsPage() {
                   // Convert dateOfBirth to ISO 8601 format
                   // const dateOfBirthISO = new Date(editForm.dateOfBirth + 'T00:00:00.000Z').toISOString();
                   
-                  await patientProfileService.update(selectedPatientProfile.id, {
+                  const updatePayload = {
                     name: editForm.name.trim(),
                     address: editForm.address.trim(),
                     occupation: editForm.occupation.trim(),
                     healthInsurance: editForm.healthInsurance.trim(),
+                    relationship: editForm.relationship,
                     emergencyContact: {
                       name: editForm.emergencyContact.name.trim(),
                       phone: editForm.emergencyContact.phone.trim(),
                       relationship: editForm.emergencyContact.relationship.trim(),
                     },
-                  });
+                  } as { name: string; address: string; occupation: string; healthInsurance: string; relationship: string; emergencyContact: { name: string; phone: string; relationship: string } };
+                  await patientProfileService.update(selectedPatientProfile.id, updatePayload);
                   toast.success('Cập nhật hồ sơ thành công');
                   setIsEditProfileOpen(false);
                 } catch (error) {
