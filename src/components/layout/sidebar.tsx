@@ -10,7 +10,11 @@ import {
 	CreditCard,
 	FileTextIcon,
 	Home,
+	Hospital,
+	IdCardLanyardIcon,
 	Library,
+	Settings,
+	Stethoscope,
 	User,
 	Users,
 } from "lucide-react";
@@ -75,7 +79,7 @@ const getMenuItems = () => {
 			icon: CreditCard,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "RECEPTIONIST", "CASHIER"],
+			roles: ["CASHIER"],
 		},
 		{
 			title: "Xử lý dịch vụ",
@@ -92,6 +96,30 @@ const getMenuItems = () => {
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["RECEPTIONIST"],
+		},
+		{
+			title: "Quản lý dịch vụ",
+			url: "/services",
+			icon: Stethoscope,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
+		},
+		{
+			title: "Quản lý nhân sự",
+			url: "/staff",
+			icon: IdCardLanyardIcon,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
+		},
+		{
+			title: "Quản lý cơ sở",
+			url: "/facilities",
+			icon: Hospital,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
 		},
 	];
 
