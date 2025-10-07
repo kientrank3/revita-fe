@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   Download,
   Printer
 } from 'lucide-react';
+import { MedicalRecordPrescriptions, MedicalRecordPrescriptionsRef } from './MedicalRecordPrescriptions';
 
 interface MedicalRecordViewerProps {
   medicalRecord: MedicalRecord;
@@ -45,6 +46,7 @@ export function MedicalRecordViewer({
   const [patientProfile, setPatientProfile] = useState<any>(propPatientProfile);
   const [loadingDoctor, setLoadingDoctor] = useState(false);
   const [loadingPatient, setLoadingPatient] = useState(false);
+  const prescriptionsRef = useRef<MedicalRecordPrescriptionsRef>(null);
 
   // Load doctor and patient information if not provided
   useEffect(() => {
@@ -328,6 +330,7 @@ export function MedicalRecordViewer({
                   <p className="text-green-600">Không tìm thấy thông tin</p>
                 )}
               </div>
+              
             </div>
 
             {medicalRecord.doctorId && (
@@ -362,7 +365,8 @@ export function MedicalRecordViewer({
       </div>
 
       {/* Right Column - Content */}
-      <div className="lg:col-span-3">
+      <div className="lg:col-span-3 space-y-6">
+        
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -376,6 +380,14 @@ export function MedicalRecordViewer({
             </div>
           </CardContent>
         </Card>
+        <MedicalRecordPrescriptions 
+          ref={prescriptionsRef}
+          medicalRecordId={medicalRecord.id}
+          patientProfileId={medicalRecord.patientProfileId}
+          onRefresh={() => {
+            prescriptionsRef.current?.refresh();
+          }}
+        />
       </div>
     </div>
   );

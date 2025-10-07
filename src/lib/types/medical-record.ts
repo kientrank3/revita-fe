@@ -23,6 +23,7 @@ export interface Template {
 }
 
 export interface MedicalRecord {
+  [x: string]: any;
   patientProfile: any;
   id: string;
   patientProfileId: string;
@@ -40,6 +41,7 @@ export enum MedicalRecordStatus {
   DRAFT = 'DRAFT',
   COMPLETED = 'COMPLETED',
   IN_PROGRESS = 'IN_PROGRESS',
+  CANCELLED = "CANCELLED",
 }
 
 export interface CreateMedicalRecordDto {

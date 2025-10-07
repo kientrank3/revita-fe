@@ -13,6 +13,7 @@ import { WorkSession, WorkSessionFormData } from '@/lib/types/work-session';
 import { useAuth, useIsAdmin, useIsDoctor, useIsTechnician } from '@/lib/hooks/useAuth';
 import { AdminWorkSessionManager } from '@/components/calendar/AdminWorkSessionManager';
 import { DoctorWorkSessionManager } from '@/components/calendar/DoctorWorkSessionManager';
+import { DoctorAppointmentsPanel } from '@/components/calendar/DoctorAppointmentsPanel';
 
 export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
@@ -197,6 +198,9 @@ export default function CalendarPage() {
               view={viewMode}
               onViewChange={setViewMode}
               height="calc(120vh - 400px)"
+              isAdmin={isAdmin}
+              selectedDoctorId={isAdmin ? selectedDoctorId : null}
+              isReady={!authLoading}
             />
           </div>
         </div>
@@ -209,6 +213,11 @@ export default function CalendarPage() {
           <CalendarStats workSessions={workSessions} services={services} showOnlyServices={true} />
           <CalendarStats workSessions={workSessions} services={services} showOnlyStatus={true} />
         </div>
+        {isDoctor && (
+          <div>
+            <DoctorAppointmentsPanel />
+          </div>
+        )}
       </div>
 
       {/* Modals */}

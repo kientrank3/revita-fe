@@ -219,6 +219,7 @@ class PatientProfileService {
     phone?: string;
     address?: string;
     occupation?: string;
+    relationship?: string;
     emergencyContact?: {
       name: string;
       phone: string;

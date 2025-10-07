@@ -17,7 +17,7 @@ import {
   ClipboardList,
   User
 } from 'lucide-react';
-import { useAuth } from '@/lib/hooks/useAuth';
+// import { useAuth } from '@/lib/hooks/useAuth';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { MedicalRecord } from '@/lib/types/medical-record';
 
@@ -43,7 +43,7 @@ export default function CreatePrescriptionPage() {
   const router = useRouter();
   const params = useParams();
   const recordId = params.id as string;
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -155,7 +155,7 @@ export default function CreatePrescriptionPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        // const result = await response.json();
         toast.success('Tạo phiếu chỉ định thành công');
         router.push(`/medical-records/${recordId}`);
       } else {

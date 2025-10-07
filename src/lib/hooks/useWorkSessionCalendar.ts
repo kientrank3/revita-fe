@@ -90,6 +90,72 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
     }
   }, [selectedDate, getMySchedule, isAdmin, selectedDoctorId, isReady]);
 
+  // Load events with custom date range for calendar
+  const loadEvents = useCallback(async (startDate: Date, endDate: Date) => {
+    try {
+      // Avoid fetching until auth/role is ready
+      if (!isReady) return;
+      
+      let response;
+      
+      if (isAdmin && selectedDoctorId) {
+        // Admin viewing specific doctor's schedule
+        response = await workSessionApi.getUserWorkSessions(selectedDoctorId, {
+          userType: 'DOCTOR',
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+        });
+      } else if (isAdmin) {
+        // Admin viewing all work sessions
+        response = await workSessionApi.getAll({
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+        });
+      } else {
+        // Regular user viewing their own schedule
+        response = await getMySchedule({
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+        });
+      }
+      
+      // Handle work session response structure
+      const workSessionsData = response.data || response || [];
+      const sessions = Array.isArray(workSessionsData) ? workSessionsData : [];
+      
+      // Convert to calendar events
+      const events = sessions.map((session: WorkSession) => {
+        const statusColors = WorkSessionStatusColors[session.status];
+        
+        // Handle new service structure: array of {serviceId, workSessionId, service: {...}}
+        const serviceNames = session.services
+          .map(serviceItem => serviceItem.service?.name || 'Unknown Service')
+          .join(', ');
+        
+        return {
+          id: session.id,
+          title: `${serviceNames}${session.booth ? ` - ${session.booth.name}` : ''}`,
+          start: session.startTime,
+          end: session.endTime,
+          backgroundColor: statusColors.backgroundColor,
+          borderColor: statusColors.borderColor,
+          textColor: statusColors.textColor,
+          extendedProps: {
+            workSession: session,
+            status: session.status,
+            services: session.services,
+            booth: session.booth,
+          },
+        };
+      });
+      
+      return events;
+    } catch (err) {
+      console.error('Failed to load events:', err);
+      return [];
+    }
+  }, [getMySchedule, isAdmin, selectedDoctorId, isReady]);
+
   // Load work sessions when component mounts or date changes
   useEffect(() => {
     loadWorkSessions();
@@ -332,6 +398,7 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
     isTimeSlotAvailable,
     refreshCalendar,
     loadWorkSessions,
+    loadEvents,
     
     // Admin-specific functions
     handleUpdateWorkSessionStatus,
