@@ -39,9 +39,17 @@ interface CreatePrescriptionDialogProps {
     status?: 'DRAFT' | 'SIGNED' | 'CANCELLED';
     items: MedicationPrescriptionItem[];
   }) => Promise<void>;
+  preselectedPatientProfile?: PatientProfile | null;
+  preselectedMedicalRecordId?: string;
 }
 
-export function CreatePrescriptionDialog({ open, onOpenChange, onSave }: CreatePrescriptionDialogProps) {
+export function CreatePrescriptionDialog({ 
+  open, 
+  onOpenChange, 
+  onSave, 
+  preselectedPatientProfile,
+  preselectedMedicalRecordId 
+}: CreatePrescriptionDialogProps) {
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
   const [selectedMedicalRecordId, setSelectedMedicalRecordId] = useState<string>('');
   const [note, setNote] = useState('');
@@ -60,6 +68,16 @@ export function CreatePrescriptionDialog({ open, onOpenChange, onSave }: CreateP
   const [saving, setSaving] = useState(false);
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
+
+  // Set preselected values when dialog opens
+  useEffect(() => {
+    if (open && preselectedPatientProfile) {
+      setSelectedPatientProfile(preselectedPatientProfile);
+    }
+    if (open && preselectedMedicalRecordId) {
+      setSelectedMedicalRecordId(preselectedMedicalRecordId);
+    }
+  }, [open, preselectedPatientProfile, preselectedMedicalRecordId]);
 
   // Load medical records when patient is selected
   useEffect(() => {

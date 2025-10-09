@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { medicationPrescriptionApi } from '@/lib/api';
 import { MedicationPrescription, MedicationPrescriptionStatus } from '@/lib/types/medication-prescription';
-import { Pill, Eye, CalendarDays, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { Pill, Eye, CalendarDays, RefreshCw, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -199,22 +199,22 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
           ) : (
             <div className="space-y-4">
               {prescriptions.map((prescription) => (
-                <div key={prescription.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={prescription.id} className="border rounded-lg p-4 ">
+                  <div className="flex items-center justify-between ">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium">Đơn thuốc #{prescription.code}</h4>
+                      <h4 className="font-medium text-sm">Đơn thuốc #{prescription.code}</h4>
                       <Badge className={getStatusColor(prescription.status)}>
                         {getStatusText(prescription.status)}
                       </Badge>
                     </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <CalendarDays className="h-4 w-4 mr-1" />
+                   
+                  </div>
+                  <div className="flex items-center text-xs text-gray-500 mb-2">
+                      <CalendarDays className="h-3 w-3 mr-1" />
                       {format(new Date(prescription.createdAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
                     </div>
-                  </div>
-
                   {/* Doctor and Medical Record Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 text-sm">
+                  {/* <div className="grid grid-cols-1 md:grid-cols-1 gap-3 mb-3 text-sm">
                     {prescription.doctor && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-1">
@@ -229,9 +229,9 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                           )}
                         </div>
                       </div>
-                    )}
+                    )} */}
                     
-                    {prescription.medicalRecord && (
+                    {/* {prescription.medicalRecord && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -247,21 +247,21 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                           </p>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    )} */}
+                  {/* </div> */}
 
                   {prescription.note && (
                     <p className="text-sm text-gray-600 mb-3">
-                      <span className="font-medium">Ghi chú:</span> {prescription.note}
+                      <span className="font-medium ">Ghi chú:</span> {prescription.note}
                     </p>
                   )}
 
                   <div className="space-y-2">
-                    <h5 className="font-medium text-sm">Danh sách thuốc:</h5>
+                    <h5 className="font-md text-sm">Danh sách thuốc:</h5>
                     {prescription.items && prescription.items.length > 0 ? (
                       <div className="space-y-1">
                         {prescription.items.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
+                          <div key={index} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
                             <div>
                               <span className="font-medium">{item.name}</span>
                               {item.strength && <span className="text-gray-500 ml-2">({item.strength})</span>}
@@ -287,7 +287,7 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                   <div className="flex justify-between items-center mt-3">
                     {/* Status Update Actions */}
                     <div className="flex gap-2">
-                      {prescription.status === 'DRAFT' && (
+                      {/* {prescription.status === 'DRAFT' && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -302,7 +302,7 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                           )}
                           Ký đơn
                         </Button>
-                      )}
+                      )} */}
                       
                       {prescription.status === 'SIGNED' && (
                         <Button
@@ -429,7 +429,7 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                         size="sm"
                         onClick={() => handleDelete(prescription.id)}
                         disabled={deletingId === prescription.id}
-                        className="text-xs text-red-600 border-red-200 hover:bg-red-50"
+                        className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                       >
                         {deletingId === prescription.id ? (
                           <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
