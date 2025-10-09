@@ -13,7 +13,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -23,8 +23,9 @@ import { toast } from 'sonner';
 import { MedicalRecordViewer } from '@/components/medical-records/MedicalRecordViewer';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import { MedicalRecordAttachments } from '@/components/medical-records/MedicalRecordAttachments';
-import { Badge } from '@/components/ui/badge';
+import { MedicalRecordPrescriptions } from '@/components/medical-records/MedicalRecordPrescriptions';
 import { Doctor } from '@/lib/types/user';
+import { Badge } from '@/components/ui/badge';
 
 interface DoctorData {
   id: string;
@@ -369,6 +370,7 @@ export default function MedicalRecordDetailPage() {
     }
   };
 
+
  
 
 
@@ -442,7 +444,7 @@ export default function MedicalRecordDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Medical Record Content */}
+        {/* Left Column - Medical Record Document */}
         <div className="lg:col-span-2">
           <MedicalRecordViewer
             medicalRecord={medicalRecord}
@@ -457,25 +459,18 @@ export default function MedicalRecordDetailPage() {
 
         {/* Right Column - Prescriptions & Attachments */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Attachments */}
-          {medicalRecord.attachments && medicalRecord.attachments.length > 0 && (
-            <MedicalRecordAttachments 
-              attachments={medicalRecord.attachments}
-              showTitle={true}
-            />
-          )}
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ClipboardList className="h-5 w-5 text-green-600" />
-                Phiếu chỉ định ({prescriptions.length})
+        <Card className="border-l-1 border-l-orange-500">
+            <CardHeader className="">
+              <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
+                <ClipboardList className="h-5 w-5 text-orange-600" />
+                Phiếu chỉ định dịch vụ ({prescriptions.length})
               </CardTitle>
+            
             </CardHeader>
             <CardContent>
               {isLoadingPrescriptions ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
                   <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
                 </div>
               ) : prescriptions.length === 0 ? (
@@ -555,6 +550,43 @@ export default function MedicalRecordDetailPage() {
               )}
             </CardContent>
           </Card>
+          {/* Medical Prescriptions Section */}
+          <Card className="border-l-1 border-l-blue-500 p-0">
+          
+            <CardContent className="p-0 ">
+              <MedicalRecordPrescriptions 
+                medicalRecordId={medicalRecord.id}
+                patientProfileId={medicalRecord.patientProfileId}
+                onRefresh={() => {
+                  // Refresh function can be added if needed
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Prescriptions Section */}
+          
+
+          {/* Attachments Section */}
+          {medicalRecord.attachments && medicalRecord.attachments.length > 0 && (
+            <Card className="border-l-4 border-l-green-500">
+              <CardHeader className="bg-green-50 border-b border-green-200">
+                <CardTitle className="flex items-center gap-2 text-lg text-green-900">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  Tài liệu đính kèm ({medicalRecord.attachments.length})
+                </CardTitle>
+                <p className="text-sm text-green-700 mt-1">
+                  Các tài liệu và hình ảnh liên quan đến bệnh án
+                </p>
+              </CardHeader>
+              <CardContent>
+                <MedicalRecordAttachments 
+                  attachments={medicalRecord.attachments}
+                  showTitle={false}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

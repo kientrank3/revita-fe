@@ -16,6 +16,7 @@ import {
   User, 
   Save,
   X,
+  Pill,
 } from 'lucide-react';
 import { Template, CreateMedicalRecordDto, MedicalRecordStatus } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -24,6 +25,9 @@ import { toast } from 'sonner';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import { PatientProfile } from '@/lib/types/user';
+import { CreatePrescriptionDialog } from '@/components/medication-prescriptions/CreatePrescriptionDialog';
+import { medicationPrescriptionApi } from '@/lib/api';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function CreateMedicalRecordPage() {
   const router = useRouter();
@@ -45,6 +49,11 @@ export default function CreateMedicalRecordPage() {
   });
   // const [attachments, setAttachments] = useState<File[]>([]);
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
+  
+  // Prescription creation states
+  const [createPrescriptionAfter, setCreatePrescriptionAfter] = useState(false);
+  const [showCreatePrescriptionDialog, setShowCreatePrescriptionDialog] = useState(false);
+  const [createdMedicalRecordId, setCreatedMedicalRecordId] = useState<string | null>(null);
 
   // Load templates
   useEffect(() => {
@@ -117,9 +126,16 @@ export default function CreateMedicalRecordPage() {
       if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
         delete payload.appointmentId;
       }
-      await medicalRecordService.create(payload as CreateMedicalRecordDto);
+      const createdRecord = await medicalRecordService.create(payload as CreateMedicalRecordDto);
       toast.success('Tạo bệnh án thành công');
-      router.push('/medical-records');
+      
+      // If user wants to create prescription after, store the medical record ID and show dialog
+      if (createPrescriptionAfter && selectedPatientProfile) {
+        setCreatedMedicalRecordId(createdRecord.id);
+        setShowCreatePrescriptionDialog(true);
+      } else {
+        router.push('/medical-records');
+      }
     } catch (error) {
       console.error('Error creating medical record:', error);
       toast.error('Có lỗi xảy ra khi tạo bệnh án');
@@ -130,6 +146,26 @@ export default function CreateMedicalRecordPage() {
 
   const handleCancel = () => {
     router.push('/medical-records');
+  };
+
+  const handleCreatePrescription = async (data: {
+    patientProfileId: string;
+    medicalRecordId?: string;
+    note?: string;
+    status?: 'DRAFT' | 'SIGNED' | 'CANCELLED';
+    items: any[];
+  }) => {
+    try {
+      await medicationPrescriptionApi.create(data);
+      toast.success('Tạo đơn thuốc thành công');
+      setShowCreatePrescriptionDialog(false);
+      // Redirect to medical records after successful prescription creation
+      router.push('/medical-records');
+    } catch (error) {
+      console.error('Error creating prescription:', error);
+      toast.error('Có lỗi xảy ra khi tạo đơn thuốc');
+      throw error;
+    }
   };
 
   return (
@@ -186,6 +222,25 @@ export default function CreateMedicalRecordPage() {
                   placeholder="Nhập ID lịch hẹn (tùy chọn)"
                   className="text-sm"
                 />
+              </div>
+
+              {/* Prescription Creation Option */}
+              <div className="space-y-2 pt-2 border-t border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="createPrescription" 
+                    checked={createPrescriptionAfter}
+                    onCheckedChange={(checked) => setCreatePrescriptionAfter(checked as boolean)}
+                  />
+                  <Label 
+                    htmlFor="createPrescription" 
+                    className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                  >
+                    <Pill className="h-4 w-4 text-blue-500" />
+                    Tạo đơn thuốc
+                  </Label>
+                </div>
+
               </div>
             </CardContent>
           </Card>
@@ -292,9 +347,16 @@ export default function CreateMedicalRecordPage() {
                             status: 'DRAFT',
                             content: data,
                           };
-                      await medicalRecordService.create(payload as any);
+                      const createdRecord = await medicalRecordService.create(payload as any);
                       toast.success('Tạo bệnh án thành công');
-                      router.push('/medical-records');
+                      
+                      // If user wants to create prescription after, store the medical record ID and show dialog
+                      if (createPrescriptionAfter && selectedPatientProfile) {
+                        setCreatedMedicalRecordId(createdRecord.id);
+                        setShowCreatePrescriptionDialog(true);
+                      } else {
+                        router.push('/medical-records');
+                      }
                     } catch (error) {
                       console.error('Error creating medical record:', error);
                       toast.error('Có lỗi xảy ra khi tạo bệnh án');
@@ -343,6 +405,7 @@ export default function CreateMedicalRecordPage() {
             <p className="text-xs text-gray-500">
               {selectedTemplate ? `${selectedTemplate.fields?.fields?.length || 0} trường cần điền` : 'Chưa chọn mẫu'}
               {selectedPatientProfile && ` • ${selectedPatientProfile.name}`}
+              {createPrescriptionAfter && ` • Sẽ tạo đơn thuốc sau khi lưu`}
             </p>
           </div>
           {/* When using DynamicMedicalRecordForm, use its internal submit button to ensure content is sent */}
@@ -367,6 +430,15 @@ export default function CreateMedicalRecordPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Create Prescription Dialog */}
+      <CreatePrescriptionDialog
+        open={showCreatePrescriptionDialog}
+        onOpenChange={setShowCreatePrescriptionDialog}
+        onSave={handleCreatePrescription}
+        preselectedPatientProfile={selectedPatientProfile}
+        preselectedMedicalRecordId={createdMedicalRecordId || undefined}
+      />
     </div>
   );
 }

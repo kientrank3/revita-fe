@@ -13,10 +13,7 @@ import {
 	Hospital,
 	IdCardLanyardIcon,
 	Library,
-	Settings,
 	Stethoscope,
-	User,
-	Pill,
 	Users,
 } from "lucide-react";
 
@@ -59,7 +56,7 @@ const getMenuItems = () => {
 			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 		},
 		{
-			title: "Quản lý bệnh án",
+			title: "Bệnh án & Đơn thuốc",
 			url: "/medical-records",
 			icon: Library,
 			color: "text-primary",
@@ -122,14 +119,7 @@ const getMenuItems = () => {
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN"],
 		},
-		{
-			title: "Quản lý đơn thuốc",
-			url: "/medication-prescriptions",
-			icon: Pill,
-			color: "text-primary",
-			bgColor: "bg-primary/10",
-			roles: ["DOCTOR","ADMIN"],
-		}
+		
 	];
 
 

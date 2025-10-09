@@ -10,11 +10,17 @@ import {
   Stethoscope, 
   Search,
   Plus,
-  Shield
+  Shield,
+  Pill,
+  FileText
 } from 'lucide-react';
 import { MedicalRecordManager } from '@/components/medical-records/MedicalRecordManager';
 import { PatientProfileCard } from '@/components/patient/PatientProfileCard';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
+import { MedicationPrescriptionList } from '@/components/medication-prescriptions/MedicationPrescriptionList';
+import { CreatePrescriptionDialog } from '@/components/medication-prescriptions/CreatePrescriptionDialog';
+import { DrugSearch } from '@/components/medication-prescriptions/DrugSearch';
+import { medicationPrescriptionApi } from '@/lib/api';
 
 import { useAuth } from '@/lib/hooks/useAuth';
 import { PatientProfile, User as UserType } from '@/lib/types/user';
@@ -34,6 +40,7 @@ export default function MedicalRecordsPage() {
   const [availablePatientProfiles, setAvailablePatientProfiles] = useState<PatientProfile[]>([]);
   const [showProfileSelection, setShowProfileSelection] = useState(false);
   const [activeTab, setActiveTab] = useState('medical-records');
+  const [showCreatePrescriptionDialog, setShowCreatePrescriptionDialog] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
   type GenderOption = 'male' | 'female' | 'other';
@@ -71,6 +78,25 @@ export default function MedicalRecordsPage() {
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
   const [currentPatientId, setCurrentPatientId] = useState<string | null>(null);
   const [searchResetKey, setSearchResetKey] = useState(0);
+
+  const handleCreatePrescription = async (data: {
+    patientProfileId: string;
+    medicalRecordId?: string;
+    note?: string;
+    status?: 'DRAFT' | 'SIGNED' | 'CANCELLED';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    items: any[];
+  }) => {
+    try {
+      await medicationPrescriptionApi.create(data);
+      toast.success('Tạo đơn thuốc thành công');
+      setShowCreatePrescriptionDialog(false);
+    } catch (error) {
+      console.error('Error creating prescription:', error);
+      toast.error('Có lỗi xảy ra khi tạo đơn thuốc');
+      throw error;
+    }
+  };
 
   const handlePatientProfileSelect = (patientProfile: PatientProfile | null) => {
     setSelectedPatientProfile(patientProfile);
@@ -251,10 +277,10 @@ export default function MedicalRecordsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Quản lý bệnh án
+              Quản lý bệnh án & Đơn thuốc
             </h1>
             <p className="text-gray-600">
-              Chào mừng, Bác sĩ {user?.name || user?.email}!
+              Chào mừng, Bác sĩ {user?.name || user?.email}! Quản lý bệnh án, hồ sơ bệnh nhân và tạo đơn thuốc
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -271,7 +297,7 @@ export default function MedicalRecordsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 bg-white">
-        <TabsList className="grid w-full grid-cols-2 bg-muted p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-3 bg-muted p-1 rounded-lg">
           <TabsTrigger
             value="medical-records"
             className="flex items-center gap-2 rounded-md transition
@@ -282,6 +308,15 @@ export default function MedicalRecordsPage() {
             Bệnh án 
           </TabsTrigger>
           <TabsTrigger
+            value="prescriptions"
+            className="flex items-center gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground"
+          >
+            <Pill className="h-4 w-4" />
+            Đơn thuốc
+          </TabsTrigger>
+          <TabsTrigger
             value="patient-search"
             className="flex items-center gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
@@ -290,6 +325,7 @@ export default function MedicalRecordsPage() {
             <Search className="h-4 w-4" />
             Tìm kiếm bệnh nhân
           </TabsTrigger>
+         
         </TabsList>
 
         <TabsContent value="medical-records" className="space-y-6 bg-white">
@@ -435,6 +471,10 @@ export default function MedicalRecordsPage() {
                       <Button variant="outline" size="sm" onClick={() =>{ setIsEditProfileOpen(true)}}>
                         Chỉnh sửa hồ sơ
                       </Button>
+                      <Button size="sm" onClick={() => setShowCreatePrescriptionDialog(true)} className="flex items-center gap-1">
+                        <Plus className="h-4 w-4" />
+                        Tạo đơn thuốc
+                      </Button>
                     </div>
                   </div>
 
@@ -452,12 +492,18 @@ export default function MedicalRecordsPage() {
                       <h2 className="text-2xl font-bold text-gray-900">Bệnh án </h2>
                       <p className="text-gray-600">{selectedPatientProfile.name}</p>
                     </div>
-                    <Link href={`/medical-records/create?patientId=${selectedPatientProfile.id}`}>
-                      <Button className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        Tạo bệnh án cho bệnh nhân này
+                    <div className="flex items-center gap-2">
+                      <Link href={`/medical-records/create?patientId=${selectedPatientProfile.id}`}>
+                        <Button variant="outline" className="flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          Tạo bệnh án cho bệnh nhân này
+                        </Button>
+                      </Link>
+                      <Button onClick={() => setShowCreatePrescriptionDialog(true)} className="flex items-center gap-2">
+                        <Pill className="h-4 w-4" />
+                        Tạo đơn thuốc
                       </Button>
-                    </Link>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -493,7 +539,55 @@ export default function MedicalRecordsPage() {
             </Card>
           )}
         </TabsContent>
-        
+
+        <TabsContent value="prescriptions" className="space-y-6 bg-white">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Pill className="h-5 w-5" />
+                  Quản lý đơn thuốc
+                </span>
+                <Button onClick={() => setShowCreatePrescriptionDialog(true)} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Tạo đơn thuốc mới
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="list" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="list" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Đơn thuốc của tôi
+                  </TabsTrigger>
+                  <TabsTrigger value="search" className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Tìm kiếm thuốc
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="list">
+                  <MedicationPrescriptionList isDoctor={true} />
+                </TabsContent>
+
+                <TabsContent value="search">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Tìm kiếm thông tin thuốc</CardTitle>
+                      <p className="text-sm text-gray-600">
+                        Tìm kiếm thông tin chi tiết về các loại thuốc từ cơ sở dữ liệu OpenFDA
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <DrugSearch />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
       </Tabs>
 
@@ -836,6 +930,15 @@ export default function MedicalRecordsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Prescription Dialog */}
+      <CreatePrescriptionDialog
+        open={showCreatePrescriptionDialog}
+        onOpenChange={setShowCreatePrescriptionDialog}
+        onSave={handleCreatePrescription}
+        preselectedPatientProfile={selectedPatientProfile}
+        preselectedMedicalRecordId={undefined}
+      />
     </div>
   );
 }
