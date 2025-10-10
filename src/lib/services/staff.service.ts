@@ -22,11 +22,6 @@ export interface DoctorInfo {
   rating?: number;
   workHistory?: string;
   description?: string;
-  subSpecialties?: string[];
-  licenseNumber?: string;
-  licenseIssuedAt?: string;
-  licenseExpiry?: string;
-  department?: string;
   position?: string;
   isActive?: boolean;
 }
@@ -84,7 +79,12 @@ export interface StaffMember {
     authId?: string;
     certificates?: Certificate[];
   };
-  receptionist?: { id: string; authId: string; isActive: boolean };
+  receptionist?: { 
+    id: string; 
+    authId: string; 
+    receptionistCode: string; 
+    isActive: boolean; 
+  };
   technician?: { 
     id: string; 
     authId: string; 
@@ -92,7 +92,12 @@ export interface StaffMember {
     isActive: boolean; 
     certificates?: Certificate[];
   };
-  cashier?: { id: string; authId: string; isActive: boolean };
+  cashier?: { 
+    id: string; 
+    authId: string; 
+    cashierCode: string; 
+    isActive: boolean; 
+  };
   admin?: { 
     id: string; 
     authId: string; 

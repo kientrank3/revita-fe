@@ -22,7 +22,10 @@ import {
   X,
   UserPlus,
   Award,
-  FileText
+  FileText,
+  Eye,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -35,6 +38,7 @@ import {
   type StaffMember,
 } from '@/lib/services/staff.service';
 import { specialtiesService } from '@/lib/services/services.service';
+import { fileStorageService } from '@/lib/services/file-storage.service';
 
 interface Specialty {
   id: string;
@@ -48,7 +52,7 @@ export default function StaffManagementPage() {
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const limit = 20; // Fixed limit
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +61,15 @@ export default function StaffManagementPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+
+  // File upload states
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string>('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Form states
   const [createForm, setCreateForm] = useState<CreateStaffDto>({
@@ -82,6 +94,8 @@ export default function StaffManagementPage() {
 
   const [certificates, setCertificates] = useState<Omit<Certificate, 'id'>[]>([]);
   const [editCertificates, setEditCertificates] = useState<Omit<Certificate, 'id'>[]>([]);
+  const [certificateFiles, setCertificateFiles] = useState<{ [index: number]: File | null }>({});
+  const [editCertificateFiles, setEditCertificateFiles] = useState<{ [index: number]: File | null }>({});
 
   // Load specialties on mount
   useEffect(() => {
@@ -117,7 +131,7 @@ export default function StaffManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, roleFilter]);
+  }, [page, roleFilter]);
 
   useEffect(() => {
     fetchStaffList();
@@ -138,6 +152,49 @@ export default function StaffManagementPage() {
   // Email regex validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phoneRegex = /^[0-9]{10,11}$/;
+
+  // Handle avatar file change
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Vui lòng chọn file ảnh');
+        return;
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Kích thước file không được vượt quá 10MB');
+        return;
+      }
+
+      if (isEdit) {
+        setEditAvatarFile(file);
+        setEditAvatarPreview(URL.createObjectURL(file));
+      } else {
+        setAvatarFile(file);
+        setAvatarPreview(URL.createObjectURL(file));
+      }
+    }
+  };
+
+  // Handle certificate file change
+  const handleCertificateFileChange = (e: React.ChangeEvent<HTMLInputElement>, index: number, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Kích thước file không được vượt quá 10MB');
+        return;
+      }
+
+      if (isEdit) {
+        setEditCertificateFiles({ ...editCertificateFiles, [index]: file });
+      } else {
+        setCertificateFiles({ ...certificateFiles, [index]: file });
+      }
+    }
+  };
 
   // Validate form
   const validateCreateForm = (): boolean => {
@@ -207,9 +264,49 @@ export default function StaffManagementPage() {
 
     try {
       setIsLoading(true);
+
+      // Upload avatar if exists
+      let avatarUrl = createForm.avatar;
+      if (avatarFile) {
+        setIsUploadingAvatar(true);
+        const uploadResult = await fileStorageService.uploadFile(
+          avatarFile,
+          'profiles',
+          'avatars/'
+        );
+        avatarUrl = uploadResult.url || '';
+        setIsUploadingAvatar(false);
+      }
+
+      // Upload certificate files if exist
+      const uploadedCertificates = await Promise.all(
+        certificates.map(async (cert, index) => {
+          let fileUrl = cert.file || '';
+          if (certificateFiles[index]) {
+            const uploadResult = await fileStorageService.uploadFile(
+              certificateFiles[index]!,
+              'certificates',
+              'appendices/'
+            );
+            fileUrl = uploadResult.url || '';
+          }
+          return { 
+            type: cert.type,
+            title: cert.title,
+            code: cert.code && cert.code.trim() !== '' ? cert.code : undefined,
+            issuedBy: cert.issuedBy,
+            issuedAt: cert.issuedAt,
+            expiryAt: cert.expiryAt && cert.expiryAt.trim() !== '' ? cert.expiryAt : undefined,
+            file: fileUrl && fileUrl.trim() !== '' ? fileUrl : undefined,
+            description: cert.description && cert.description.trim() !== '' ? cert.description : undefined,
+          };
+        })
+      );
+
       const payload: CreateStaffDto = {
         ...createForm,
-        certificates: certificates.length > 0 ? certificates : undefined,
+        avatar: avatarUrl,
+        certificates: uploadedCertificates.length > 0 ? uploadedCertificates : undefined,
       };
 
       // Add role-specific info
@@ -239,6 +336,7 @@ export default function StaffManagementPage() {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -248,9 +346,49 @@ export default function StaffManagementPage() {
 
     try {
       setIsLoading(true);
+
+      // Upload avatar if changed
+      let avatarUrl = editForm.avatar;
+      if (editAvatarFile) {
+        setIsUploadingAvatar(true);
+        const uploadResult = await fileStorageService.uploadFile(
+          editAvatarFile,
+          'profiles',
+          'avatars/'
+        );
+        avatarUrl = uploadResult.url || '';
+        setIsUploadingAvatar(false);
+      }
+
+      // Upload certificate files if exist
+      const uploadedCertificates = await Promise.all(
+        editCertificates.map(async (cert, index) => {
+          let fileUrl = cert.file || '';
+          if (editCertificateFiles[index]) {
+            const uploadResult = await fileStorageService.uploadFile(
+              editCertificateFiles[index]!,
+              'certificates',
+              'appendices/'
+            );
+            fileUrl = uploadResult.url || '';
+          }
+          return { 
+            type: cert.type,
+            title: cert.title,
+            code: cert.code && cert.code.trim() !== '' ? cert.code : undefined,
+            issuedBy: cert.issuedBy,
+            issuedAt: cert.issuedAt,
+            expiryAt: cert.expiryAt && cert.expiryAt.trim() !== '' ? cert.expiryAt : undefined,
+            file: fileUrl && fileUrl.trim() !== '' ? fileUrl : undefined,
+            description: cert.description && cert.description.trim() !== '' ? cert.description : undefined,
+          };
+        })
+      );
+
       const payload: UpdateStaffDto = {
         ...editForm,
-        certificates: editCertificates.length > 0 ? editCertificates : undefined,
+        avatar: avatarUrl,
+        certificates: uploadedCertificates.length > 0 ? uploadedCertificates : undefined,
         replaceAllCertificates: false,
       };
 
@@ -265,6 +403,7 @@ export default function StaffManagementPage() {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -308,13 +447,15 @@ export default function StaffManagementPage() {
       certificates: undefined,
     });
     setCertificates([]);
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setCertificateFiles({});
   };
 
   // Open edit dialog
   const openEditDialog = (staff: StaffMember) => {
     setSelectedStaff(staff);
     
-    const roleInfo = staff.doctor || staff.technician || staff.receptionist || staff.cashier || staff.admin;
     const currentCerts = (staff.doctor?.certificates || staff.technician?.certificates || [])
       .map(cert => ({
         code: cert.code || '',
@@ -341,11 +482,6 @@ export default function StaffManagementPage() {
         yearsExperience: staff.doctor.yearsExperience,
         workHistory: staff.doctor.workHistory,
         description: staff.doctor.description,
-        subSpecialties: staff.doctor.subSpecialties,
-        licenseNumber: staff.doctor.licenseNumber,
-        licenseIssuedAt: staff.doctor.licenseIssuedAt?.split('T')[0],
-        licenseExpiry: staff.doctor.licenseExpiry?.split('T')[0],
-        department: staff.doctor.department,
         position: staff.doctor.position,
         isActive: staff.doctor.isActive,
       } : undefined,
@@ -364,7 +500,16 @@ export default function StaffManagementPage() {
       } : undefined,
     });
     setEditCertificates(currentCerts);
+    setEditAvatarFile(null);
+    setEditAvatarPreview(staff.avatar || '');
+    setEditCertificateFiles({});
     setIsEditDialogOpen(true);
+  };
+
+  // Open detail dialog
+  const openDetailDialog = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setIsDetailDialogOpen(true);
   };
 
   // Add certificate
@@ -390,8 +535,12 @@ export default function StaffManagementPage() {
   const removeCertificate = (index: number, isEdit = false) => {
     if (isEdit) {
       setEditCertificates(editCertificates.filter((_, i) => i !== index));
+      const { [index]: removed, ...rest } = editCertificateFiles;
+      setEditCertificateFiles(rest);
     } else {
       setCertificates(certificates.filter((_, i) => i !== index));
+      const { [index]: removed, ...rest } = certificateFiles;
+      setCertificateFiles(rest);
     }
   };
 
@@ -505,44 +654,9 @@ export default function StaffManagementPage() {
       {/* Staff Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Danh sách nhân viên ({total})
-            </span>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground font-normal">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={page <= 1} 
-                onClick={() => setPage(p => p - 1)}
-              >
-                Trước
-              </Button>
-              <span className="px-2">Trang {page} / {totalPages}</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={page >= totalPages} 
-                onClick={() => setPage(p => p + 1)}
-              >
-                Sau
-              </Button>
-              <Select value={String(limit)} onValueChange={(v) => { 
-                setPage(1); 
-                setLimit(Number(v)); 
-              }}>
-                <SelectTrigger className="w-20 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Danh sách nhân viên ({total})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -567,106 +681,138 @@ export default function StaffManagementPage() {
               <p className="text-sm">Thử thay đổi bộ lọc hoặc thêm nhân viên mới.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nhân viên</TableHead>
-                    <TableHead>Liên hệ</TableHead>
-                    <TableHead>Vai trò</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStaff.map((staff) => {
-                    const roleInfo = staff.doctor || staff.technician || staff.receptionist || staff.cashier || staff.admin;
-                    const isActive = roleInfo && 'isActive' in roleInfo ? roleInfo.isActive : true;
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mã</TableHead>
+                      <TableHead>Nhân viên</TableHead>
+                      <TableHead>Số điện thoại</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Vai trò</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead className="text-right">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStaff.map((staff) => {
+                      const roleInfo = staff.doctor || staff.technician || staff.receptionist || staff.cashier || staff.admin;
+                      const isActive = roleInfo && 'isActive' in roleInfo ? roleInfo.isActive : true;
+                      const staffCode = staff.doctor?.doctorCode || staff.technician?.technicianCode || staff.receptionist?.receptionistCode || staff.cashier?.cashierCode || staff.admin?.adminCode || '-';
 
-                    return (
-                      <TableRow key={staff.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={staff.avatar} alt={staff.name} />
-                              <AvatarFallback className="bg-blue-100 text-blue-600">
-                                {staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{staff.name}</div>
-                              <div className="text-sm text-gray-500">{staff.citizenId}</div>
+                      return (
+                        <TableRow key={staff.id}>
+                          <TableCell className="font-medium">{staffCode}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarImage src={staff.avatar} alt={staff.name} />
+                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                                  {staff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{staff.name}</div>
+                                <div className="text-sm text-gray-500">{staff.citizenId}</div>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 text-sm">
-                            {staff.email && <div>{staff.email}</div>}
-                            {staff.phone && <div>{staff.phone}</div>}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getRoleBadgeVariant(staff.role)}>
-                            {getRoleLabel(staff.role)}
-                          </Badge>
-                          {staff.doctor && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {staff.doctor.doctorCode}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={isActive ? 'default' : 'secondary'}>
-                            {isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <TooltipProvider>
-                            <div className="flex items-center justify-end gap-2">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openEditDialog(staff)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Chỉnh sửa</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedStaff(staff);
-                                      setIsDeleteDialogOpen(true);
-                                    }}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Vô hiệu hóa</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </TooltipProvider>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                          </TableCell>
+                          <TableCell>{staff.phone || '-'}</TableCell>
+                          <TableCell>{staff.email || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant={getRoleBadgeVariant(staff.role)}>
+                              {getRoleLabel(staff.role)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={isActive ? 'default' : 'secondary'}>
+                              {isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <TooltipProvider>
+                              <div className="flex items-center justify-end gap-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openDetailDialog(staff)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Xem chi tiết</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openEditDialog(staff)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Chỉnh sửa</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedStaff(staff);
+                                        setIsDeleteDialogOpen(true);
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Vô hiệu hóa</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </TooltipProvider>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page <= 1} 
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  Trước
+                </Button>
+                <span className="px-4 text-sm text-gray-600">
+                  Trang {page} / {totalPages} (Tổng: {total})
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page >= totalPages} 
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Sau
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
       {/* Create Staff Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-[50vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[70vw] max-w-[70vw] sm:max-w-[70vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5" />
@@ -678,7 +824,7 @@ export default function StaffManagementPage() {
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin cơ bản</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-name">Họ và tên <span className="text-red-500">*</span></Label>
                   <Input
@@ -708,7 +854,6 @@ export default function StaffManagementPage() {
                     <SelectContent>
                       <SelectItem value="Nam">Nam</SelectItem>
                       <SelectItem value="Nữ">Nữ</SelectItem>
-                      <SelectItem value="Khác">Khác</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -722,7 +867,7 @@ export default function StaffManagementPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 col-span-3">
                   <Label htmlFor="create-address">Địa chỉ <span className="text-red-500">*</span></Label>
                   <Input
                     id="create-address"
@@ -732,6 +877,13 @@ export default function StaffManagementPage() {
                     required
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Thông tin liên hệ</h3>
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-role">Vai trò <span className="text-red-500">*</span></Label>
                   <Select value={createForm.role} onValueChange={(value: Role) => {
@@ -755,13 +907,6 @@ export default function StaffManagementPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Thông tin liên hệ</h3>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-phone">Số điện thoại <span className="text-red-500">*</span></Label>
                   <Input
@@ -783,14 +928,35 @@ export default function StaffManagementPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="create-avatar">Avatar URL</Label>
-                  <Input
-                    id="create-avatar"
-                    value={createForm.avatar || ''}
-                    onChange={(e) => setCreateForm({ ...createForm, avatar: e.target.value })}
-                    placeholder="https://example.com/avatar.jpg"
-                  />
+              </div>
+            </div>
+
+            {/* Avatar Upload */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Ảnh đại diện</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-4">
+                  {avatarPreview && (
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={avatarPreview} alt="Preview" />
+                    </Avatar>
+                  )}
+                  <div className="flex-1">
+                    <Label htmlFor="create-avatar" className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg hover:border-primary transition-colors">
+                        <ImageIcon className="h-5 w-5" />
+                        <span>{avatarFile ? avatarFile.name : 'Chọn ảnh'}</span>
+                      </div>
+                    </Label>
+                    <Input
+                      id="create-avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleAvatarChange(e, false)}
+                      className="hidden"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Chấp nhận: JPG, PNG, GIF (Tối đa 10MB)</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -802,7 +968,7 @@ export default function StaffManagementPage() {
                   <Award className="h-5 w-5" />
                   Thông tin bác sĩ
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="create-specialtyId">Chuyên khoa <span className="text-red-500">*</span></Label>
                     <Select 
@@ -839,7 +1005,19 @@ export default function StaffManagementPage() {
                       required
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-position">Chức danh</Label>
+                    <Input
+                      id="create-position"
+                      value={createForm.doctorInfo?.position || ''}
+                      onChange={(e) => setCreateForm({ 
+                        ...createForm, 
+                        doctorInfo: { ...createForm.doctorInfo, position: e.target.value } 
+                      })}
+                      placeholder="Trưởng khoa"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-3">
                     <Label htmlFor="create-workHistory">Lịch sử công tác <span className="text-red-500">*</span></Label>
                     <Textarea
                       id="create-workHistory"
@@ -852,7 +1030,7 @@ export default function StaffManagementPage() {
                       required
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-3">
                     <Label htmlFor="create-description">Mô tả <span className="text-red-500">*</span></Label>
                     <Textarea
                       id="create-description"
@@ -863,54 +1041,6 @@ export default function StaffManagementPage() {
                       })}
                       placeholder="Chuyên gia điều trị bệnh tim mạch"
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-licenseNumber">Số giấy phép</Label>
-                    <Input
-                      id="create-licenseNumber"
-                      value={createForm.doctorInfo?.licenseNumber || ''}
-                      onChange={(e) => setCreateForm({ 
-                        ...createForm, 
-                        doctorInfo: { ...createForm.doctorInfo, licenseNumber: e.target.value } 
-                      })}
-                      placeholder="BYT-12345"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-licenseIssuedAt">Ngày cấp giấy phép</Label>
-                    <Input
-                      id="create-licenseIssuedAt"
-                      type="date"
-                      value={createForm.doctorInfo?.licenseIssuedAt || ''}
-                      onChange={(e) => setCreateForm({ 
-                        ...createForm, 
-                        doctorInfo: { ...createForm.doctorInfo, licenseIssuedAt: e.target.value } 
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-department">Khoa</Label>
-                    <Input
-                      id="create-department"
-                      value={createForm.doctorInfo?.department || ''}
-                      onChange={(e) => setCreateForm({ 
-                        ...createForm, 
-                        doctorInfo: { ...createForm.doctorInfo, department: e.target.value } 
-                      })}
-                      placeholder="Khoa Nội"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-position">Chức danh</Label>
-                    <Input
-                      id="create-position"
-                      value={createForm.doctorInfo?.position || ''}
-                      onChange={(e) => setCreateForm({ 
-                        ...createForm, 
-                        doctorInfo: { ...createForm.doctorInfo, position: e.target.value } 
-                      })}
-                      placeholder="Trưởng khoa"
                     />
                   </div>
                 </div>
@@ -963,7 +1093,7 @@ export default function StaffManagementPage() {
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label>Tên chứng chỉ <span className="text-red-500">*</span></Label>
                           <Input
@@ -1024,15 +1154,28 @@ export default function StaffManagementPage() {
                             onChange={(e) => updateCertificate(index, 'expiryAt', e.target.value, false)}
                           />
                         </div>
-                        <div className="space-y-2 col-span-2">
-                          <Label>File URL</Label>
-                          <Input
-                            value={cert.file || ''}
-                            onChange={(e) => updateCertificate(index, 'file', e.target.value, false)}
-                            placeholder="https://example.com/certificate.pdf"
-                          />
+                        <div className="space-y-2 col-span-3">
+                          <Label>File chứng chỉ</Label>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`cert-file-${index}`} className="cursor-pointer flex-1">
+                              <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg hover:border-primary transition-colors">
+                                <Upload className="h-4 w-4" />
+                                <span className="text-sm">
+                                  {certificateFiles[index] ? certificateFiles[index]!.name : 'Chọn file chứng chỉ'}
+                                </span>
+                              </div>
+                            </Label>
+                            <Input
+                              id={`cert-file-${index}`}
+                              type="file"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              onChange={(e) => handleCertificateFileChange(e, index, false)}
+                              className="hidden"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">Chấp nhận: PDF, DOC, DOCX, JPG, PNG (Tối đa 10MB)</p>
                         </div>
-                        <div className="space-y-2 col-span-2">
+                        <div className="space-y-2 col-span-3">
                           <Label>Mô tả</Label>
                           <Textarea
                             value={cert.description || ''}
@@ -1052,16 +1195,16 @@ export default function StaffManagementPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Hủy
             </Button>
-            <Button onClick={handleCreateStaff} disabled={isLoading}>
-              {isLoading ? 'Đang tạo...' : 'Tạo nhân viên'}
+            <Button onClick={handleCreateStaff} disabled={isLoading || isUploadingAvatar}>
+              {isLoading ? 'Đang tạo...' : isUploadingAvatar ? 'Đang tải file...' : 'Tạo nhân viên'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Staff Dialog */}
+      {/* Edit Staff Dialog - Similar structure to Create but with edit data */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[50vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[70vw] max-w-[70vw] sm:max-w-[70vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5" />
@@ -1073,7 +1216,7 @@ export default function StaffManagementPage() {
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin cơ bản</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Họ và tên</Label>
                   <Input
@@ -1099,7 +1242,6 @@ export default function StaffManagementPage() {
                     <SelectContent>
                       <SelectItem value="Nam">Nam</SelectItem>
                       <SelectItem value="Nữ">Nữ</SelectItem>
-                      <SelectItem value="Khác">Khác</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1110,7 +1252,7 @@ export default function StaffManagementPage() {
                     onChange={(e) => setEditForm({ ...editForm, citizenId: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 col-span-3">
                   <Label>Địa chỉ</Label>
                   <Input
                     value={editForm.address || ''}
@@ -1123,7 +1265,7 @@ export default function StaffManagementPage() {
             {/* Contact Information */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Thông tin liên hệ</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Số điện thoại</Label>
                   <Input
@@ -1139,12 +1281,34 @@ export default function StaffManagementPage() {
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Avatar URL</Label>
-                  <Input
-                    value={editForm.avatar || ''}
-                    onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })}
-                  />
+              </div>
+            </div>
+
+            {/* Avatar Upload */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Ảnh đại diện</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-4">
+                  {editAvatarPreview && (
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={editAvatarPreview} alt="Preview" />
+                    </Avatar>
+                  )}
+                  <div className="flex-1">
+                    <Label htmlFor="edit-avatar" className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg hover:border-primary transition-colors">
+                        <ImageIcon className="h-5 w-5" />
+                        <span>{editAvatarFile ? editAvatarFile.name : 'Chọn ảnh'}</span>
+                      </div>
+                    </Label>
+                    <Input
+                      id="edit-avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleAvatarChange(e, true)}
+                      className="hidden"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1156,7 +1320,7 @@ export default function StaffManagementPage() {
                   <Award className="h-5 w-5" />
                   Thông tin bác sĩ
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Chuyên khoa</Label>
                     <Select 
@@ -1190,7 +1354,7 @@ export default function StaffManagementPage() {
                       })}
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-3">
                     <Label>Lịch sử công tác</Label>
                     <Textarea
                       value={editForm.doctorInfo?.workHistory || ''}
@@ -1200,7 +1364,7 @@ export default function StaffManagementPage() {
                       })}
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-3">
                     <Label>Mô tả</Label>
                     <Textarea
                       value={editForm.doctorInfo?.description || ''}
@@ -1332,7 +1496,7 @@ export default function StaffManagementPage() {
               </div>
             )}
 
-            {/* Certificates (for DOCTOR and TECHNICIAN) */}
+            {/* Certificates */}
             {(selectedStaff?.role === 'DOCTOR' || selectedStaff?.role === 'TECHNICIAN') && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -1359,7 +1523,7 @@ export default function StaffManagementPage() {
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label>Tên chứng chỉ</Label>
                           <Input
@@ -1407,12 +1571,25 @@ export default function StaffManagementPage() {
                             onChange={(e) => updateCertificate(index, 'expiryAt', e.target.value, true)}
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label>File URL</Label>
-                          <Input
-                            value={cert.file || ''}
-                            onChange={(e) => updateCertificate(index, 'file', e.target.value, true)}
-                          />
+                        <div className="space-y-2 col-span-3">
+                          <Label>File chứng chỉ</Label>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`edit-cert-file-${index}`} className="cursor-pointer flex-1">
+                              <div className="flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg hover:border-primary transition-colors">
+                                <Upload className="h-4 w-4" />
+                                <span className="text-sm truncate">
+                                  {editCertificateFiles[index] ? editCertificateFiles[index]!.name : (cert.file ? 'File đã có' : 'Chọn file')}
+                                </span>
+                              </div>
+                            </Label>
+                            <Input
+                              id={`edit-cert-file-${index}`}
+                              type="file"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              onChange={(e) => handleCertificateFileChange(e, index, true)}
+                              className="hidden"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1426,8 +1603,290 @@ export default function StaffManagementPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Hủy
             </Button>
-            <Button onClick={handleUpdateStaff} disabled={isLoading}>
-              {isLoading ? 'Đang cập nhật...' : 'Cập nhật'}
+            <Button onClick={handleUpdateStaff} disabled={isLoading || isUploadingAvatar}>
+              {isLoading ? 'Đang cập nhật...' : isUploadingAvatar ? 'Đang tải file...' : 'Cập nhật'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Staff Dialog */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="w-[70vw] max-w-[70vw] sm:max-w-[70vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Chi tiết nhân viên
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedStaff && (
+            <div className="space-y-6">
+              {/* Avatar & Basic Info */}
+              <div className="flex items-start gap-6">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={selectedStaff.avatar} alt={selectedStaff.name} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 text-2xl">
+                    {selectedStaff.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold">{selectedStaff.name}</h3>
+                  <div className="flex items-center gap-3 mt-2">
+                    <Badge variant={getRoleBadgeVariant(selectedStaff.role)}>
+                      {getRoleLabel(selectedStaff.role)}
+                    </Badge>
+                    {(() => {
+                      const roleInfo = selectedStaff.doctor || selectedStaff.technician || selectedStaff.receptionist || selectedStaff.cashier || selectedStaff.admin;
+                      const isActive = roleInfo && 'isActive' in roleInfo ? roleInfo.isActive : true;
+                      return (
+                        <Badge variant={isActive ? 'default' : 'secondary'}>
+                          {isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <Label className="text-gray-600">CCCD/CMND</Label>
+                  <p className="font-medium">{selectedStaff.citizenId}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Ngày sinh</Label>
+                  <p className="font-medium">{new Date(selectedStaff.dateOfBirth).toLocaleDateString('vi-VN')}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Giới tính</Label>
+                  <p className="font-medium">{selectedStaff.gender}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Số điện thoại</Label>
+                  <p className="font-medium">{selectedStaff.phone || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Email</Label>
+                  <p className="font-medium">{selectedStaff.email || '-'}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-gray-600">Địa chỉ</Label>
+                  <p className="font-medium">{selectedStaff.address}</p>
+                </div>
+              </div>
+
+              {/* Doctor Info */}
+              {selectedStaff.doctor && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg border-b pb-2">Thông tin bác sĩ</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Mã bác sĩ</Label>
+                      <p className="font-medium">{selectedStaff.doctor.doctorCode}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Chuyên khoa</Label>
+                      <p className="font-medium">
+                        {specialties.find(s => s.id === selectedStaff.doctor?.specialtyId)?.name || selectedStaff.doctor.specialtyId}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Số năm kinh nghiệm</Label>
+                      <p className="font-medium">{selectedStaff.doctor.yearsExperience} năm</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Đánh giá</Label>
+                      <p className="font-medium">{selectedStaff.doctor.rating}/5</p>
+                    </div>
+                    {selectedStaff.doctor.position && (
+                      <div>
+                        <Label className="text-gray-600">Chức danh</Label>
+                        <p className="font-medium">{selectedStaff.doctor.position}</p>
+                      </div>
+                    )}
+                    {selectedStaff.doctor.workHistory && (
+                      <div className="col-span-2">
+                        <Label className="text-gray-600">Lịch sử công tác</Label>
+                        <p className="font-medium">{selectedStaff.doctor.workHistory}</p>
+                      </div>
+                    )}
+                    {selectedStaff.doctor.description && (
+                      <div className="col-span-2">
+                        <Label className="text-gray-600">Mô tả</Label>
+                        <p className="font-medium">{selectedStaff.doctor.description}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Certificates */}
+                  {selectedStaff.doctor.certificates && selectedStaff.doctor.certificates.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-gray-600 font-semibold">Chứng chỉ</Label>
+                      {selectedStaff.doctor.certificates.map((cert, idx) => (
+                        <Card key={idx} className="p-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-gray-600 text-xs">Tên chứng chỉ</Label>
+                              <p className="font-medium">{cert.title}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Loại</Label>
+                              <p className="font-medium">{getCertificateTypeLabel(cert.type)}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Tổ chức cấp</Label>
+                              <p className="font-medium">{cert.issuedBy}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Ngày cấp</Label>
+                              <p className="font-medium">
+                                {cert.issuedAt ? new Date(cert.issuedAt).toLocaleDateString('vi-VN') : '-'}
+                              </p>
+                            </div>
+                            {cert.file && (
+                              <div className="col-span-2">
+                                <Label className="text-gray-600 text-xs">File</Label>
+                                <a href={cert.file} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  Xem file chứng chỉ
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Technician Info */}
+              {selectedStaff.technician && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg border-b pb-2">Thông tin kỹ thuật viên</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Mã kỹ thuật viên</Label>
+                      <p className="font-medium">{selectedStaff.technician.technicianCode}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Trạng thái</Label>
+                      <Badge variant={selectedStaff.technician.isActive ? 'default' : 'secondary'}>
+                        {selectedStaff.technician.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Technician Certificates */}
+                  {selectedStaff.technician.certificates && selectedStaff.technician.certificates.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-gray-600 font-semibold">Chứng chỉ</Label>
+                      {selectedStaff.technician.certificates.map((cert, idx) => (
+                        <Card key={idx} className="p-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-gray-600 text-xs">Tên chứng chỉ</Label>
+                              <p className="font-medium">{cert.title}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Loại</Label>
+                              <p className="font-medium">{getCertificateTypeLabel(cert.type)}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Tổ chức cấp</Label>
+                              <p className="font-medium">{cert.issuedBy}</p>
+                            </div>
+                            <div>
+                              <Label className="text-gray-600 text-xs">Ngày cấp</Label>
+                              <p className="font-medium">
+                                {cert.issuedAt ? new Date(cert.issuedAt).toLocaleDateString('vi-VN') : '-'}
+                              </p>
+                            </div>
+                            {cert.file && (
+                              <div className="col-span-2">
+                                <Label className="text-gray-600 text-xs">File</Label>
+                                <a href={cert.file} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  Xem file chứng chỉ
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Receptionist Info */}
+              {selectedStaff.receptionist && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg border-b pb-2">Thông tin lễ tân</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Mã lễ tân</Label>
+                      <p className="font-medium">{selectedStaff.receptionist.receptionistCode}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Trạng thái</Label>
+                      <Badge variant={selectedStaff.receptionist.isActive ? 'default' : 'secondary'}>
+                        {selectedStaff.receptionist.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Cashier Info */}
+              {selectedStaff.cashier && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg border-b pb-2">Thông tin thu ngân</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Mã thu ngân</Label>
+                      <p className="font-medium">{selectedStaff.cashier.cashierCode}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Trạng thái</Label>
+                      <Badge variant={selectedStaff.cashier.isActive ? 'default' : 'secondary'}>
+                        {selectedStaff.cashier.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Info */}
+              {selectedStaff.admin && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg border-b pb-2">Thông tin quản trị viên</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Mã quản trị viên</Label>
+                      <p className="font-medium">{selectedStaff.admin.adminCode}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Trạng thái</Label>
+                      <Badge variant={selectedStaff.admin.isActive ? 'default' : 'secondary'}>
+                        {selectedStaff.admin.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                      </Badge>
+                    </div>
+                    {selectedStaff.admin.position && (
+                      <div>
+                        <Label className="text-gray-600">Chức vụ</Label>
+                        <p className="font-medium">{selectedStaff.admin.position}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1464,4 +1923,3 @@ export default function StaffManagementPage() {
     </div>
   );
 }
-
