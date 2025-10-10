@@ -105,7 +105,7 @@ const getMenuItems = () => {
 		},
 		{
 			title: "Quản lý nhân sự",
-			url: "/staff",
+			url: "/staffs",
 			icon: IdCardLanyardIcon,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
