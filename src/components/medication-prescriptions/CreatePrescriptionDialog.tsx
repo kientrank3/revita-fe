@@ -190,6 +190,10 @@ export function CreatePrescriptionDialog({
       });
       toast.success('Tạo đơn thuốc thành công');
       handleClose();
+      // Reload current page to refresh lists after successful creation
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error creating prescription:', error);
       toast.error('Có lỗi xảy ra khi tạo đơn thuốc');

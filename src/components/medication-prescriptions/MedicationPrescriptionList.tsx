@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { medicationPrescriptionApi } from '@/lib/api';
 import { MedicationPrescription, MedicationPrescriptionStatus } from '@/lib/types/medication-prescription';
-import { CalendarDays, FileText, Search, Eye, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { CalendarDays, FileText, Search, Eye, RefreshCw, Edit, Trash2, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -351,8 +351,19 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                       )}
                     </div>
 
-                    {/* View and Delete Actions */}
+                    {/* View / Print / Delete Actions */}
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = `/medication-prescriptions/print/${encodeURIComponent(prescription.code)}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        In đơn thuốc
+                      </Button>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
