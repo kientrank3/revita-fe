@@ -125,30 +125,28 @@ export const postsService = {
 
   /**
    * Lấy danh sách tất cả categories
-   * NOTE: Backend chưa có endpoint này, cần thêm GET /posts/admin/categories
    * @returns Promise với danh sách categories
    */
-  // getAllCategories: async (): Promise<CategoryResponse[]> => {
-  //   const response = await api.get<CategoryResponse[]>(
-  //     '/posts/admin/categories'
-  //   );
-  //   return response.data;
-  // },
+  getAllCategories: async (): Promise<CategoryResponse[]> => {
+    const response = await api.get<CategoryResponse[]>(
+      '/posts/admin/categories'
+    );
+    return response.data;
+  },
 
   /**
    * Xóa category
-   * NOTE: Backend chưa có endpoint này, cần thêm DELETE /posts/admin/categories/:id
    * @param categoryId - ID của category cần xóa
    * @returns Promise với kết quả xóa
    */
-  // deleteCategory: async (
-  //   categoryId: string
-  // ): Promise<{ success: boolean }> => {
-  //   const response = await api.delete<{ success: boolean }>(
-  //     `/posts/admin/categories/${categoryId}`
-  //   );
-  //   return response.data;
-  // },
+  deleteCategory: async (
+    categoryId: string
+  ): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(
+      `/posts/admin/categories/${categoryId}`
+    );
+    return response.data;
+  },
 
   // ==================== SERIES MANAGEMENT ====================
 
@@ -184,26 +182,24 @@ export const postsService = {
 
   /**
    * Lấy danh sách tất cả series
-   * NOTE: Backend chưa có endpoint này, cần thêm GET /posts/admin/series
    * @returns Promise với danh sách series
    */
-  // getAllSeries: async (): Promise<SeriesResponse[]> => {
-  //   const response = await api.get<SeriesResponse[]>('/posts/admin/series');
-  //   return response.data;
-  // },
+  getAllSeries: async (): Promise<SeriesResponse[]> => {
+    const response = await api.get<SeriesResponse[]>('/posts/admin/series');
+    return response.data;
+  },
 
   /**
    * Xóa series
-   * NOTE: Backend chưa có endpoint này, cần thêm DELETE /posts/admin/series/:id
    * @param seriesId - ID của series cần xóa
    * @returns Promise với kết quả xóa
    */
-  // deleteSeries: async (seriesId: string): Promise<{ success: boolean }> => {
-  //   const response = await api.delete<{ success: boolean }>(
-  //     `/posts/admin/series/${seriesId}`
-  //   );
-  //   return response.data;
-  // },
+  deleteSeries: async (seriesId: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(
+      `/posts/admin/series/${seriesId}`
+    );
+    return response.data;
+  },
 
   // ==================== PUBLIC POST ENDPOINTS ====================
 

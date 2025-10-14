@@ -70,20 +70,19 @@ export default function PostsManagementPage() {
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList>
             <TabsTrigger value="posts">Bài viết</TabsTrigger>
-            {/* Tạm ẩn vì backend chưa có API GET cho categories/series */}
-            {/* <TabsTrigger value="categories">Danh mục</TabsTrigger>
-            <TabsTrigger value="series">Series</TabsTrigger> */}
+            <TabsTrigger value="categories">Danh mục</TabsTrigger>
+            <TabsTrigger value="series">Series</TabsTrigger>
           </TabsList>
 
           <TabsContent value="posts" className="mt-4">
             <PostsTab />
           </TabsContent>
-          {/* <TabsContent value="categories" className="mt-4">
+          <TabsContent value="categories" className="mt-4">
             <CategoriesTab />
           </TabsContent>
           <TabsContent value="series" className="mt-4">
             <SeriesTab />
-          </TabsContent> */}
+          </TabsContent>
         </Tabs>
         <Toaster richColors position="top-right" />
       </div>
@@ -395,8 +394,7 @@ function PostsTab() {
 }
 
 // ============== CATEGORIES TAB ==============
-// Tạm comment vì backend chưa có API GET /posts/admin/categories
-/* function CategoriesTab() {
+function CategoriesTab() {
   const [categories, setCategories] = React.useState<CategoryResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -619,11 +617,9 @@ function PostsTab() {
     </div>
   );
 }
-*/
 
 // ============== SERIES TAB ==============
-// Tạm comment vì backend chưa có API GET /posts/admin/series
-/* function SeriesTab() {
+function SeriesTab() {
   const [series, setSeries] = React.useState<SeriesResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -846,4 +842,3 @@ function PostsTab() {
     </div>
   );
 }
-*/

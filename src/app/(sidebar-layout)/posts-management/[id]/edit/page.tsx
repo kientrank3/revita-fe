@@ -64,19 +64,15 @@ export default function EditPostPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        // Note: Backend không có endpoint GET cho categories/series list
-        // Chỉ load post data
-        const postData = await postsService.getPostById(postId);
+        const [postData, categoriesData, seriesData] = await Promise.all([
+          postsService.getPostById(postId),
+          postsService.getAllCategories(),
+          postsService.getAllSeries(),
+        ]);
 
         setPost(postData);
-        
-        // Load categories và series nếu backend hỗ trợ trong tương lai
-        // const [categoriesData, seriesData] = await Promise.all([
-        //   postsService.getAllCategories(),
-        //   postsService.getAllSeries(),
-        // ]);
-        // setCategories(categoriesData);
-        // setSeriesList(seriesData);
+        setCategories(categoriesData);
+        setSeriesList(seriesData);
 
         // Populate form
         setTitle(postData.title);
@@ -465,82 +461,84 @@ export default function EditPostPage() {
               </div>
             </div>
 
-            {/* Categories - Tạm ẩn vì backend chưa có API GET categories */}
-            {categories.length > 0 && (
-              <div className="space-y-2 p-4 border rounded-lg">
-                <Label>Danh mục</Label>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {categories.map((cat) => (
-                    <div key={cat.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`cat-${cat.id}`}
-                        checked={selectedCategories.includes(cat.id)}
-                        onChange={() => toggleCategory(cat.id)}
-                        className="w-4 h-4"
-                      />
-                      <Label
-                        htmlFor={`cat-${cat.id}`}
-                        className="cursor-pointer flex-1"
-                      >
-                        {cat.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
+            {/* Categories */}
+            <div className="space-y-2 p-4 border rounded-lg">
+              <Label>Danh mục</Label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {categories.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`cat-${cat.id}`}
+                      checked={selectedCategories.includes(cat.id)}
+                      onChange={() => toggleCategory(cat.id)}
+                      className="w-4 h-4"
+                    />
+                    <Label
+                      htmlFor={`cat-${cat.id}`}
+                      className="cursor-pointer flex-1"
+                    >
+                      {cat.name}
+                    </Label>
+                  </div>
+                ))}
+                {categories.length === 0 && (
+                  <p className="text-sm text-gray-500">Chưa có danh mục nào</p>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Series - Tạm ẩn vì backend chưa có API GET series */}
-            {seriesList.length > 0 && (
-              <div className="space-y-2 p-4 border rounded-lg">
-                <Label>Series</Label>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {seriesList.map((series) => {
-                    const selected = selectedSeries.find(
-                      (s) => s.seriesId === series.id
-                    );
-                    return (
-                      <div key={series.id} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id={`series-${series.id}`}
-                            checked={!!selected}
-                            onChange={() => toggleSeries(series.id)}
-                            className="w-4 h-4"
-                          />
-                          <Label
-                            htmlFor={`series-${series.id}`}
-                            className="cursor-pointer flex-1"
-                          >
-                            {series.name}
-                          </Label>
-                        </div>
-                        {selected && (
-                          <div className="ml-6">
-                            <Label className="text-xs">Thứ tự</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="255"
-                              value={selected.order || 0}
-                              onChange={(e) =>
-                                updateSeriesOrder(
-                                  series.id,
-                                  parseInt(e.target.value) || 0
-                                )
-                              }
-                              className="w-20"
-                            />
-                          </div>
-                        )}
+            {/* Series */}
+            <div className="space-y-2 p-4 border rounded-lg">
+              <Label>Series</Label>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {seriesList.map((series) => {
+                  const selected = selectedSeries.find(
+                    (s) => s.seriesId === series.id
+                  );
+                  return (
+                    <div key={series.id} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`series-${series.id}`}
+                          checked={!!selected}
+                          onChange={() => toggleSeries(series.id)}
+                          className="w-4 h-4"
+                        />
+                        <Label
+                          htmlFor={`series-${series.id}`}
+                          className="cursor-pointer flex-1"
+                        >
+                          {series.name}
+                        </Label>
                       </div>
-                    );
-                  })}
-                </div>
+                      {selected && (
+                        <div className="ml-6">
+                          <Label className="text-xs">Thứ tự</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="255"
+                            value={selected.order || 0}
+                            onChange={(e) =>
+                              updateSeriesOrder(
+                                series.id,
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            className="w-20"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {seriesList.length === 0 && (
+                  <p className="text-sm text-gray-500">Chưa có series nào</p>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
