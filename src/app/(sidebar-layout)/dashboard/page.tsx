@@ -3,7 +3,7 @@ import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
 export default function DashboardPage() {
   return (
-    <div className="px-8 py-6 bg-white space-y-6 h-full">
+    <div className="bg-white py-6 px-8 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

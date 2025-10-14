@@ -17,6 +17,10 @@ import {
   PaymentMethodRequestParams,
   TopServicesRequestParams,
   PatientSpendingRequestParams,
+  AppointmentsByTimeData,
+  ExaminationsByTimeData,
+  RevenueByTimeData,
+  TimeBasedRequestParams,
   PeriodType,
 } from '../types/statistics';
 
@@ -32,18 +36,29 @@ const useStatisticsData = <T, P>(
 
   // Memoize params to prevent unnecessary re-renders
   const paramsKey = JSON.stringify(params);
+  console.log('useStatisticsData: paramsKey changed:', paramsKey);
+   
+  const memoizedParams = useMemo(() => {
+    console.log('useStatisticsData: memoizedParams updated:', params);
+    return params;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedParams = useMemo(() => params, [paramsKey]);
+  }, [paramsKey]);
 
   // Memoize the fetch function
   const fetchData = useCallback(async () => {
-    if (!enabled) return;
+    console.log('useStatisticsData: fetchData called, enabled:', enabled, 'params:', memoizedParams);
+    if (!enabled) {
+      console.log('useStatisticsData: API call disabled');
+      return;
+    }
 
+    console.log('useStatisticsData: Starting API call with params:', memoizedParams);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiCall(memoizedParams);
+      console.log('useStatisticsData: API response received:', response);
       setData(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -54,6 +69,7 @@ const useStatisticsData = <T, P>(
   }, [apiCall, memoizedParams, enabled]);
 
   useEffect(() => {
+    console.log('useStatisticsData: useEffect triggered, fetchData:', fetchData);
     fetchData();
   }, [fetchData]);
 
@@ -69,14 +85,18 @@ export const useKPIStatistics = (
 ) => {
   const params: KPIRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
+  console.log('useKPIStatistics: shouldEnable:', shouldEnable, 'period:', period, 'startDate:', startDate, 'endDate:', endDate);
 
   return useStatisticsData<KPIData, KPIRequestParams>(
     statisticsApi.getKPI,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -89,14 +109,17 @@ export const useRevenueStatistics = (
 ) => {
   const params: RevenueRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
 
   return useStatisticsData<RevenueData, RevenueRequestParams>(
     statisticsApi.getRevenue,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -109,14 +132,17 @@ export const useWorkSessionStatistics = (
 ) => {
   const params: WorkSessionRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
 
   return useStatisticsData<WorkSessionData, WorkSessionRequestParams>(
     statisticsApi.getWorkSessions,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -129,14 +155,17 @@ export const useExaminationVolumeStatistics = (
 ) => {
   const params: ExaminationVolumeRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
 
   return useStatisticsData<ExaminationVolumeData, ExaminationVolumeRequestParams>(
     statisticsApi.getExaminationVolume,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -149,14 +178,17 @@ export const usePaymentMethodStatistics = (
 ) => {
   const params: PaymentMethodRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
 
   return useStatisticsData<PaymentMethodData, PaymentMethodRequestParams>(
     statisticsApi.getPaymentMethods,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -169,14 +201,17 @@ export const useTopServicesStatistics = (
 ) => {
   const params: TopServicesRequestParams = {
     period,
-    ...(startDate && { startDate }),
-    ...(endDate && { endDate }),
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
   };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
 
   return useStatisticsData<TopServicesData, TopServicesRequestParams>(
     statisticsApi.getTopServices,
     params,
-    enabled
+    shouldEnable
   );
 };
 
@@ -221,6 +256,73 @@ export const useDashboardStatistics = (
       kpi.refetch();
     },
   };
+};
+
+// Time-based Statistics Hooks
+export const useAppointmentsByTime = (
+  period: PeriodType,
+  startDate?: string,
+  endDate?: string,
+  enabled: boolean = true
+) => {
+  const params: TimeBasedRequestParams = {
+    period,
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
+  };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
+
+  return useStatisticsData<AppointmentsByTimeData, TimeBasedRequestParams>(
+    statisticsApi.getAppointmentsByTime,
+    params,
+    shouldEnable
+  );
+};
+
+export const useExaminationsByTime = (
+  period: PeriodType,
+  startDate?: string,
+  endDate?: string,
+  enabled: boolean = true
+) => {
+  const params: TimeBasedRequestParams = {
+    period,
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
+  };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
+
+  return useStatisticsData<ExaminationsByTimeData, TimeBasedRequestParams>(
+    statisticsApi.getExaminationsByTime,
+    params,
+    shouldEnable
+  );
+};
+
+export const useRevenueByTime = (
+  period: PeriodType,
+  startDate?: string,
+  endDate?: string,
+  enabled: boolean = true
+) => {
+  const params: TimeBasedRequestParams = {
+    period,
+    ...(startDate && startDate.trim() && { startDate }),
+    ...(endDate && endDate.trim() && { endDate }),
+  };
+
+  // For custom period, ensure we have both dates
+  const shouldEnable = enabled && (period !== 'custom' || (!!startDate && !!endDate && startDate.trim() !== '' && endDate.trim() !== ''));
+
+  return useStatisticsData<RevenueByTimeData, TimeBasedRequestParams>(
+    statisticsApi.getRevenueByTime,
+    params,
+    shouldEnable
+  );
 };
 
 // Period Selection Hook

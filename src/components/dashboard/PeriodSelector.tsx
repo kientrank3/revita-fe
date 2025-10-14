@@ -59,7 +59,7 @@ export function PeriodSelector({
                 size="sm"
                 onClick={() => onPeriodChange(p.value)}
                 disabled={loading}
-                className={period === p.value ? "bg-blue-600 hover:bg-blue-700" : ""}
+                className={period === p.value ? "bg-[#35b8cf] hover:bg-[#35b8cf]" : ""}
               >
                 {p.label}
               </Button>

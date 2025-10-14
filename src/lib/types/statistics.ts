@@ -285,3 +285,61 @@ export interface PatientSpendingRequestParams {
   startDate?: string;
   endDate?: string;
 }
+
+// Time-based Statistics Types
+export interface AppointmentTimeData {
+  date: string; // ISO date string
+  total: number; // Tổng lịch hẹn
+  completed: number; // Đã hoàn thành
+  pending: number; // Chờ xác nhận
+  cancelled: number; // Đã hủy
+  confirmed: number; // Đã xác nhận
+}
+
+export interface AppointmentsByTimeData {
+  data: AppointmentTimeData[];
+  period: {
+    startDate: string;
+    endDate: string;
+    periodType: string;
+  };
+}
+
+export interface ExaminationTimeData {
+  date: string;
+  totalAppointments: number;
+  completedAppointments: number;
+  averageDurationMinutes: number;
+}
+
+export interface ExaminationsByTimeData {
+  data: ExaminationTimeData[];
+  period: {
+    startDate: string;
+    endDate: string;
+    periodType: string;
+  };
+}
+
+export interface RevenueTimeData {
+  date: string;
+  totalRevenue: number;
+  paidRevenue: number;
+  accountsReceivable: number;
+}
+
+export interface RevenueByTimeData {
+  data: RevenueTimeData[];
+  period: {
+    startDate: string;
+    endDate: string;
+    periodType: string;
+  };
+}
+
+// Request parameters for time-based statistics
+export interface TimeBasedRequestParams {
+  period: PeriodType;
+  startDate?: string;
+  endDate?: string;
+}

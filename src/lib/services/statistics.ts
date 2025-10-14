@@ -14,6 +14,10 @@ import {
   PaymentMethodRequestParams,
   TopServicesRequestParams,
   PatientSpendingRequestParams,
+  AppointmentsByTimeData,
+  ExaminationsByTimeData,
+  RevenueByTimeData,
+  TimeBasedRequestParams,
 } from '../types/statistics';
 
 // Statistics API
@@ -45,6 +49,16 @@ export const statisticsApi = {
   // Patient Spending Statistics
   getPatientSpending: (params: PatientSpendingRequestParams) =>
     api.get('/statistics/patient-spending', { params }),
+
+  // Time-based Statistics
+  getAppointmentsByTime: (params: TimeBasedRequestParams) =>
+    api.get('/statistics/appointments/by-time', { params }),
+
+  getExaminationsByTime: (params: TimeBasedRequestParams) =>
+    api.get('/statistics/examinations/by-time', { params }),
+
+  getRevenueByTime: (params: TimeBasedRequestParams) =>
+    api.get('/statistics/revenue/by-time', { params }),
 };
 
 // Utility functions for date calculations

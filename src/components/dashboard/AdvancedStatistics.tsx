@@ -1,15 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Users, 
-  Calendar, 
-  DollarSign,
   Activity,
   BarChart3,
   PieChart
@@ -36,7 +32,6 @@ export function AdvancedStatistics({
   workSessionData,
   examinationData,
   topServicesData,
-  patientSpendingData,
   loading,
   error,
   userRole

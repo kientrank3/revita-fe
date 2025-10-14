@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from 'react';
-import { StatisticsCards, DetailedStatisticsCards } from "@/components/dashboard/StatisticsCards";
-import { RevenueStatistics, PaymentMethodStatistics } from "@/components/dashboard/RevenueStatistics";
+import { ChartStatisticsCards, ChartDetailedStatisticsCards } from "@/components/dashboard/ChartStatisticsCards";
+import { ChartRevenueStatistics, ChartPaymentMethodStatistics } from "@/components/dashboard/ChartRevenueStatistics";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
-import { AdvancedStatistics } from "@/components/dashboard/AdvancedStatistics";
+import { ChartAdvancedStatistics } from "@/components/dashboard/ChartAdvancedStatistics";
 import { useDashboardStatistics, usePeriodSelection } from "@/lib/hooks/use-statistics";
 import { 
   useRevenueStatistics, 
@@ -30,6 +30,12 @@ export function DashboardClient() {
   } = usePeriodSelection('day');
 
   const params = useMemo(() => getCurrentParams(), [getCurrentParams]);
+  
+  // Debug: Log params changes
+  console.log('DashboardClient params:', params);
+  console.log('DashboardClient period:', period);
+  console.log('DashboardClient customStartDate:', customStartDate);
+  console.log('DashboardClient customEndDate:', customEndDate);
   
   // Check if user can view KPI stats
   const canViewKPI = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'].includes(userRole || '');
@@ -105,24 +111,27 @@ export function DashboardClient() {
       {canViewKPI && (
         <>
           {/* Main Statistics Cards */}
-          <StatisticsCards
+          <ChartStatisticsCards
             data={dashboardStats.kpi.data}
             loading={dashboardStats.loading}
             error={dashboardStats.error}
           />
 
           {/* Detailed Statistics Cards */}
-          <DetailedStatisticsCards
+          <ChartDetailedStatisticsCards
             data={dashboardStats.kpi.data}
             loading={dashboardStats.loading}
             error={dashboardStats.error}
+            period={params.period}
+            startDate={params.startDate}
+            endDate={params.endDate}
           />
         </>
       )}
 
       {/* Revenue Statistics - Only for ADMIN and CASHIER */}
       {canViewRevenue && (
-        <RevenueStatistics
+        <ChartRevenueStatistics
           data={revenueStats.data}
           loading={revenueStats.loading}
           error={revenueStats.error}
@@ -131,7 +140,7 @@ export function DashboardClient() {
 
       {/* Payment Method Statistics - Only for ADMIN and CASHIER */}
       {canViewPaymentMethods && (
-        <PaymentMethodStatistics
+        <ChartPaymentMethodStatistics
           data={paymentStats.data}
           loading={paymentStats.loading}
           error={paymentStats.error}
@@ -140,7 +149,7 @@ export function DashboardClient() {
 
       {/* Advanced Statistics - Role-based tabs */}
       {(canViewWorkSessions || canViewExaminationVolume || canViewTopServices) && (
-        <AdvancedStatistics
+        <ChartAdvancedStatistics
           workSessionData={workSessionStats.data}
           examinationData={examinationStats.data}
           topServicesData={topServicesStats.data}
@@ -148,6 +157,9 @@ export function DashboardClient() {
           loading={workSessionStats.loading || examinationStats.loading || topServicesStats.loading}
           error={workSessionStats.error || examinationStats.error || topServicesStats.error}
           userRole={userRole}
+          period={params.period}
+          startDate={params.startDate}
+          endDate={params.endDate}
         />
       )}
 
