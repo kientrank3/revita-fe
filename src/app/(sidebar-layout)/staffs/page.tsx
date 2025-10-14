@@ -462,8 +462,8 @@ export default function StaffManagementPage() {
         title: cert.title || '',
         type: cert.type || 'DEGREE',
         issuedBy: cert.issuedBy || '',
-        issuedAt: cert.issuedAt || '',
-        expiryAt: cert.expiryAt || '',
+        issuedAt: cert.issuedAt ? cert.issuedAt.split('T')[0] : '',
+        expiryAt: cert.expiryAt ? cert.expiryAt.split('T')[0] : '',
         file: cert.file || '',
         description: cert.description || '',
       }));

@@ -298,7 +298,7 @@ function ServicesTab() {
       description: "",
       durationMinutes: null,
       isActive: true,
-      unit: "",
+      unit: "1",
       currency: "VND",
       requiresDoctor: false,
       categoryId: undefined,
@@ -332,10 +332,10 @@ function ServicesTab() {
     setSubmitting(true)
     try {
       if (editing) {
-        await servicesService.updateService(editing.id, { ...form, price: form.price ?? undefined })
+        await servicesService.updateService(editing.id, { ...form, price: form.price ?? undefined, unit: "1", currency: "VND" })
         toast.success("Cập nhật dịch vụ thành công")
       } else {
-        await servicesService.createService({ ...form, price: form.price ?? 0 } as any)
+        await servicesService.createService({ ...form, price: form.price ?? 0, unit: "1", currency: "VND" } as any)
         toast.success("Tạo dịch vụ thành công")
       }
       setOpen(false)
@@ -379,7 +379,7 @@ function ServicesTab() {
             <Label className="text-xs">Danh mục</Label>
             <Select value={filters.categoryId} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v || undefined }))}>
               <SelectTrigger className="min-w-48">
-                <SelectValue placeholder="Chọn danh mục" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -392,7 +392,7 @@ function ServicesTab() {
             <Label className="text-xs">Khoa chuyên môn</Label>
             <Select value={filters.specialtyId} onValueChange={(v) => setFilters((f) => ({ ...f, specialtyId: v || undefined }))}>
               <SelectTrigger className="min-w-48">
-                <SelectValue placeholder="Chọn khoa" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 {specialties.map((s) => (
@@ -405,7 +405,7 @@ function ServicesTab() {
             <Label className="text-xs">Trạng thái</Label>
             <Select value={filters.isActive} onValueChange={(v) => setFilters((f) => ({ ...f, isActive: v || undefined }))}>
               <SelectTrigger className="min-w-32">
-                <SelectValue placeholder="Chọn" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Hoạt động</SelectItem>
@@ -417,7 +417,7 @@ function ServicesTab() {
             <Label className="text-xs">Chỉ định của bác sĩ</Label>
             <Select value={filters.requiresDoctor} onValueChange={(v) => setFilters((f) => ({ ...f, requiresDoctor: v || undefined }))}>
               <SelectTrigger className="min-w-32">
-                <SelectValue placeholder="Chọn" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Cần</SelectItem>
@@ -458,14 +458,6 @@ function ServicesTab() {
               <div className="grid gap-2">
                 <Label htmlFor="duration">Thời lượng (phút)</Label>
                 <Input id="duration" type="number" value={form.durationMinutes ?? ""} onChange={(e) => setForm((f) => ({ ...f, durationMinutes: e.target.value ? Number(e.target.value) : null }))} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="unit">Đơn vị</Label>
-                <Input id="unit" value={form.unit || ""} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currency">Đơn vị tiền tệ</Label>
-                <Input id="currency" value={form.currency || "VND"} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))} />
               </div>
               <div className="grid gap-2">
                 <Label>Danh mục</Label>
@@ -760,7 +752,7 @@ function PackagesTab() {
             <Label className="text-xs">Danh mục</Label>
             <Select value={filters.categoryId} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v || undefined }))}>
               <SelectTrigger className="min-w-48">
-                <SelectValue placeholder="Chọn danh mục" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -773,7 +765,7 @@ function PackagesTab() {
             <Label className="text-xs">Khoa chuyên môn</Label>
             <Select value={filters.specialtyId} onValueChange={(v) => setFilters((f) => ({ ...f, specialtyId: v || undefined }))}>
               <SelectTrigger className="min-w-48">
-                <SelectValue placeholder="Chọn khoa" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 {specialties.map((s) => (
@@ -786,7 +778,7 @@ function PackagesTab() {
             <Label className="text-xs">Trạng thái</Label>
             <Select value={filters.isActive} onValueChange={(v) => setFilters((f) => ({ ...f, isActive: v || undefined }))}>
               <SelectTrigger className="min-w-32">
-                <SelectValue placeholder="Chọn" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Hoạt động</SelectItem>
@@ -798,7 +790,7 @@ function PackagesTab() {
             <Label className="text-xs">Chỉ định của bác sĩ</Label>
             <Select value={filters.requiresDoctor} onValueChange={(v) => setFilters((f) => ({ ...f, requiresDoctor: v || undefined }))}>
               <SelectTrigger className="min-w-32">
-                <SelectValue placeholder="Chọn" />
+                <SelectValue placeholder="Tất cả" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Cần</SelectItem>
