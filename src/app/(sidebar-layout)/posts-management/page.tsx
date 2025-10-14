@@ -47,6 +47,8 @@ import {
   Eye,
   Pin,
   PinOff,
+  GripVertical,
+  X,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +58,25 @@ import type {
   CategoryResponse,
   SeriesResponse,
   PostStatus,
+  PostInList,
 } from "@/lib/types/posts";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export default function PostsManagementPage() {
   const [tab, setTab] = React.useState("posts");
@@ -618,6 +638,74 @@ function CategoriesTab() {
   );
 }
 
+// ============== SORTABLE POST ITEM ==============
+interface SortablePostItemProps {
+  post: PostInList & { order: number | null };
+  onRemove: (postId: string) => void;
+}
+
+function SortablePostItem({ post, onRemove }: SortablePostItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: post.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-3 bg-white border rounded-lg hover:bg-gray-50"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded"
+      >
+        <GripVertical className="h-5 w-5 text-gray-400" />
+      </button>
+      <div className="flex-1">
+        <div className="font-medium">{post.title}</div>
+        <div className="text-sm text-gray-500">
+          Thứ tự: {post.order ?? "Chưa đặt"}
+        </div>
+      </div>
+      <Badge
+        variant={
+          post.status === "PUBLISHED"
+            ? "default"
+            : post.status === "DRAFT"
+            ? "secondary"
+            : "destructive"
+        }
+      >
+        {post.status === "PUBLISHED"
+          ? "Đã xuất bản"
+          : post.status === "DRAFT"
+          ? "Bản nháp"
+          : "Chưa xuất bản"}
+      </Badge>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(post.id)}
+        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 // ============== SERIES TAB ==============
 function SeriesTab() {
   const [series, setSeries] = React.useState<SeriesResponse[]>([]);
@@ -631,7 +719,15 @@ function SeriesTab() {
     slug?: string;
     description: string;
   }>({ name: "", slug: "", description: "" });
+  const [posts, setPosts] = React.useState<(PostInList & { order: number | null })[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const loadSeries = React.useCallback(async () => {
     setLoading(true);
@@ -653,13 +749,53 @@ function SeriesTab() {
   const openCreate = () => {
     setEditing(null);
     setForm({ name: "", slug: "", description: "" });
+    setPosts([]);
     setOpen(true);
   };
 
   const openEdit = (s: SeriesResponse) => {
     setEditing(s);
     setForm({ name: s.name, slug: s.slug, description: s.description });
+    // Sort posts by order
+    const sortedPosts = [...s.posts].sort((a, b) => {
+      const orderA = a.order ?? 999;
+      const orderB = b.order ?? 999;
+      return orderA - orderB;
+    }).map(p => ({
+      ...p,
+      order: p.order ?? null
+    }));
+    setPosts(sortedPosts);
     setOpen(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setPosts((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        
+        // Update order based on new position
+        return newItems.map((item, index) => ({
+          ...item,
+          order: index,
+        }));
+      });
+    }
+  };
+
+  const handleRemovePost = (postId: string) => {
+    setPosts((prev) => {
+      const filtered = prev.filter((p) => p.id !== postId);
+      // Reorder remaining posts
+      return filtered.map((item, index) => ({
+        ...item,
+        order: index,
+      }));
+    });
   };
 
   const handleSubmit = async () => {
@@ -671,11 +807,17 @@ function SeriesTab() {
 
     setSubmitting(true);
     try {
+      const postsData = posts.map((p) => ({
+        postId: p.id,
+        order: p.order ?? 0,
+      }));
+
       if (editing) {
         await postsService.updateSeries(editing.id, {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          posts: postsData.length > 0 ? postsData : undefined,
         });
         toast.success("Cập nhật series thành công!");
       } else {
@@ -683,6 +825,7 @@ function SeriesTab() {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          posts: postsData.length > 0 ? postsData : undefined,
         });
         toast.success("Tạo series thành công!");
       }
@@ -719,7 +862,7 @@ function SeriesTab() {
               Thêm series
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Chỉnh sửa series" : "Tạo series mới"}
@@ -756,6 +899,44 @@ function SeriesTab() {
                   rows={3}
                 />
               </div>
+
+              {/* Posts List with Drag and Drop */}
+              {editing && posts.length > 0 && (
+                <div className="space-y-2">
+                  <Label>
+                    Danh sách bài viết ({posts.length})
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Kéo thả để sắp xếp lại thứ tự bài viết trong series
+                  </p>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={posts.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2">
+                        {posts.map((post) => (
+                          <SortablePostItem
+                            key={post.id}
+                            post={post}
+                            onRemove={handleRemovePost}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
+
+              {editing && posts.length === 0 && (
+                <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
+                  Chưa có bài viết nào trong series này
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
