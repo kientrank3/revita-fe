@@ -34,16 +34,34 @@ api.interceptors.response.use(
   (error) => {
     // Handle common errors
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+      // Unauthorized - only redirect to login if we're not on a public page
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
-        window.location.href = '/login';
+        const publicPaths = ['/posts', '/login', '/register', '/'];
+        const currentPath = window.location.pathname;
+        const isPublicPage = publicPaths.some(path => currentPath.startsWith(path));
+        
+        // Only redirect if not on a public page and token exists (user was logged in)
+        const hadToken = localStorage.getItem('auth_token');
+        if (hadToken && !isPublicPage) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        } else if (!isPublicPage) {
+          // No token but trying to access protected resource
+          window.location.href = '/login';
+        }
+        // If on public page, just clear token but don't redirect
+        else if (hadToken) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          localStorage.removeItem('refresh_token');
+        }
       }
     }
     
-    // Return a more user-friendly error message
-    const message = error.response?.data?.message || error.message || 'Có lỗi xảy ra';
-    return Promise.reject(new Error(message));
+    // Return the original error for proper handling
+    return Promise.reject(error);
   }
 );
 

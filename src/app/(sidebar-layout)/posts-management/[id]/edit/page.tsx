@@ -44,7 +44,7 @@ export default function EditPostPage() {
   const [title, setTitle] = React.useState("");
   const [summary, setSummary] = React.useState("");
   const [content, setContent] = React.useState("");
-  const [thumbnail, setThumbnail] = React.useState("");
+  const [coverImage, setCoverImage] = React.useState("");
   const [status, setStatus] = React.useState<PostStatus>("DRAFT");
   const [isPinned, setIsPinned] = React.useState(false);
   const [tags, setTags] = React.useState<string[]>([]);
@@ -57,7 +57,7 @@ export default function EditPostPage() {
   >([]);
 
   const editorRef = React.useRef<any>(null);
-  const thumbnailInputRef = React.useRef<HTMLInputElement>(null);
+  const coverImageInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load post data
   React.useEffect(() => {
@@ -78,7 +78,7 @@ export default function EditPostPage() {
         setTitle(postData.title);
         setSummary(postData.summary || "");
         setContent(postData.content || "");
-        setThumbnail(postData.thumbnail || "");
+        setCoverImage(postData.coverImage || "");
         setStatus(postData.status);
         setIsPinned(postData.isPinned);
         setTags(postData.tags || []);
@@ -130,20 +130,20 @@ export default function EditPostPage() {
     }
   };
 
-  // Handle thumbnail upload
-  const handleThumbnailUpload = async (
+  // Handle cover image upload
+  const handleCoverImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      toast.info("Đang upload thumbnail...");
+      toast.info("Đang upload ảnh bìa...");
       
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(7);
       const extension = file.name.split(".").pop() || "jpg";
-      const uniqueFileName = `thumbnail_${timestamp}_${randomStr}.${extension}`;
+      const uniqueFileName = `cover_${timestamp}_${randomStr}.${extension}`;
       
       const renamedFile = new File([file], uniqueFileName, {
         type: file.type,
@@ -155,10 +155,10 @@ export default function EditPostPage() {
         postId
       );
       
-      setThumbnail(uploadedFile.url);
-      toast.success("Upload thumbnail thành công!");
+      setCoverImage(uploadedFile.url);
+      toast.success("Upload ảnh bìa thành công!");
     } catch (error) {
-      toast.error("Lỗi upload thumbnail");
+      toast.error("Lỗi upload ảnh bìa");
     }
   };
 
@@ -219,7 +219,7 @@ export default function EditPostPage() {
         title: title.trim(),
         summary: summary.trim() || undefined,
         content: editorContent,
-        thumbnail: thumbnail || undefined,
+        coverImage: coverImage || undefined,
         status,
         isPinned,
         tags: tags.length > 0 ? tags : undefined,
@@ -376,40 +376,40 @@ export default function EditPostPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Thumbnail */}
+            {/* Cover Image */}
             <div className="space-y-2 p-4 border rounded-lg">
-              <Label>Ảnh đại diện</Label>
-              {thumbnail && (
+              <Label>Ảnh bìa</Label>
+              {coverImage && (
                 <div className="relative">
                   <img
-                    src={thumbnail}
-                    alt="Thumbnail"
+                    src={coverImage}
+                    alt="Cover Image"
                     className="w-full h-48 object-cover rounded-md"
                   />
                   <Button
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2"
-                    onClick={() => setThumbnail("")}
+                    onClick={() => setCoverImage("")}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               )}
               <input
-                ref={thumbnailInputRef}
+                ref={coverImageInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleThumbnailUpload}
+                onChange={handleCoverImageUpload}
               />
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => thumbnailInputRef.current?.click()}
+                onClick={() => coverImageInputRef.current?.click()}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                {thumbnail ? "Thay đổi ảnh" : "Tải lên ảnh"}
+                {coverImage ? "Thay đổi ảnh" : "Tải lên ảnh"}
               </Button>
             </div>
 

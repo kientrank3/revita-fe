@@ -10,13 +10,19 @@ import {
   AdminPostsQueryDto,
   PublishedPostsQueryDto,
   LimitedPostsQueryDto,
+  CreateDraftCategoryDto,
   CreateCategoryDto,
   UpdateCategoryDto,
+  CreateDraftSeriesDto,
   CreateSeriesDto,
   UpdateSeriesDto,
   CreateCommentDto,
   LikeResponse,
   CommentNode,
+  PublicCategoryResponse,
+  PublicSeriesResponse,
+  PublicCategoryDetailResponse,
+  PublicSeriesDetailResponse,
 } from '../types/posts';
 
 /**
@@ -92,6 +98,21 @@ export const postsService = {
   // ==================== CATEGORY MANAGEMENT ====================
 
   /**
+   * Tạo category draft
+   * @param data - Dữ liệu category (optional)
+   * @returns Promise với thông tin category draft vừa tạo
+   */
+  createDraftCategory: async (
+    data: CreateDraftCategoryDto = {}
+  ): Promise<CategoryResponse> => {
+    const response = await api.post<CategoryResponse>(
+      '/posts/admin/categories/draft',
+      data
+    );
+    return response.data;
+  },
+
+  /**
    * Tạo category mới
    * @param data - Dữ liệu category
    * @returns Promise với thông tin category vừa tạo
@@ -149,6 +170,21 @@ export const postsService = {
   },
 
   // ==================== SERIES MANAGEMENT ====================
+
+  /**
+   * Tạo series draft
+   * @param data - Dữ liệu series (optional)
+   * @returns Promise với thông tin series draft vừa tạo
+   */
+  createDraftSeries: async (
+    data: CreateDraftSeriesDto = {}
+  ): Promise<SeriesResponse> => {
+    const response = await api.post<SeriesResponse>(
+      '/posts/admin/series/draft',
+      data
+    );
+    return response.data;
+  },
 
   /**
    * Tạo series mới
@@ -310,6 +346,54 @@ export const postsService = {
   unlikeComment: async (commentId: string): Promise<LikeResponse> => {
     const response = await api.delete<LikeResponse>(
       `/posts/comments/${commentId}/like`
+    );
+    return response.data;
+  },
+
+  // ==================== PUBLIC CATEGORY & SERIES ENDPOINTS ====================
+
+  /**
+   * Lấy danh sách categories đã publish (public)
+   * @returns Promise với danh sách categories published
+   */
+  getPublicCategories: async (): Promise<PublicCategoryResponse[]> => {
+    const response = await api.get<PublicCategoryResponse[]>('/posts/categories');
+    return response.data;
+  },
+
+  /**
+   * Lấy chi tiết category theo slug (public)
+   * @param slug - Slug của category
+   * @returns Promise với thông tin chi tiết category
+   */
+  getPublicCategoryBySlug: async (
+    slug: string
+  ): Promise<PublicCategoryDetailResponse> => {
+    const response = await api.get<PublicCategoryDetailResponse>(
+      `/posts/categories/${slug}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách series đã publish (public)
+   * @returns Promise với danh sách series published
+   */
+  getPublicSeries: async (): Promise<PublicSeriesResponse[]> => {
+    const response = await api.get<PublicSeriesResponse[]>('/posts/series');
+    return response.data;
+  },
+
+  /**
+   * Lấy chi tiết series theo slug (public)
+   * @param slug - Slug của series
+   * @returns Promise với thông tin chi tiết series
+   */
+  getPublicSeriesBySlug: async (
+    slug: string
+  ): Promise<PublicSeriesDetailResponse> => {
+    const response = await api.get<PublicSeriesDetailResponse>(
+      `/posts/series/${slug}`
     );
     return response.data;
   },

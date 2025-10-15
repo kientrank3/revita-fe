@@ -49,6 +49,7 @@ import {
   PinOff,
   GripVertical,
   X,
+  Upload,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -415,9 +416,13 @@ function PostsTab() {
 
 // ============== CATEGORIES TAB ==============
 function CategoriesTab() {
+  const router = useRouter();
   const [categories, setCategories] = React.useState<CategoryResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const [statusFilter, setStatusFilter] = React.useState<PostStatus | "ALL">("ALL");
+  const [search, setSearch] = React.useState("");
 
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CategoryResponse | null>(null);
@@ -425,36 +430,100 @@ function CategoriesTab() {
     name: string;
     slug?: string;
     description: string;
-  }>({ name: "", slug: "", description: "" });
+    coverImage?: string;
+    status?: PostStatus;
+  }>({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
   const [submitting, setSubmitting] = React.useState(false);
+  const [coverImageFile, setCoverImageFile] = React.useState<File | null>(null);
+  const coverImageInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
 
   const loadCategories = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await postsService.getAllCategories();
-      setCategories(res || []);
+      let filtered = res || [];
+      
+      // Filter by status
+      if (statusFilter !== "ALL") {
+        filtered = filtered.filter((cat) => cat.status === statusFilter);
+      }
+      
+      // Filter by search
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filtered = filtered.filter((cat) =>
+          cat.name.toLowerCase().includes(searchLower) ||
+          cat.description.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      setCategories(filtered);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter, search]);
 
   React.useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
 
+  const handleCreateDraft = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const draft = await postsService.createDraftCategory({
+        name: newCategoryName || undefined,
+      });
+      toast.success("Tạo bản nháp danh mục thành công!");
+      setCreateDialogOpen(false);
+      setNewCategoryName("");
+      // Open edit dialog for the new draft
+      openEdit(draft);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi tạo bản nháp");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", slug: "", description: "" });
+    setForm({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
+    setCoverImageFile(null);
     setOpen(true);
   };
 
   const openEdit = (cat: CategoryResponse) => {
     setEditing(cat);
-    setForm({ name: cat.name, slug: cat.slug, description: cat.description });
+    setForm({ 
+      name: cat.name, 
+      slug: cat.slug, 
+      description: cat.description,
+      coverImage: cat.coverImage || "",
+      status: cat.status,
+    });
+    setCoverImageFile(null);
     setOpen(true);
+  };
+
+  const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      // Preview
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm({ ...form, coverImage: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async () => {
@@ -466,11 +535,35 @@ function CategoriesTab() {
 
     setSubmitting(true);
     try {
+      let coverImageUrl = form.coverImage;
+      
+      // Upload cover image if selected
+      if (coverImageFile && editing) {
+        toast.info("Đang upload ảnh bìa...");
+        const { fileStorageService } = await import("@/lib/services/file-storage.service");
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        const extension = coverImageFile.name.split(".").pop() || "jpg";
+        const uniqueFileName = `${editing.id}.${extension}`;
+        
+        const renamedFile = new File([coverImageFile], uniqueFileName, {
+          type: coverImageFile.type,
+        });
+
+        const uploadedFile = await fileStorageService.uploadFile(
+          renamedFile,
+          "categories"
+        );
+        coverImageUrl = uploadedFile.url;
+      }
+
       if (editing) {
         await postsService.updateCategory(editing.id, {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          coverImage: coverImageUrl || undefined,
+          status: form.status,
         });
         toast.success("Cập nhật danh mục thành công!");
       } else {
@@ -478,6 +571,7 @@ function CategoriesTab() {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          coverImage: coverImageUrl || undefined,
         });
         toast.success("Tạo danh mục thành công!");
       }
@@ -501,44 +595,121 @@ function CategoriesTab() {
     }
   };
 
+  const getStatusBadge = (status: PostStatus) => {
+    const variants: Record<
+      PostStatus,
+      { variant: "default" | "secondary" | "destructive"; label: string }
+    > = {
+      DRAFT: { variant: "secondary", label: "Bản nháp" },
+      PUBLISHED: { variant: "default", label: "Đã xuất bản" },
+      UNPUBLISHED: { variant: "destructive", label: "Chưa xuất bản" },
+    };
+    const { variant, label } = variants[status];
+    return <Badge variant={variant}>{label}</Badge>;
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="icon" onClick={() => loadCategories()}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Dialog open={open} onOpenChange={setOpen}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            placeholder="Tìm kiếm danh mục..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as PostStatus | "ALL")}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả</SelectItem>
+              <SelectItem value="DRAFT">Bản nháp</SelectItem>
+              <SelectItem value="PUBLISHED">Đã xuất bản</SelectItem>
+              <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={() => loadCategories()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreate}>
+            <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Thêm danh mục
+              Tạo danh mục
             </Button>
           </DialogTrigger>
           <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tạo danh mục mới</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="category-name">Tên danh mục</Label>
+                <Input
+                  id="category-name"
+                  placeholder="Nhập tên danh mục..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !creating) {
+                      void handleCreateDraft();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setCreateDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleCreateDraft} disabled={creating}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Tạo bản nháp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Edit Dialog */}
+      {open && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Chỉnh sửa danh mục" : "Tạo danh mục mới"}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Tên danh mục</Label>
-                <Input
-                  id="name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Nhập tên danh mục..."
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Tên danh mục</Label>
+                  <Input
+                    id="name"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Nhập tên danh mục..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="slug">Slug (tùy chọn)</Label>
+                  <Input
+                    id="slug"
+                    value={form.slug}
+                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                    placeholder="Để trống để tự động tạo..."
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug (tùy chọn)</Label>
-                <Input
-                  id="slug"
-                  value={form.slug}
-                  onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                  placeholder="Để trống để tự động tạo..."
-                />
-              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="description">Mô tả</Label>
                 <Textarea
@@ -550,6 +721,63 @@ function CategoriesTab() {
                   placeholder="Nhập mô tả..."
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Trạng thái</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as PostStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Bản nháp</SelectItem>
+                    <SelectItem value="PUBLISHED">Xuất bản</SelectItem>
+                    <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ảnh bìa</Label>
+                {form.coverImage && (
+                  <div className="relative">
+                    <img
+                      src={form.coverImage}
+                      alt="Cover"
+                      className="w-full h-48 object-cover rounded-md"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={() => {
+                        setForm({ ...form, coverImage: "" });
+                        setCoverImageFile(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <input
+                  ref={coverImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverImageSelect}
+                />
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => coverImageInputRef.current?.click()}
+                  type="button"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {form.coverImage ? "Thay đổi ảnh" : "Tải lên ảnh"}
+                </Button>
               </div>
             </div>
             <DialogFooter>
@@ -565,7 +793,7 @@ function CategoriesTab() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      )}
 
       {loading && (
         <div className="flex justify-center py-8">
@@ -591,7 +819,7 @@ function CategoriesTab() {
             <TableBody>
               {categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={7} className="text-center text-gray-500">
                     Không có danh mục nào
                   </TableCell>
                 </TableRow>
@@ -599,12 +827,24 @@ function CategoriesTab() {
                 categories.map((cat, idx) => (
                   <TableRow key={cat.id}>
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{cat.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {cat.coverImage && (
+                          <img 
+                            src={cat.coverImage} 
+                            alt={cat.name}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        )}
+                        <span>{cat.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <code className="text-xs bg-gray-100 px-2 py-1 rounded">
                         {cat.slug}
                       </code>
                     </TableCell>
+                    <TableCell>{getStatusBadge(cat.status)}</TableCell>
                     <TableCell className="max-w-md truncate">
                       {cat.description}
                     </TableCell>
@@ -708,9 +948,13 @@ function SortablePostItem({ post, onRemove }: SortablePostItemProps) {
 
 // ============== SERIES TAB ==============
 function SeriesTab() {
+  const router = useRouter();
   const [series, setSeries] = React.useState<SeriesResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const [statusFilter, setStatusFilter] = React.useState<PostStatus | "ALL">("ALL");
+  const [search, setSearch] = React.useState("");
 
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<SeriesResponse | null>(null);
@@ -718,9 +962,17 @@ function SeriesTab() {
     name: string;
     slug?: string;
     description: string;
-  }>({ name: "", slug: "", description: "" });
+    coverImage?: string;
+    status?: PostStatus;
+  }>({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
   const [posts, setPosts] = React.useState<(PostInList & { order: number | null })[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
+  const [coverImageFile, setCoverImageFile] = React.useState<File | null>(null);
+  const coverImageInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [newSeriesName, setNewSeriesName] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -734,28 +986,70 @@ function SeriesTab() {
     setError(null);
     try {
       const res = await postsService.getAllSeries();
-      setSeries(res || []);
+      let filtered = res || [];
+      
+      // Filter by status
+      if (statusFilter !== "ALL") {
+        filtered = filtered.filter((s) => s.status === statusFilter);
+      }
+      
+      // Filter by search
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filtered = filtered.filter((s) =>
+          s.name.toLowerCase().includes(searchLower) ||
+          s.description.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      setSeries(filtered);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter, search]);
 
   React.useEffect(() => {
     void loadSeries();
   }, [loadSeries]);
 
+  const handleCreateDraft = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const draft = await postsService.createDraftSeries({
+        name: newSeriesName || undefined,
+      });
+      toast.success("Tạo bản nháp series thành công!");
+      setCreateDialogOpen(false);
+      setNewSeriesName("");
+      // Open edit dialog for the new draft
+      openEdit(draft);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi tạo bản nháp");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", slug: "", description: "" });
+    setForm({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
     setPosts([]);
+    setCoverImageFile(null);
     setOpen(true);
   };
 
   const openEdit = (s: SeriesResponse) => {
     setEditing(s);
-    setForm({ name: s.name, slug: s.slug, description: s.description });
+    setForm({ 
+      name: s.name, 
+      slug: s.slug, 
+      description: s.description,
+      coverImage: s.coverImage || "",
+      status: s.status,
+    });
     // Sort posts by order
     const sortedPosts = [...s.posts].sort((a, b) => {
       const orderA = a.order ?? 999;
@@ -766,7 +1060,21 @@ function SeriesTab() {
       order: p.order ?? null
     }));
     setPosts(sortedPosts);
+    setCoverImageFile(null);
     setOpen(true);
+  };
+
+  const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      // Preview
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm({ ...form, coverImage: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -807,6 +1115,28 @@ function SeriesTab() {
 
     setSubmitting(true);
     try {
+      let coverImageUrl = form.coverImage;
+      
+      // Upload cover image if selected
+      if (coverImageFile && editing) {
+        toast.info("Đang upload ảnh bìa...");
+        const { fileStorageService } = await import("@/lib/services/file-storage.service");
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        const extension = coverImageFile.name.split(".").pop() || "jpg";
+        const uniqueFileName = `${editing.id}.${extension}`;
+        
+        const renamedFile = new File([coverImageFile], uniqueFileName, {
+          type: coverImageFile.type,
+        });
+
+        const uploadedFile = await fileStorageService.uploadFile(
+          renamedFile,
+          "series"
+        );
+        coverImageUrl = uploadedFile.url;
+      }
+
       const postsData = posts.map((p) => ({
         postId: p.id,
         order: p.order ?? 0,
@@ -817,6 +1147,8 @@ function SeriesTab() {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          coverImage: coverImageUrl || undefined,
+          status: form.status,
           posts: postsData.length > 0 ? postsData : undefined,
         });
         toast.success("Cập nhật series thành công!");
@@ -825,6 +1157,7 @@ function SeriesTab() {
           name: form.name,
           slug: form.slug || undefined,
           description: form.description,
+          coverImage: coverImageUrl || undefined,
           posts: postsData.length > 0 ? postsData : undefined,
         });
         toast.success("Tạo series thành công!");
@@ -849,19 +1182,93 @@ function SeriesTab() {
     }
   };
 
+  const getStatusBadge = (status: PostStatus) => {
+    const variants: Record<
+      PostStatus,
+      { variant: "default" | "secondary" | "destructive"; label: string }
+    > = {
+      DRAFT: { variant: "secondary", label: "Bản nháp" },
+      PUBLISHED: { variant: "default", label: "Đã xuất bản" },
+      UNPUBLISHED: { variant: "destructive", label: "Chưa xuất bản" },
+    };
+    const { variant, label} = variants[status];
+    return <Badge variant={variant}>{label}</Badge>;
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="icon" onClick={() => loadSeries()}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Dialog open={open} onOpenChange={setOpen}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            placeholder="Tìm kiếm series..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as PostStatus | "ALL")}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả</SelectItem>
+              <SelectItem value="DRAFT">Bản nháp</SelectItem>
+              <SelectItem value="PUBLISHED">Đã xuất bản</SelectItem>
+              <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={() => loadSeries()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreate}>
+            <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Thêm series
+              Tạo series
             </Button>
           </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tạo series mới</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="series-name">Tên series</Label>
+                <Input
+                  id="series-name"
+                  placeholder="Nhập tên series..."
+                  value={newSeriesName}
+                  onChange={(e) => setNewSeriesName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !creating) {
+                      void handleCreateDraft();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setCreateDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleCreateDraft} disabled={creating}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Tạo bản nháp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Edit Dialog */}
+      {open && (
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -869,24 +1276,27 @@ function SeriesTab() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Tên series</Label>
-                <Input
-                  id="name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Nhập tên series..."
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Tên series</Label>
+                  <Input
+                    id="name"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Nhập tên series..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="slug">Slug (tùy chọn)</Label>
+                  <Input
+                    id="slug"
+                    value={form.slug}
+                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                    placeholder="Để trống để tự động tạo..."
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug (tùy chọn)</Label>
-                <Input
-                  id="slug"
-                  value={form.slug}
-                  onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                  placeholder="Để trống để tự động tạo..."
-                />
-              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="description">Mô tả</Label>
                 <Textarea
@@ -898,6 +1308,63 @@ function SeriesTab() {
                   placeholder="Nhập mô tả..."
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Trạng thái</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as PostStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Bản nháp</SelectItem>
+                    <SelectItem value="PUBLISHED">Xuất bản</SelectItem>
+                    <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ảnh bìa</Label>
+                {form.coverImage && (
+                  <div className="relative">
+                    <img
+                      src={form.coverImage}
+                      alt="Cover"
+                      className="w-full h-48 object-cover rounded-md"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={() => {
+                        setForm({ ...form, coverImage: "" });
+                        setCoverImageFile(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <input
+                  ref={coverImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverImageSelect}
+                />
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => coverImageInputRef.current?.click()}
+                  type="button"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {form.coverImage ? "Thay đổi ảnh" : "Tải lên ảnh"}
+                </Button>
               </div>
 
               {/* Posts List with Drag and Drop */}
@@ -951,7 +1418,7 @@ function SeriesTab() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      )}
 
       {loading && (
         <div className="flex justify-center py-8">
@@ -969,6 +1436,7 @@ function SeriesTab() {
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Tên</TableHead>
                 <TableHead>Slug</TableHead>
+                <TableHead>Trạng thái</TableHead>
                 <TableHead>Mô tả</TableHead>
                 <TableHead>Số bài viết</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
@@ -977,7 +1445,7 @@ function SeriesTab() {
             <TableBody>
               {series.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={7} className="text-center text-gray-500">
                     Không có series nào
                   </TableCell>
                 </TableRow>
@@ -985,12 +1453,24 @@ function SeriesTab() {
                 series.map((s, idx) => (
                   <TableRow key={s.id}>
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {s.coverImage && (
+                          <img 
+                            src={s.coverImage} 
+                            alt={s.name}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        )}
+                        <span>{s.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <code className="text-xs bg-gray-100 px-2 py-1 rounded">
                         {s.slug}
                       </code>
                     </TableCell>
+                    <TableCell>{getStatusBadge(s.status)}</TableCell>
                     <TableCell className="max-w-md truncate">
                       {s.description}
                     </TableCell>

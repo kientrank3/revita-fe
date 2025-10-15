@@ -28,7 +28,7 @@ export interface PostResponse {
   slug: string;
   summary: string | null;
   content: string | null;
-  thumbnail: string | null;
+  coverImage: string | null;
   status: PostStatus;
   isPinned: boolean;
   tags: string[];
@@ -57,6 +57,8 @@ export interface CategoryResponse {
   name: string;
   slug: string;
   description: string;
+  coverImage: string | null;
+  status: PostStatus;
   createdAt: string;
   updatedAt: string;
   totalPosts: number;
@@ -68,6 +70,8 @@ export interface SeriesResponse {
   name: string;
   slug: string;
   description: string;
+  coverImage: string | null;
+  status: PostStatus;
   createdAt: string;
   updatedAt: string;
   totalPosts: number;
@@ -122,7 +126,7 @@ export interface UpdatePostDto {
   title?: string;
   summary?: string;
   content?: string;
-  thumbnail?: string;
+  coverImage?: string;
   status?: PostStatus;
   isPinned?: boolean;
   tags?: string[];
@@ -155,10 +159,18 @@ export interface LimitedPostsQueryDto {
   limit?: number;
 }
 
+export interface CreateDraftCategoryDto {
+  name?: string;
+  slug?: string;
+  description?: string;
+  coverImage?: string;
+}
+
 export interface CreateCategoryDto {
   name: string;
   slug?: string;
   description: string;
+  coverImage?: string;
   postIds?: string[];
 }
 
@@ -166,13 +178,23 @@ export interface UpdateCategoryDto {
   name?: string;
   slug?: string;
   description?: string;
+  coverImage?: string;
+  status?: PostStatus;
   postIds?: string[];
+}
+
+export interface CreateDraftSeriesDto {
+  name?: string;
+  slug?: string;
+  description?: string;
+  coverImage?: string;
 }
 
 export interface CreateSeriesDto {
   name: string;
   slug?: string;
   description: string;
+  coverImage?: string;
   posts?: {
     postId: string;
     order?: number;
@@ -183,10 +205,60 @@ export interface UpdateSeriesDto {
   name?: string;
   slug?: string;
   description?: string;
+  coverImage?: string;
+  status?: PostStatus;
   posts?: {
     postId: string;
     order?: number;
   }[];
+}
+
+// Public category/series types (only published)
+export interface PublicCategoryResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  coverImage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicSeriesResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  coverImage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicCategoryDetailResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  coverImage: string | null;
+  totalPosts: number;
+  posts: PostResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicSeriesDetailResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  coverImage: string | null;
+  totalPosts: number;
+  posts: Array<{
+    order: number | null;
+    post: PostResponse;
+  }>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateCommentDto {
