@@ -882,9 +882,10 @@ function CategoriesTab() {
 interface SortablePostItemProps {
   post: PostInList & { order: number | null };
   onRemove: (postId: string) => void;
+  index: number;
 }
 
-function SortablePostItem({ post, onRemove }: SortablePostItemProps) {
+function SortablePostItem({ post, onRemove, index }: SortablePostItemProps) {
   const {
     attributes,
     listeners,
@@ -910,13 +911,14 @@ function SortablePostItem({ post, onRemove }: SortablePostItemProps) {
         {...attributes}
         {...listeners}
         className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded"
+        title="Kéo để sắp xếp lại"
       >
         <GripVertical className="h-5 w-5 text-gray-400" />
       </button>
       <div className="flex-1">
         <div className="font-medium">{post.title}</div>
         <div className="text-sm text-gray-500">
-          Thứ tự: {post.order ?? "Chưa đặt"}
+          Vị trí: #{index + 1}
         </div>
       </div>
       <Badge
@@ -939,6 +941,7 @@ function SortablePostItem({ post, onRemove }: SortablePostItemProps) {
         size="icon"
         onClick={() => onRemove(post.id)}
         className="text-red-500 hover:text-red-700 hover:bg-red-50"
+        title="Xóa khỏi series"
       >
         <X className="h-4 w-4" />
       </Button>
@@ -973,6 +976,11 @@ function SeriesTab() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [newSeriesName, setNewSeriesName] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+
+  // For searching and adding posts to series
+  const [postSearchQuery, setPostSearchQuery] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState<PostResponse[]>([]);
+  const [searchingPosts, setSearchingPosts] = React.useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1061,7 +1069,62 @@ function SeriesTab() {
     }));
     setPosts(sortedPosts);
     setCoverImageFile(null);
+    setPostSearchQuery("");
+    setSearchResults([]);
     setOpen(true);
+  };
+
+  const handleSearchPosts = React.useCallback(async () => {
+    if (!postSearchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchingPosts(true);
+    try {
+      const res = await postsService.getAdminPosts({
+        search: postSearchQuery,
+        limit: 20,
+        offset: 0,
+      });
+      // Filter out posts that are already in the series
+      const existingPostIds = new Set(posts.map(p => p.id));
+      const filtered = res.items.filter(p => !existingPostIds.has(p.id));
+      setSearchResults(filtered);
+    } catch (e) {
+      toast.error("Lỗi tìm kiếm bài viết");
+      setSearchResults([]);
+    } finally {
+      setSearchingPosts(false);
+    }
+  }, [postSearchQuery, posts]);
+
+  React.useEffect(() => {
+    if (open && editing) {
+      const timeoutId = setTimeout(() => {
+        void handleSearchPosts();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [postSearchQuery, open, editing, handleSearchPosts]);
+
+  const handleAddPost = (post: PostResponse) => {
+    // Add to the end of the list
+    const newOrder = posts.length;
+    setPosts(prev => [...prev, {
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      status: post.status,
+      isPinned: post.isPinned,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      order: newOrder,
+    }]);
+    
+    // Remove from search results
+    setSearchResults(prev => prev.filter(p => p.id !== post.id));
+    toast.success(`Đã thêm "${post.title}" vào series`);
   };
 
   const handleCoverImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1269,14 +1332,17 @@ function SeriesTab() {
       {/* Edit Dialog */}
       {open && (
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="!w-[60vw] sm:!max-w-[60vw] max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Chỉnh sửa series" : "Tạo series mới"}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6 py-4 overflow-y-auto flex-1">
+              {/* Cột trái: Thông tin cơ bản */}
+              <div className="space-y-4 pr-4 border-r">
+                <h3 className="font-semibold text-sm text-gray-700">Thông tin cơ bản</h3>
+                
                 <div className="space-y-2">
                   <Label htmlFor="name">Tên series</Label>
                   <Input
@@ -1286,6 +1352,7 @@ function SeriesTab() {
                     placeholder="Nhập tên series..."
                   />
                 </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="slug">Slug (tùy chọn)</Label>
                   <Input
@@ -1295,115 +1362,188 @@ function SeriesTab() {
                     placeholder="Để trống để tự động tạo..."
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Mô tả</Label>
-                <Textarea
-                  id="description"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                  placeholder="Nhập mô tả..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Trạng thái</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as PostStatus })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DRAFT">Bản nháp</SelectItem>
-                    <SelectItem value="PUBLISHED">Xuất bản</SelectItem>
-                    <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Ảnh bìa</Label>
-                {form.coverImage && (
-                  <div className="relative">
-                    <img
-                      src={form.coverImage}
-                      alt="Cover"
-                      className="w-full h-48 object-cover rounded-md"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => {
-                        setForm({ ...form, coverImage: "" });
-                        setCoverImageFile(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                <input
-                  ref={coverImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCoverImageSelect}
-                />
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => coverImageInputRef.current?.click()}
-                  type="button"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {form.coverImage ? "Thay đổi ảnh" : "Tải lên ảnh"}
-                </Button>
-              </div>
-
-              {/* Posts List with Drag and Drop */}
-              {editing && posts.length > 0 && (
+                
                 <div className="space-y-2">
-                  <Label>
-                    Danh sách bài viết ({posts.length})
-                  </Label>
-                  <p className="text-sm text-gray-500">
-                    Kéo thả để sắp xếp lại thứ tự bài viết trong series
-                  </p>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+                  <Label htmlFor="description">Mô tả</Label>
+                  <Textarea
+                    id="description"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
+                    placeholder="Nhập mô tả..."
+                    rows={4}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Trạng thái</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) => setForm({ ...form, status: v as PostStatus })}
                   >
-                    <SortableContext
-                      items={posts.map((p) => p.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-2">
-                        {posts.map((post) => (
-                          <SortablePostItem
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DRAFT">Bản nháp</SelectItem>
+                      <SelectItem value="PUBLISHED">Xuất bản</SelectItem>
+                      <SelectItem value="UNPUBLISHED">Chưa xuất bản</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Ảnh bìa</Label>
+                  {form.coverImage && (
+                    <div className="relative">
+                      <img
+                        src={form.coverImage}
+                        alt="Cover"
+                        className="w-full h-48 object-cover rounded-md"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setForm({ ...form, coverImage: "" });
+                          setCoverImageFile(null);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <input
+                    ref={coverImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverImageSelect}
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => coverImageInputRef.current?.click()}
+                    type="button"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {form.coverImage ? "Thay đổi ảnh" : "Tải lên ảnh"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Cột phải: Danh sách bài viết */}
+              <div className="space-y-4 pl-4">
+                <h3 className="font-semibold text-sm text-gray-700">
+                  Bài viết trong series
+                </h3>
+
+                {/* Search and Add Posts */}
+                {editing && (
+                  <div className="space-y-2">
+                    <Label>Thêm bài viết vào series</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Tìm kiếm bài viết..."
+                        value={postSearchQuery}
+                        onChange={(e) => setPostSearchQuery(e.target.value)}
+                        className="flex-1"
+                      />
+                      {searchingPosts && (
+                        <Loader2 className="h-4 w-4 animate-spin self-center" />
+                      )}
+                    </div>
+                    {searchResults.length > 0 && (
+                      <div className="border rounded-lg max-h-48 overflow-y-auto">
+                        {searchResults.map((post) => (
+                          <div
                             key={post.id}
-                            post={post}
-                            onRemove={handleRemovePost}
-                          />
+                            className="flex items-center justify-between p-3 hover:bg-gray-50 border-b last:border-b-0"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">
+                                {post.title}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge
+                                  variant={
+                                    post.status === "PUBLISHED"
+                                      ? "default"
+                                      : post.status === "DRAFT"
+                                      ? "secondary"
+                                      : "destructive"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {post.status === "PUBLISHED"
+                                    ? "Đã xuất bản"
+                                    : post.status === "DRAFT"
+                                    ? "Bản nháp"
+                                    : "Chưa xuất bản"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAddPost(post)}
+                              className="ml-2"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Thêm
+                            </Button>
+                          </div>
                         ))}
                       </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              )}
+                    )}
+                    {postSearchQuery && !searchingPosts && searchResults.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-2">
+                        Không tìm thấy bài viết nào
+                      </p>
+                    )}
+                  </div>
+                )}
 
-              {editing && posts.length === 0 && (
-                <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
-                  Chưa có bài viết nào trong series này
-                </div>
-              )}
+                {/* Posts List with Drag and Drop */}
+                {editing && posts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>
+                      Danh sách bài viết ({posts.length})
+                    </Label>
+                    <p className="text-sm text-gray-500">
+                      Kéo thả để sắp xếp lại thứ tự bài viết trong series
+                    </p>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={posts.map((p) => p.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
+                          {posts.map((post, idx) => (
+                            <SortablePostItem
+                              key={post.id}
+                              post={post}
+                              index={idx}
+                              onRemove={handleRemovePost}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                )}
+
+                {editing && posts.length === 0 && (
+                  <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500">
+                    Chưa có bài viết nào trong series này
+                  </div>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
