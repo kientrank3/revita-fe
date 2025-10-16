@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { postsService } from '@/lib/services/posts.service';
 import { PostDetailResponse, CommentNode } from '@/lib/types/posts';
@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { usePostSocket } from '@/lib/hooks/usePostSocket';
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -136,6 +137,118 @@ export default function PostDetailPage() {
   const handleReply = (commentId: string, authorName: string) => {
     setReplyTo({ id: commentId, author: authorName });
   };
+
+  // Socket event handlers
+  const handlePostLiked = React.useCallback((event: any) => {
+    if (!postDetail) return;
+    setPostDetail(prev => prev ? {
+      ...prev,
+      post: {
+        ...prev.post,
+        likesCount: event.likesCount,
+      },
+    } : null);
+  }, [postDetail]);
+
+  const handlePostUnliked = React.useCallback((event: any) => {
+    if (!postDetail) return;
+    setPostDetail(prev => prev ? {
+      ...prev,
+      post: {
+        ...prev.post,
+        likesCount: event.likesCount,
+      },
+    } : null);
+  }, [postDetail]);
+
+  const handleCommentCreated = React.useCallback(async (event: any) => {
+    // Refresh comments to get the new comment
+    if (!slug) return;
+    try {
+      const updatedDetail = await postsService.getPostBySlug(slug);
+      setPostDetail(updatedDetail);
+    } catch (error) {
+      console.error('Failed to refresh comments:', error);
+    }
+  }, [slug]);
+
+  const handleCommentDeleted = React.useCallback((event: any) => {
+    if (!postDetail) return;
+    // Remove deleted comment from the tree
+    const removeComment = (comments: CommentNode[]): CommentNode[] => {
+      return comments.filter(comment => {
+        if (comment.id === event.commentId) {
+          return false;
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          comment.replies = removeComment(comment.replies);
+        }
+        return true;
+      });
+    };
+
+    setPostDetail(prev => prev ? {
+      ...prev,
+      comments: removeComment(prev.comments),
+      post: {
+        ...prev.post,
+        commentsCount: Math.max(0, prev.post.commentsCount - 1),
+      },
+    } : null);
+  }, [postDetail]);
+
+  const handleCommentLiked = React.useCallback((event: any) => {
+    if (!postDetail) return;
+    // Update like count for specific comment
+    const updateCommentLikes = (comments: CommentNode[]): CommentNode[] => {
+      return comments.map(comment => {
+        if (comment.id === event.commentId) {
+          return { ...comment, likeCount: event.likeCount };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          return { ...comment, replies: updateCommentLikes(comment.replies) };
+        }
+        return comment;
+      });
+    };
+
+    setPostDetail(prev => prev ? {
+      ...prev,
+      comments: updateCommentLikes(prev.comments),
+    } : null);
+  }, [postDetail]);
+
+  const handleCommentUnliked = React.useCallback((event: any) => {
+    if (!postDetail) return;
+    // Update like count for specific comment
+    const updateCommentLikes = (comments: CommentNode[]): CommentNode[] => {
+      return comments.map(comment => {
+        if (comment.id === event.commentId) {
+          return { ...comment, likeCount: event.likeCount };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          return { ...comment, replies: updateCommentLikes(comment.replies) };
+        }
+        return comment;
+      });
+    };
+
+    setPostDetail(prev => prev ? {
+      ...prev,
+      comments: updateCommentLikes(prev.comments),
+    } : null);
+  }, [postDetail]);
+
+  // Setup socket connection
+  usePostSocket({
+    postId: postDetail?.post.id || '',
+    onPostLiked: handlePostLiked,
+    onPostUnliked: handlePostUnliked,
+    onCommentCreated: handleCommentCreated,
+    onCommentDeleted: handleCommentDeleted,
+    onCommentLiked: handleCommentLiked,
+    onCommentUnliked: handleCommentUnliked,
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
