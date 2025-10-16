@@ -305,7 +305,7 @@ export const postsService = {
    * @returns Promise với kết quả unlike
    */
   unlikePost: async (postId: string): Promise<LikeResponse> => {
-    const response = await api.delete<LikeResponse>(`/posts/${postId}/like`);
+    const response = await api.post<LikeResponse>(`/posts/${postId}/unlike`);
     return response.data;
   },
 

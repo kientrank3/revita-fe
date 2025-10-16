@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'sonner';
 
 export default function PostsPage() {
   // State cho các loại bài viết
@@ -174,6 +175,37 @@ export default function PostsPage() {
     });
   };
 
+  // Handle like/unlike post
+  const handleToggleLike = async (post: PostResponse) => {
+    try {
+      if (post.isLike) {
+        const result = await postsService.unlikePost(post.id);
+        // Update the post in all lists
+        const updatePost = (p: PostResponse) => 
+          p.id === post.id ? { ...p, isLike: false, likesCount: result.likesCount || p.likesCount - 1 } : p;
+        
+        setPinnedPosts(prev => prev.map(updatePost));
+        setTopPosts(prev => prev.map(updatePost));
+        setPosts(prev => ({ ...prev, items: prev.items.map(updatePost) }));
+      } else {
+        const result = await postsService.likePost(post.id);
+        // Update the post in all lists
+        const updatePost = (p: PostResponse) => 
+          p.id === post.id ? { ...p, isLike: true, likesCount: result.likesCount || p.likesCount + 1 } : p;
+        
+        setPinnedPosts(prev => prev.map(updatePost));
+        setTopPosts(prev => prev.map(updatePost));
+        setPosts(prev => ({ ...prev, items: prev.items.map(updatePost) }));
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Vui lòng đăng nhập để thích bài viết');
+      } else {
+        toast.error('Không thể thực hiện thao tác');
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Search Bar */}
@@ -217,7 +249,7 @@ export default function PostsPage() {
               </div>
               <div className="space-y-4">
                 {pinnedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} featured />
+                  <PostCard key={post.id} post={post} featured onToggleLike={handleToggleLike} />
                 ))}
               </div>
             </section>
@@ -241,7 +273,7 @@ export default function PostsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {topPosts.map((post) => (
-                  <PostCard key={post.id} post={post} compact />
+                  <PostCard key={post.id} post={post} compact onToggleLike={handleToggleLike} />
                 ))}
               </div>
             </section>
@@ -281,7 +313,7 @@ export default function PostsPage() {
               <>
                 <div className="space-y-4">
                   {posts.items.map((post) => (
-                    <PostCard key={post.id} post={post} />
+                    <PostCard key={post.id} post={post} onToggleLike={handleToggleLike} />
                   ))}
                 </div>
 
@@ -442,9 +474,10 @@ interface PostCardProps {
   post: PostResponse;
   featured?: boolean;
   compact?: boolean;
+  onToggleLike: (post: PostResponse) => void;
 }
 
-function PostCard({ post, featured = false, compact = false }: PostCardProps) {
+function PostCard({ post, featured = false, compact = false, onToggleLike }: PostCardProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -455,8 +488,8 @@ function PostCard({ post, featured = false, compact = false }: PostCardProps) {
 
   if (compact) {
     return (
-      <Link href={`/posts/${post.slug}`}>
-        <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+      <Card className="h-full hover:shadow-lg transition-shadow">
+        <Link href={`/posts/${post.slug}`} className="cursor-pointer">
           {post.coverImage && (
             <div className="relative h-40 w-full overflow-hidden rounded-t-lg">
               <Image
@@ -475,33 +508,42 @@ function PostCard({ post, featured = false, compact = false }: PostCardProps) {
               </CardDescription>
             )}
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {formatDate(post.createdAt)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Heart className="h-3 w-3" />
-                {post.likesCount}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
+        </Link>
+        <CardContent>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDate(post.createdAt)}
+            </span>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleLike(post);
+              }}
+              className="flex items-center gap-1 hover:text-primary transition-colors"
+            >
+              <Heart 
+                className={`h-3 w-3 ${post.isLike ? 'fill-pink-500 text-pink-500' : ''}`}
+              />
+              {post.likesCount}
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <Link href={`/posts/${post.slug}`}>
-      <Card
-        className={`hover:shadow-lg transition-shadow cursor-pointer ${
-          featured ? 'border-primary' : ''
-        }`}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <Card
+      className={`hover:shadow-lg transition-shadow ${
+        featured ? 'border-primary' : ''
+      }`}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link href={`/posts/${post.slug}`} className={post.coverImage ? '' : 'md:col-span-3'}>
           {post.coverImage && (
-            <div className="relative h-48 md:h-full w-full overflow-hidden rounded-l-lg">
+            <div className="relative h-48 md:h-full w-full overflow-hidden rounded-l-lg cursor-pointer">
               <Image
                 src={post.coverImage}
                 alt={post.title}
@@ -510,8 +552,10 @@ function PostCard({ post, featured = false, compact = false }: PostCardProps) {
               />
             </div>
           )}
-          <div className={post.coverImage ? 'md:col-span-2' : 'md:col-span-3'}>
-            <CardHeader>
+        </Link>
+        <div className={post.coverImage ? 'md:col-span-2' : 'md:col-span-3'}>
+          <Link href={`/posts/${post.slug}`}>
+            <CardHeader className="cursor-pointer">
               <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-xl line-clamp-2">{post.title}</CardTitle>
                 {post.isPinned && (
@@ -524,21 +568,31 @@ function PostCard({ post, featured = false, compact = false }: PostCardProps) {
                 </CardDescription>
               )}
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  {formatDate(post.createdAt)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Heart className="h-4 w-4" />
-                  {post.likesCount}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MessageCircle className="h-4 w-4" />
-                  {post.commentsCount}
-                </span>
-              </div>
+          </Link>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {formatDate(post.createdAt)}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleLike(post);
+                }}
+                className="flex items-center gap-1 hover:text-primary transition-colors"
+              >
+                <Heart 
+                  className={`h-4 w-4 ${post.isLike ? 'fill-pink-500 text-pink-500' : ''}`}
+                />
+                {post.likesCount}
+              </button>
+              <span className="flex items-center gap-1">
+                <MessageCircle className="h-4 w-4" />
+                {post.commentsCount}
+              </span>
+            </div>
 
               {/* Categories */}
               {post.categories && post.categories.length > 0 && (
@@ -572,7 +626,6 @@ function PostCard({ post, featured = false, compact = false }: PostCardProps) {
           </div>
         </div>
       </Card>
-    </Link>
   );
 }
 

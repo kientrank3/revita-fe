@@ -36,6 +36,7 @@ export interface PostResponse {
   updatedAt: string;
   likesCount: number;
   commentsCount: number;
+  isLike: boolean;
   categories: PostCategory[];
   series: PostSeries[];
   author: PostAuthor | null;

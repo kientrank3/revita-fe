@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { PostResponse } from '@/lib/types/posts';
 
 export default function SeriesDetailPage() {
   const params = useParams();
@@ -54,6 +55,40 @@ export default function SeriesDetailPage() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const handleToggleLike = async (post: PostResponse) => {
+    if (!series) return;
+    
+    try {
+      if (post.isLike) {
+        const result = await postsService.unlikePost(post.id);
+        setSeries({
+          ...series,
+          posts: series.posts.map(item =>
+            item.post.id === post.id
+              ? { ...item, post: { ...item.post, isLike: false, likesCount: result.likesCount || item.post.likesCount - 1 } }
+              : item
+          ),
+        });
+      } else {
+        const result = await postsService.likePost(post.id);
+        setSeries({
+          ...series,
+          posts: series.posts.map(item =>
+            item.post.id === post.id
+              ? { ...item, post: { ...item.post, isLike: true, likesCount: result.likesCount || item.post.likesCount + 1 } }
+              : item
+          ),
+        });
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Vui lòng đăng nhập để thích bài viết');
+      } else {
+        toast.error('Không thể thực hiện thao tác');
+      }
+    }
   };
 
   if (loading) {
@@ -121,23 +156,23 @@ export default function SeriesDetailPage() {
           {series.posts.length > 0 ? (
             <div className="space-y-4">
               {series.posts.map(({ order, post }, index) => (
-                <Link key={post.id} href={`/posts/${post.slug}`}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {/* Order Badge */}
-                      <div className="flex items-center justify-center p-6 bg-primary/5">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-primary">
-                            {order !== null ? order + 1 : index + 1}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Phần {order !== null ? order + 1 : index + 1}
-                          </div>
+                <Card key={post.id} className="hover:shadow-lg transition-shadow">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Order Badge */}
+                    <div className="flex items-center justify-center p-6 bg-primary/5">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-primary">
+                          {order !== null ? order + 1 : index + 1}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Phần {order !== null ? order + 1 : index + 1}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Post Content */}
-                      <div className="md:col-span-3">
+                    {/* Post Content */}
+                    <div className="md:col-span-3">
+                      <Link href={`/posts/${post.slug}`} className="cursor-pointer">
                         {post.coverImage && (
                           <div className="relative h-48 w-full overflow-hidden rounded-t-lg md:hidden">
                             <Image
@@ -157,49 +192,58 @@ export default function SeriesDetailPage() {
                             </CardDescription>
                           )}
                         </CardHeader>
-                        
-                        <CardContent>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(post.createdAt)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {post.likesCount}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="h-3 w-3" />
-                              {post.commentsCount}
-                            </span>
+                      </Link>
+                      
+                      <CardContent>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(post.createdAt)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleToggleLike(post);
+                            }}
+                            className="flex items-center gap-1 hover:text-primary transition-colors"
+                          >
+                            <Heart 
+                              className={`h-3 w-3 ${post.isLike ? 'fill-pink-500 text-pink-500' : ''}`}
+                            />
+                            {post.likesCount}
+                          </button>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3" />
+                            {post.commentsCount}
+                          </span>
+                        </div>
+
+                        {/* Categories */}
+                        {post.categories && post.categories.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {post.categories.map((category) => (
+                              <Badge key={category.id} variant="secondary">
+                                {category.name}
+                              </Badge>
+                            ))}
                           </div>
+                        )}
 
-                          {/* Categories */}
-                          {post.categories && post.categories.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {post.categories.map((category) => (
-                                <Badge key={category.id} variant="secondary">
-                                  {category.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Tags */}
-                          {post.tags && post.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {post.tags.slice(0, 5).map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  #{tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </div>
+                        {/* Tags */}
+                        {post.tags && post.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {post.tags.slice(0, 5).map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                #{tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
                     </div>
-                  </Card>
-                </Link>
+                  </div>
+                </Card>
               ))}
             </div>
           ) : (

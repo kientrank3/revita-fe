@@ -59,13 +59,14 @@ export default function PostDetailPage() {
     if (!postDetail) return;
 
     try {
-      if (postDetail.likedByViewer) {
+      if (postDetail.post.isLike) {
         const result = await postsService.unlikePost(postDetail.post.id);
         setPostDetail({
           ...postDetail,
           likedByViewer: false,
           post: {
             ...postDetail.post,
+            isLike: false,
             likesCount: result.likesCount || postDetail.post.likesCount - 1,
           },
         });
@@ -77,6 +78,7 @@ export default function PostDetailPage() {
           likedByViewer: true,
           post: {
             ...postDetail.post,
+            isLike: true,
             likesCount: result.likesCount || postDetail.post.likesCount + 1,
           },
         });
@@ -268,12 +270,12 @@ export default function PostDetailPage() {
           {/* Like button */}
           <div className="flex items-center gap-4 mb-8">
             <Button
-              variant={likedByViewer ? 'default' : 'outline'}
+              variant={post.isLike ? 'default' : 'outline'}
               onClick={handleLikePost}
-              className="gap-2"
+              className={`gap-2 ${post.isLike ? 'bg-pink-500 hover:bg-pink-600 border-pink-500' : ''}`}
             >
-              <Heart className={`h-4 w-4 ${likedByViewer ? 'fill-current' : ''}`} />
-              {likedByViewer ? 'Đã thích' : 'Thích'} ({post.likesCount})
+              <Heart className={`h-4 w-4 ${post.isLike ? 'fill-current' : ''}`} />
+              {post.isLike ? 'Đã thích' : 'Thích'} ({post.likesCount})
             </Button>
           </div>
 

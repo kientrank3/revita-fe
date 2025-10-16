@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { PostResponse } from '@/lib/types/posts';
 
 export default function CategoryDetailPage() {
   const params = useParams();
@@ -53,6 +54,40 @@ export default function CategoryDetailPage() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const handleToggleLike = async (post: PostResponse) => {
+    if (!category) return;
+    
+    try {
+      if (post.isLike) {
+        const result = await postsService.unlikePost(post.id);
+        setCategory({
+          ...category,
+          posts: category.posts.map(p =>
+            p.id === post.id
+              ? { ...p, isLike: false, likesCount: result.likesCount || p.likesCount - 1 }
+              : p
+          ),
+        });
+      } else {
+        const result = await postsService.likePost(post.id);
+        setCategory({
+          ...category,
+          posts: category.posts.map(p =>
+            p.id === post.id
+              ? { ...p, isLike: true, likesCount: result.likesCount || p.likesCount + 1 }
+              : p
+          ),
+        });
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Vui lòng đăng nhập để thích bài viết');
+      } else {
+        toast.error('Không thể thực hiện thao tác');
+      }
+    }
   };
 
   if (loading) {
@@ -116,8 +151,8 @@ export default function CategoryDetailPage() {
           {category.posts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {category.posts.map((post) => (
-                <Link key={post.id} href={`/posts/${post.slug}`}>
-                  <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                <Card key={post.id} className="h-full hover:shadow-lg transition-shadow flex flex-col">
+                  <Link href={`/posts/${post.slug}`} className="cursor-pointer flex-1">
                     {post.coverImage && (
                       <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
                         <Image
@@ -136,35 +171,44 @@ export default function CategoryDetailPage() {
                         </CardDescription>
                       )}
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(post.createdAt)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="h-3 w-3" />
-                          {post.likesCount}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="h-3 w-3" />
-                          {post.commentsCount}
-                        </span>
-                      </div>
+                  </Link>
+                  <CardContent>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(post.createdAt)}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleLike(post);
+                        }}
+                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                      >
+                        <Heart 
+                          className={`h-3 w-3 ${post.isLike ? 'fill-pink-500 text-pink-500' : ''}`}
+                        />
+                        {post.likesCount}
+                      </button>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        {post.commentsCount}
+                      </span>
+                    </div>
 
-                      {/* Tags */}
-                      {post.tags && post.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {post.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              #{tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
+                    {/* Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {post.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-xs">
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
             </div>
           ) : (
