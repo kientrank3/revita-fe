@@ -275,3 +275,13 @@ export interface LikeResponse {
   likeCount?: number;
 }
 
+// Post related and series responses
+export interface PostSeriesResponse {
+  id: string;
+  name: string;
+  posts: Array<{
+    order: number | null;
+    post: PostResponse;
+  }>;
+}
+

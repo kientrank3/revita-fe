@@ -23,6 +23,7 @@ import {
   PublicSeriesResponse,
   PublicCategoryDetailResponse,
   PublicSeriesDetailResponse,
+  PostSeriesResponse,
 } from '../types/posts';
 
 /**
@@ -395,6 +396,28 @@ export const postsService = {
     const response = await api.get<PublicSeriesDetailResponse>(
       `/posts/series/${slug}`
     );
+    return response.data;
+  },
+
+  // ==================== RELATED POSTS & SERIES ====================
+
+  /**
+   * Lấy danh sách bài viết liên quan (cùng category)
+   * @param postId - ID của bài viết
+   * @returns Promise với danh sách bài viết liên quan (tối đa 10)
+   */
+  getRelatedPosts: async (postId: string): Promise<PostResponse[]> => {
+    const response = await api.get<PostResponse[]>(`/posts/${postId}/related`);
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách series chứa bài viết
+   * @param postId - ID của bài viết
+   * @returns Promise với danh sách series chứa bài viết đó
+   */
+  getPostSeries: async (postId: string): Promise<PostSeriesResponse[]> => {
+    const response = await api.get<PostSeriesResponse[]>(`/posts/${postId}/series`);
     return response.data;
   },
 };

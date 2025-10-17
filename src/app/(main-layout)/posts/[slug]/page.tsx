@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { postsService } from '@/lib/services/posts.service';
-import { PostDetailResponse, CommentNode } from '@/lib/types/posts';
+import { PostDetailResponse, CommentNode, PostResponse, PostSeriesResponse } from '@/lib/types/posts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +35,11 @@ export default function PostDetailPage() {
   const [commentContent, setCommentContent] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; author: string } | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+  
+  // Related content
+  const [relatedPosts, setRelatedPosts] = useState<PostResponse[]>([]);
+  const [postSeries, setPostSeries] = useState<PostSeriesResponse[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
 
   useEffect(() => {
     const fetchPostDetail = async () => {
@@ -55,6 +60,29 @@ export default function PostDetailPage() {
       fetchPostDetail();
     }
   }, [slug, router]);
+
+  // Fetch related posts and series
+  useEffect(() => {
+    const fetchRelatedContent = async () => {
+      if (!postDetail?.post.id) return;
+
+      setLoadingRelated(true);
+      try {
+        const [related, series] = await Promise.all([
+          postsService.getRelatedPosts(postDetail.post.id).catch(() => []),
+          postsService.getPostSeries(postDetail.post.id).catch(() => []),
+        ]);
+        setRelatedPosts(related);
+        setPostSeries(series);
+      } catch (error) {
+        console.error('Failed to fetch related content:', error);
+      } finally {
+        setLoadingRelated(false);
+      }
+    };
+
+    fetchRelatedContent();
+  }, [postDetail?.post.id]);
 
   const handleLikePost = async () => {
     if (!postDetail) return;
@@ -138,6 +166,33 @@ export default function PostDetailPage() {
     setReplyTo({ id: commentId, author: authorName });
   };
 
+  // Handle like/unlike for related posts
+  const handleToggleLikeRelated = async (post: PostResponse) => {
+    try {
+      if (post.isLike) {
+        const result = await postsService.unlikePost(post.id);
+        setRelatedPosts(prev => prev.map(p =>
+          p.id === post.id
+            ? { ...p, isLike: false, likesCount: result.likesCount || p.likesCount - 1 }
+            : p
+        ));
+      } else {
+        const result = await postsService.likePost(post.id);
+        setRelatedPosts(prev => prev.map(p =>
+          p.id === post.id
+            ? { ...p, isLike: true, likesCount: result.likesCount || p.likesCount + 1 }
+            : p
+        ));
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        toast.error('Vui lòng đăng nhập để thích bài viết');
+      } else {
+        toast.error('Không thể thực hiện thao tác');
+      }
+    }
+  };
+
   // Socket event handlers
   const handlePostLiked = React.useCallback((event: any) => {
     if (!postDetail) return;
@@ -148,6 +203,13 @@ export default function PostDetailPage() {
         likesCount: event.likesCount,
       },
     } : null);
+    
+    // Update related posts if affected
+    setRelatedPosts(prev => prev.map(p =>
+      p.id === event.postId
+        ? { ...p, likesCount: event.likesCount }
+        : p
+    ));
   }, [postDetail]);
 
   const handlePostUnliked = React.useCallback((event: any) => {
@@ -159,6 +221,13 @@ export default function PostDetailPage() {
         likesCount: event.likesCount,
       },
     } : null);
+    
+    // Update related posts if affected
+    setRelatedPosts(prev => prev.map(p =>
+      p.id === event.postId
+        ? { ...p, likesCount: event.likesCount }
+        : p
+    ));
   }, [postDetail]);
 
   const handleCommentCreated = React.useCallback(async (event: any) => {
@@ -262,15 +331,22 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8">
         <Skeleton className="h-8 w-24 mb-6" />
-        <Skeleton className="h-12 w-3/4 mb-4" />
-        <Skeleton className="h-6 w-1/2 mb-8" />
-        <Skeleton className="h-96 w-full mb-8" />
-        <div className="space-y-4">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8">
+            <Skeleton className="h-12 w-3/4 mb-4" />
+            <Skeleton className="h-6 w-1/2 mb-8" />
+            <Skeleton className="h-96 w-full mb-8" />
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+          <div className="lg:col-span-4">
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
       </div>
     );
@@ -284,17 +360,18 @@ export default function PostDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Back button */}
-        <Link href="/posts">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quay lại danh sách
-          </Button>
-        </Link>
+      {/* Back button */}
+      <Link href="/posts">
+        <Button variant="ghost" className="mb-6">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Quay lại danh sách
+        </Button>
+      </Link>
 
-        {/* Post Header */}
-        <article>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-8">
+          <article>
           <header className="mb-8">
             <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
 
@@ -456,6 +533,106 @@ export default function PostDetailPage() {
             </div>
           </section>
         </article>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="lg:col-span-4">
+          <div className="sticky top-8 space-y-6">
+            {/* Related Posts */}
+            {!loadingRelated && relatedPosts.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Bài viết liên quan</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {relatedPosts.map((relatedPost) => (
+                    <div key={relatedPost.id} className="border-b last:border-0 pb-4 last:pb-0">
+                      <Link href={`/posts/${relatedPost.slug}`}>
+                        <div className="group cursor-pointer">
+                          {relatedPost.coverImage && (
+                            <div className="relative w-full h-32 mb-2 rounded-lg overflow-hidden">
+                              <Image
+                                src={relatedPost.coverImage}
+                                alt={relatedPost.title}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </div>
+                          )}
+                          <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors mb-2">
+                            {relatedPost.title}
+                          </h3>
+                        </div>
+                      </Link>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(relatedPost.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleLikeRelated(relatedPost);
+                          }}
+                          className="flex items-center gap-1 hover:text-primary transition-colors"
+                        >
+                          <Heart 
+                            className={`h-3 w-3 ${relatedPost.isLike ? 'fill-pink-500 text-pink-500' : ''}`}
+                          />
+                          {relatedPost.likesCount}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Post Series */}
+            {!loadingRelated && postSeries.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Series chứa bài viết này</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {postSeries.map((series) => (
+                    <div key={series.id} className="space-y-3">
+                      <h3 className="font-semibold text-base">{series.name}</h3>
+                      <div className="space-y-2">
+                        {series.posts.map(({ order, post: seriesPost }) => (
+                          <Link 
+                            key={seriesPost.id} 
+                            href={`/posts/${seriesPost.slug}`}
+                            className={`block p-2 rounded-lg hover:bg-gray-50 transition-colors ${
+                              seriesPost.id === post.id ? 'bg-primary/10 border border-primary' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-semibold text-primary flex-shrink-0 mt-1">
+                                #{order !== null ? order + 1 : '?'}
+                              </span>
+                              <span className="text-sm line-clamp-2 flex-1">
+                                {seriesPost.title}
+                              </span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {loadingRelated && (
+              <>
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
