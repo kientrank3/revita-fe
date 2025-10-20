@@ -97,17 +97,17 @@ export default function MyPatientProfilesPage() {
         </div>
 
         {/* Content */}
-        {patientProfiles.length === 0 ? (
+        {!patientProfiles || patientProfiles.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Chưa có hồ sơ bệnh nhân
               </h3>
-              <p className="text-gray-600 text-center mb-6">
-                Bạn chưa có hồ sơ bệnh nhân nào. Tạo hồ sơ đầu tiên để bắt đầu sử dụng dịch vụ.
+              <p className="text-gray-600 text-center mb-6 max-w-md">
+                Bạn chưa có hồ sơ bệnh nhân nào. Tạo hồ sơ đầu tiên để bắt đầu sử dụng dịch vụ y tế.
               </p>
-              <Button asChild>
+              <Button asChild size="lg">
                 <Link href="/patient-profiles/create">
                   <Plus className="h-4 w-4 mr-2" />
                   Tạo hồ sơ đầu tiên

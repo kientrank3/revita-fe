@@ -91,6 +91,9 @@ export interface WorkSessionByDoctor {
   totalSessions: number;
   completedSessions: number;
   canceledSessions: number;
+  approvedSessions?: number;
+  pendingSessions?: number;
+  inProgressSessions?: number;
   completionRate: number;
 }
 
@@ -100,6 +103,9 @@ export interface WorkSessionByTechnician {
   totalSessions: number;
   completedSessions: number;
   canceledSessions: number;
+  approvedSessions?: number;
+  pendingSessions?: number;
+  inProgressSessions?: number;
   completionRate: number;
 }
 
@@ -107,8 +113,14 @@ export interface WorkSessionSummary {
   totalSessions: number;
   completedSessions: number;
   canceledSessions: number;
+  approvedSessions: number;
+  pendingSessions: number;
+  inProgressSessions?: number;
   completedPercent: number;
   canceledPercent: number;
+  approvedPercent?: number;
+  pendingPercent?: number;
+  inProgressPercent?: number;
 }
 
 export interface WorkSessionData {

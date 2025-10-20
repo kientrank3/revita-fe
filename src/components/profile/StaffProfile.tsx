@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAvatarUpload } from '@/lib/hooks/useAvatarUpload';
 import { 
   Edit, 
@@ -275,7 +274,7 @@ export default function StaffProfile() {
 
   if (!profileData) {
     return (
-      <div className="px-8 py-6">
+      <div className="px-8 py-6 bg-white">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="h-8 w-8 text-gray-600" />
@@ -294,7 +293,7 @@ export default function StaffProfile() {
   }
 
   return (
-    <div className="px-8 py-6 space-y-6">
+    <div className="px-8 py-6 space-y-6 bg-white">
       {/* Upload Success Display */}
       {uploadSuccess && (
         <Card className="border-green-200 bg-green-50">
@@ -375,132 +374,88 @@ export default function StaffProfile() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Basic Info Card */}
         <Card className="lg:col-span-1 border border-gray-200 bg-white">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2 text-gray-900">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900 text-lg">
               <User className="h-5 w-5 text-gray-600" />
               Thông tin cơ bản
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="space-y-3 flex flex-col items-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="relative group cursor-pointer">
-                        <Avatar className="h-24 w-24 border-2 border-gray-200">
-                          <AvatarImage src={profileData.avatar} alt={profileData.name} />
-                          <AvatarFallback className="bg-gray-100 text-gray-600 text-lg font-semibold">
-                            {getInitials(profileData.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        {/* Avatar upload overlay */}
-                        <div 
-                          className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                          onClick={handleAvatarClick}
-                        >
-                          {isUploading ? (
-                            <Upload className="h-6 w-6 text-white animate-spin" />
-                          ) : (
-                            <Camera className="h-6 w-6 text-white" />
-                          )}
-                        </div>
-                        
-                        <div className="absolute -bottom-1 -right-1 bg-primary w-5 h-5 rounded-full border-2 border-white flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                        </div>
-                        
-                        {/* Hidden file input */}
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/jpeg,image/png,image/gif,image/webp"
-                          className="hidden"
-                          onChange={handleFileChange}
-                          disabled={isUploading}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Click để thay đổi avatar</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative group cursor-pointer">
+                <Avatar className="h-20 w-20 border-2 border-gray-200">
+                  <AvatarImage src={profileData.avatar} alt={profileData.name} />
+                  <AvatarFallback className="bg-gray-100 text-gray-600 text-base font-semibold">
+                    {getInitials(profileData.name)}
+                  </AvatarFallback>
+                </Avatar>
                 
-                {/* Upload Avatar Button */}
-                {/* <Button
-                  variant="outline"
-                  size="sm"
+                {/* Avatar upload overlay */}
+                <div 
+                  className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={handleAvatarClick}
-                  disabled={isUploading}
-                  className="text-xs"
                 >
                   {isUploading ? (
-                    <>
-                      <Upload className="h-3 w-3 mr-1 animate-spin" />
-                      Đang tải...
-                    </>
+                    <Upload className="h-5 w-5 text-white animate-spin" />
                   ) : (
-                    <>
-                      <Camera className="h-3 w-3 mr-1" />
-                      Đổi ảnh
-                    </>
+                    <Camera className="h-5 w-5 text-white" />
                   )}
-                </Button> */}
+                </div>
+                
+                <div className="absolute -bottom-1 -right-1 bg-primary w-4 h-4 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="w-1 h-1 bg-white rounded-full"></div>
+                </div>
+                
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={isUploading}
+                />
               </div>
               
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">{profileData.name}</h3>
                 <Badge 
                   variant="outline" 
-                  className="px-3 py-1 text-xs font-medium border-gray-300 text-gray-700"
+                  className="px-2 py-1 text-xs font-medium border-gray-300 text-gray-700"
                 >
                   {getRoleLabel(profileData.role)}
                 </Badge>
               </div>
             </div>
 
-            <Separator className="my-4" />
+            <Separator className="my-3" />
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Mail className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Email</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.email || 'Chưa cập nhật'}</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <Mail className="h-4 w-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{profileData.email || 'Chưa cập nhật'}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Phone className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Số điện thoại</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.phone || 'Chưa cập nhật'}</p>
+              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <Phone className="h-4 w-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{profileData.phone || 'Chưa cập nhật'}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <IdCard className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">CCCD/CMND</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.citizenId || 'Chưa cập nhật'}</p>
+              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <IdCard className="h-4 w-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{profileData.citizenId || 'Chưa cập nhật'}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Calendar className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Ngày sinh</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">
+              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
                     {profileData.dateOfBirth 
                       ? new Date(profileData.dateOfBirth).toLocaleDateString('vi-VN')
                       : 'Chưa cập nhật'
@@ -509,23 +464,17 @@ export default function StaffProfile() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <User className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Giới tính</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.gender || 'Chưa cập nhật'}</p>
+              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <User className="h-4 w-4 text-gray-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{profileData.gender || 'Chưa cập nhật'}</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="p-2 bg-gray-100 rounded-lg mt-0.5">
-                  <MapPin className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Địa chỉ</span>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.address || 'Chưa cập nhật'}</p>
+              <div className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 line-clamp-2">{profileData.address || 'Chưa cập nhật'}</p>
                 </div>
               </div>
             </div>
@@ -534,8 +483,8 @@ export default function StaffProfile() {
 
         {/* Role-specific Information */}
         <Card className="lg:col-span-2 border border-gray-200 bg-white">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2 text-gray-900">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900 text-lg">
               {profileData.role === 'DOCTOR' && <GraduationCap className="h-5 w-5 text-gray-600" />}
               {profileData.role === 'PATIENT' && <Heart className="h-5 w-5 text-gray-600" />}
               {profileData.role === 'ADMIN' && <Shield className="h-5 w-5 text-gray-600" />}
@@ -544,16 +493,14 @@ export default function StaffProfile() {
               Thông tin {getRoleLabel(profileData.role)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             {profileData.role === 'DOCTOR' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <GraduationCap className="h-5 w-5 text-gray-600" />
-                      </div>
-                      <h4 className="font-semibold text-gray-900">Bằng cấp</h4>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <GraduationCap className="h-4 w-4 text-gray-500" />
+                      <h4 className="font-medium text-gray-900 text-sm">Bằng cấp</h4>
                     </div>
                     <p className="text-gray-700 text-sm leading-relaxed">
                       {profileData.doctor?.degrees ? 
@@ -565,12 +512,10 @@ export default function StaffProfile() {
                     </p>
                   </div>
                   
-                  <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <Calendar className="h-5 w-5 text-gray-600" />
-                      </div>
-                      <h4 className="font-semibold text-gray-900">Kinh nghiệm</h4>
+                  <div className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <h4 className="font-medium text-gray-900 text-sm">Kinh nghiệm</h4>
                     </div>
                     <p className="text-gray-700 text-sm">
                       {profileData.doctor?.yearsExperience ? `${profileData.doctor.yearsExperience} năm` : 'Chưa cập nhật'}
@@ -578,26 +523,22 @@ export default function StaffProfile() {
                   </div>
                 </div>
                 
-                <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <User className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <h4 className="font-semibold text-gray-900">Lịch sử công tác</h4>
+                <div className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <h4 className="font-medium text-gray-900 text-sm">Lịch sử công tác</h4>
                   </div>
-                  <p className="text-gray-700 text-sm leading-relaxed">
+                  <p className="text-gray-700 text-sm leading-relaxed line-clamp-3">
                     {profileData.doctor?.workHistory || 'Chưa cập nhật'}
                   </p>
                 </div>
                 
-                <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <Heart className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <h4 className="font-semibold text-gray-900">Mô tả chuyên môn</h4>
+                <div className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Heart className="h-4 w-4 text-gray-500" />
+                    <h4 className="font-medium text-gray-900 text-sm">Mô tả chuyên môn</h4>
                   </div>
-                  <p className="text-gray-700 text-sm leading-relaxed">
+                  <p className="text-gray-700 text-sm leading-relaxed line-clamp-3">
                     {profileData.doctor?.description || 'Chưa cập nhật'}
                   </p>
                 </div>
@@ -606,13 +547,13 @@ export default function StaffProfile() {
 
             {profileData.role === 'ADMIN' && (
               <div className="flex justify-center">
-                <div className="p-8 border border-gray-200 rounded-lg max-w-md w-full">
+                <div className="p-4 border border-gray-200 rounded-lg max-w-sm w-full">
                   <div className="text-center">
-                    <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <Shield className="h-8 w-8 text-gray-600" />
+                    <div className="p-3 bg-gray-100 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                      <Shield className="h-6 w-6 text-gray-600" />
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Mã quản trị</h4>
-                    <div className="text-xl font-mono font-semibold text-gray-900 bg-gray-100 px-4 py-2 rounded-lg">
+                    <h4 className="text-base font-semibold text-gray-900 mb-2">Mã quản trị</h4>
+                    <div className="text-lg font-mono font-semibold text-gray-900 bg-gray-100 px-3 py-2 rounded-lg">
                       {profileData.admin?.adminCode || 'Chưa cập nhật'}
                     </div>
                   </div>
@@ -622,12 +563,12 @@ export default function StaffProfile() {
 
             {(profileData.role === 'RECEPTIONIST' || profileData.role === 'CASHIER') && (
               <div className="flex justify-center">
-                <div className="p-8 border border-gray-200 rounded-lg max-w-md w-full">
+                <div className="p-4 border border-gray-200 rounded-lg max-w-sm w-full">
                   <div className="text-center">
-                    <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <User className="h-8 w-8 text-gray-600" />
+                    <div className="p-3 bg-gray-100 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                      <User className="h-6 w-6 text-gray-600" />
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">{getRoleLabel(profileData.role)}</h4>
+                    <h4 className="text-base font-semibold text-gray-900 mb-2">{getRoleLabel(profileData.role)}</h4>
                     <p className="text-gray-500 text-sm">
                       Không có thông tin bổ sung cho {getRoleLabel(profileData.role)}.
                     </p>
@@ -642,14 +583,14 @@ export default function StaffProfile() {
       {/* Edit Form */}
       {isEditing && (
         <Card className="border border-gray-200 bg-white">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2 text-gray-900">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900 text-lg">
               <Edit className="h-5 w-5 text-gray-600" />
               Chỉnh sửa thông tin
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name" className="text-sm font-medium text-gray-700">Họ và tên <span className="text-red-500">*</span></Label>
                 <Input

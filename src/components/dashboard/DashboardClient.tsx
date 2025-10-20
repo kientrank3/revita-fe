@@ -31,11 +31,6 @@ export function DashboardClient() {
 
   const params = useMemo(() => getCurrentParams(), [getCurrentParams]);
   
-  // Debug: Log params changes
-  console.log('DashboardClient params:', params);
-  console.log('DashboardClient period:', period);
-  console.log('DashboardClient customStartDate:', customStartDate);
-  console.log('DashboardClient customEndDate:', customEndDate);
   
   // Check if user can view KPI stats
   const canViewKPI = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'].includes(userRole || '');

@@ -35,22 +35,22 @@ const safeLocalStorage = {
 };
 
 // Safe date formatting utility for SSR
-const safeDateFormat = {
-  toLocaleDateString: (date: Date, locale: string = 'vi-VN'): string => {
-    if (typeof window === 'undefined') {
-      // On server, return a consistent format
-      return date.toISOString().split('T')[0];
-    }
-    return date.toLocaleDateString(locale);
-  },
-  toLocaleString: (date: Date, locale: string = 'vi-VN', options?: Intl.DateTimeFormatOptions): string => {
-    if (typeof window === 'undefined') {
-      // On server, return a consistent format
-      return date.toISOString();
-    }
-    return date.toLocaleString(locale, options);
-  }
-};
+// const safeDateFormat = {
+//   toLocaleDateString: (date: Date, locale: string = 'vi-VN'): string => {
+//     if (typeof window === 'undefined') {
+//       // On server, return a consistent format
+//       return date.toISOString().split('T')[0];
+//     }
+//     return date.toLocaleDateString(locale);
+//   },
+//   toLocaleString: (date: Date, locale: string = 'vi-VN', options?: Intl.DateTimeFormatOptions): string => {
+//     if (typeof window === 'undefined') {
+//       // On server, return a consistent format
+//       return date.toISOString();
+//     }
+//     return date.toLocaleString(locale, options);
+//   }
+// };
 
 interface AuthContextValue extends MiddlewareAuthContext {
   login: (credentials: LoginCredentials) => Promise<boolean>;

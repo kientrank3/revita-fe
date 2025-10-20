@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,13 +25,56 @@ export default function LoginPage() {
 
   const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Load error message from sessionStorage on component mount
+  useEffect(() => {
+    const savedError = sessionStorage.getItem('login_error');
+    if (savedError) {
+      setError(savedError);
+      sessionStorage.removeItem('login_error'); // Clear after showing
+    }
+  }, []);
+
+  // Global error handler để bắt mọi lỗi có thể gây reload
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error caught:', event.error);
+      // Lưu thông báo lỗi generic
+      sessionStorage.setItem('login_error', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      sessionStorage.setItem('login_error', 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    
+    // Ngăn chặn mọi hành động mặc định
+    if (e && 'preventDefault' in e) {
+      e.preventDefault();
+    }
+    
     setLoading(true)
     setError("")
 
     try {
+      console.log('Calling login function...')
       const ok = await login({ identifier, password });
+      console.log('Login result:', ok)
+      
       if (ok) {
         // Get user data to determine redirect path
         const userStr = localStorage.getItem('auth_user');
@@ -39,6 +82,7 @@ export default function LoginPage() {
           try {
             const user = JSON.parse(userStr);
             const redirectPath = getRedirectPathByRole(user.role);
+            console.log('Redirecting to:', redirectPath)
             router.push(redirectPath);
           } catch (error) {
             console.error('Error parsing user data:', error);
@@ -47,9 +91,48 @@ export default function LoginPage() {
         } else {
           router.push('/');
         }
+      } else {
+        // Login failed but no exception thrown
+        const errorMessage = "Thông tin đăng nhập không chính xác";
+        setError(errorMessage);
+        // Lưu vào sessionStorage để hiển thị sau reload
+        sessionStorage.setItem('login_error', errorMessage);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Thông tin đăng nhập không chính xác")
+    } catch (err: unknown) {
+      console.error('Login error:', err)
+      
+      // Xử lý thông báo lỗi cụ thể từ API
+      let errorMessage = "Thông tin đăng nhập không chính xác";
+      
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errorResponse = err as { response: { data: { message: string } } };
+        const apiMessage = errorResponse.response.data.message;
+        console.log('API error message:', apiMessage)
+        
+        if (apiMessage.toLowerCase().includes('invalid credentials') || 
+            apiMessage.toLowerCase().includes('invalid') ||
+            apiMessage.toLowerCase().includes('credentials')) {
+          errorMessage = "Số điện thoại/email hoặc mật khẩu không chính xác";
+        } else if (apiMessage.toLowerCase().includes('user not found')) {
+          errorMessage = "Không tìm thấy tài khoản với thông tin này";
+        } else if (apiMessage.toLowerCase().includes('password')) {
+          errorMessage = "Mật khẩu không chính xác";
+        } else {
+          errorMessage = apiMessage;
+        }
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = (err as { message: string }).message;
+      }
+      
+      console.log('Setting error message:', errorMessage)
+      setError(errorMessage);
+      // Lưu vào sessionStorage để hiển thị sau reload
+      sessionStorage.setItem('login_error', errorMessage);
+      
+      // Force update UI trước khi có thể bị reload
+      setTimeout(() => {
+        setError(errorMessage);
+      }, 100);
     } finally {
       setLoading(false)
     }
@@ -89,8 +172,29 @@ export default function LoginPage() {
             } else {
               router.push('/');
             }
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Đăng nhập Google thất bại");
+          } catch (err: unknown) {
+            // Xử lý thông báo lỗi cụ thể cho Google login
+            let errorMessage = "Đăng nhập Google thất bại";
+            
+            if (err && typeof err === 'object' && 'response' in err) {
+              const errorResponse = err as { response: { data: { message: string } } };
+              const apiMessage = errorResponse.response.data.message;
+              if (apiMessage.toLowerCase().includes('invalid credentials') || 
+                  apiMessage.toLowerCase().includes('invalid') ||
+                  apiMessage.toLowerCase().includes('credentials')) {
+                errorMessage = "Thông tin đăng nhập Google không hợp lệ";
+              } else if (apiMessage.toLowerCase().includes('user not found')) {
+                errorMessage = "Không tìm thấy tài khoản Google này";
+              } else {
+                errorMessage = apiMessage;
+              }
+            } else if (err && typeof err === 'object' && 'message' in err) {
+              errorMessage = (err as { message: string }).message;
+            }
+            
+            setError(errorMessage);
+            // Lưu vào sessionStorage để hiển thị sau reload
+            sessionStorage.setItem('login_error', errorMessage);
           } finally {
             setGoogleLoading(false);
             window.removeEventListener('message', handleMessage);
@@ -169,7 +273,13 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-6 pb-2">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6" onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSubmit();
+              }
+            }}>
               {/* Identifier Input Field */}
               <div className="space-y-2">
                 <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
@@ -186,6 +296,13 @@ export default function LoginPage() {
                     placeholder={isEmailMode ? "Nhập địa chỉ email của bạn" : "Nhập số điện thoại của bạn"}
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSubmit();
+                      }
+                    }}
                     type={isEmailMode ? "email" : "tel"}
                     className="pl-10 h-12 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
                     required
@@ -206,6 +323,13 @@ export default function LoginPage() {
                     placeholder="Nhập mật khẩu của bạn"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSubmit();
+                      }
+                    }}
                     className="pl-10 h-12 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
                     required
                   />
@@ -225,14 +349,33 @@ export default function LoginPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 animate-in slide-in-from-top-2">
-                  <p className="text-red-600 text-sm font-medium">{error}</p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-in slide-in-from-top-2 shadow-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-red-800 text-sm font-medium">{error}</p>
+                      <p className="text-red-600 text-xs mt-1">Vui lòng kiểm tra lại thông tin đăng nhập</p>
+                    </div>
+                    <button
+                      onClick={() => setError("")}
+                      className="flex-shrink-0 text-red-400 hover:text-red-600"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* Submit Button */}
               <Button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
                 disabled={loading || !identifier || !password}
               >
@@ -279,7 +422,7 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
-            </form>
+            </div>
 
             {/* Forgot Password Link */}
             <div className="text-center">

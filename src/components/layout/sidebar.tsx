@@ -61,7 +61,7 @@ const getMenuItems = () => {
 			icon: Library,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+			roles: [ "DOCTOR" ],
 		},
 		{
 			title: "Quản lý người dùng",

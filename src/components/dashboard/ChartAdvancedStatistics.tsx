@@ -23,7 +23,6 @@ import { formatCurrency, formatNumber, formatPercentage } from "@/lib/services/s
 import { colors } from "@/lib/colors";
 import { useExaminationsByTime } from "@/lib/hooks/use-statistics";
 import { 
-  BarChart, 
   Bar, 
   XAxis, 
   YAxis, 
@@ -33,7 +32,7 @@ import {
   PieChart as RechartsPieChart,
   Pie,
   Line,
-  ComposedChart
+  ComposedChart,
 } from "recharts";
 import {
   ChartConfig,
@@ -176,51 +175,97 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
 
   const { summary, byDoctor, byTechnician } = data;
 
-  // Prepare data for charts with Revita colors
+  // Prepare data for charts with all available statuses from API
   const workSessionStatusData = [
-    { status: 'Hoàn thành', value: summary.completedSessions, fill: colors.primary.hex },
-    { status: 'Đã hủy', value: summary.canceledSessions, fill: '#EF4444' },
-    { status: 'Đang thực hiện', value: summary.totalSessions - summary.completedSessions - summary.canceledSessions, fill: colors.primaryLight.hex }
-  ];
+    { status: 'Hoàn thành', value: summary.completedSessions, fill: '#6EE7B7' },   // green-300
+    { status: 'Đã hủy', value: summary.canceledSessions, fill: '#D1D5DB' },       // gray-300
+    { status: 'Đã duyệt', value: summary.approvedSessions, fill: '#7DD3FC' },     // sky-300
+    { status: 'Đang chờ', value: summary.pendingSessions, fill: '#FCD34D' },      // yellow-300
+    { status: 'Đang thực hiện', value: summary.inProgressSessions || 0, fill: '#C4B5FD' } // purple-300
+  ].filter(item => item.value > 0);
+  // Only show statuses with data
 
-  // Chart configuration
+  // Chart configuration with all possible statuses
   const workSessionConfig = {
     value: {
       label: "Số ca",
     },
     "Hoàn thành": {
       label: "Hoàn thành",
-      color: colors.primary.hex,
+      color: "#10B981",
     },
     "Đã hủy": {
       label: "Đã hủy",
-      color: "#EF4444",
+      color: "#6B7280",
+    },
+    "Đã duyệt": {
+      label: "Đã duyệt",
+      color: "#3B82F6",
+    },
+    "Đang chờ": {
+      label: "Đang chờ",
+      color: "#F59E0B",
     },
     "Đang thực hiện": {
       label: "Đang thực hiện",
-      color: colors.primaryLight.hex,
+      color: "#8B5CF6",
     },
   } satisfies ChartConfig;
 
-  const doctorChartData = byDoctor.map(doctor => ({
-    name: doctor.doctorName.length > 10 
-      ? doctor.doctorName.substring(0, 10) + '...' 
-      : doctor.doctorName,
-    fullName: doctor.doctorName,
-    completed: doctor.completedSessions,
-    total: doctor.totalSessions,
-    completionRate: doctor.completionRate
-  }));
+  // Use real data from API
+  const doctorDataToUse = byDoctor;
 
-  const technicianChartData = byTechnician.map(tech => ({
-    name: tech.technicianName.length > 10 
-      ? tech.technicianName.substring(0, 10) + '...' 
-      : tech.technicianName,
-    fullName: tech.technicianName,
-    completed: tech.completedSessions,
-    total: tech.totalSessions,
-    completionRate: tech.completionRate
-  }));
+  const doctorChartData = doctorDataToUse.map(doctor => {
+    const total = doctor.totalSessions || 0;
+    const completed = doctor.completedSessions || 0;
+    const canceled = doctor.canceledSessions || 0;
+    const approved = doctor.approvedSessions || 0;
+    const pending = doctor.pendingSessions || 0;
+    const inProgress = doctor.inProgressSessions || 0;
+    
+    const result = {
+      name: doctor.doctorName.length > 10 
+        ? doctor.doctorName.substring(0, 10) + '...' 
+        : doctor.doctorName,
+      fullName: doctor.doctorName,
+      completed: completed,
+      canceled: canceled,
+      approved: approved,
+      pending: pending,
+      inProgress: inProgress,
+      total: total,
+      completionRate: total > 0 ? (completed / total) * 100 : 0
+    };
+    
+    console.log('Doctor chart data:', result);
+    return result;
+  });
+
+  // Use real data from API
+  const technicianDataToUse = byTechnician;
+
+  const technicianChartData = technicianDataToUse.map(tech => {
+    const total = tech.totalSessions || 0;
+    const completed = tech.completedSessions || 0;
+    const canceled = tech.canceledSessions || 0;
+    const approved = tech.approvedSessions || 0;
+    const pending = tech.pendingSessions || 0;
+    const inProgress = tech.inProgressSessions || 0;
+    
+    return {
+      name: tech.technicianName.length > 10 
+        ? tech.technicianName.substring(0, 10) + '...' 
+        : tech.technicianName,
+      fullName: tech.technicianName,
+      completed: completed,
+      canceled: canceled,
+      approved: approved,
+      pending: pending,
+      inProgress: inProgress,
+      total: total,
+      completionRate: total > 0 ? (completed / total) * 100 : 0
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -233,7 +278,7 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-900">
                 {formatNumber(summary.totalSessions)}
@@ -249,13 +294,40 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
                 {formatPercentage(summary.completedPercent)}
               </Badge>
             </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-900">
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-900">
                 {formatNumber(summary.canceledSessions)}
               </div>
-              <p className="text-sm text-red-600 mt-1">Đã hủy</p>
-              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 mt-1">
+              <p className="text-sm text-gray-600 mt-1">Đã hủy</p>
+              <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 mt-1">
                 {formatPercentage(summary.canceledPercent)}
+              </Badge>
+            </div>
+            <div className="text-center p-4 bg-cyan-50 rounded-lg">
+              <div className="text-2xl font-bold text-cyan-900">
+                {formatNumber(summary.approvedSessions)}
+              </div>
+              <p className="text-sm text-cyan-600 mt-1">Đã duyệt</p>
+              <Badge variant="outline" className="text-xs bg-cyan-50 text-cyan-700 mt-1">
+                {formatPercentage(summary.totalSessions > 0 ? (summary.approvedSessions / summary.totalSessions) * 100 : 0)}
+              </Badge>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-900">
+                {formatNumber(summary.pendingSessions)}
+              </div>
+              <p className="text-sm text-yellow-600 mt-1">Đang chờ</p>
+              <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 mt-1">
+                {formatPercentage(summary.totalSessions > 0 ? (summary.pendingSessions / summary.totalSessions) * 100 : 0)}
+              </Badge>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-900">
+                {formatNumber(summary.inProgressSessions || 0)}
+              </div>
+              <p className="text-sm text-purple-600 mt-1">Đang thực hiện</p>
+              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 mt-1">
+                {formatPercentage(summary.totalSessions > 0 ? ((summary.inProgressSessions || 0) / summary.totalSessions) * 100 : 0)}
               </Badge>
             </div>
           </div>
@@ -309,18 +381,30 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
             <CardTitle className="text-lg font-semibold">Hiệu suất bác sĩ</CardTitle>
           </CardHeader>
           <CardContent>
-            {doctorChartData.some(item => item.completed > 0 || item.total > 0) ? (
-              <div className="h-64">
+            {doctorChartData.length > 0 ? (
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={doctorChartData} layout="horizontal">
+                  <ComposedChart data={doctorChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={80} />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={0}
+                    />
+                    <YAxis />
                     <Tooltip 
                       formatter={(value: number, name: string) => {
-                        if (name === 'completed') return [value, 'Hoàn thành'];
-                        if (name === 'total') return [value, 'Tổng ca'];
-                        return [value, name];
+                        const labels: { [key: string]: string } = {
+                          'completed': 'Hoàn thành',
+                          'canceled': 'Đã hủy',
+                          'approved': 'Đã duyệt',
+                          'pending': 'Đang chờ',
+                          'inProgress': 'Đang thực hiện',
+                          'total': 'Tổng ca'
+                        };
+                        return [value, labels[name] || name];
                       }}
                       labelFormatter={(label, payload) => {
                         if (payload && payload[0]) {
@@ -329,9 +413,15 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
                         return label;
                       }}
                     />
-                    <Bar dataKey="completed" fill={colors.primary.hex} />
-                    <Bar dataKey="total" fill={colors.primaryLight.hex} />
-                  </BarChart>
+                    <Bar dataKey="completed" fill="#6EE7B7" name="Hoàn thành" stackId="a" />
+                    <Bar dataKey="canceled" fill="#D1D5DB" name="Đã hủy" stackId="a" />
+                    <Bar dataKey="approved" fill="#7DD3FC" name="Đã duyệt" stackId="a" />
+                    <Bar dataKey="pending" fill="#FCD34D" name="Đang chờ" stackId="a" />
+                    <Bar dataKey="inProgress" fill="#C4B5FD" name="Đang thực hiện" stackId="a" />
+
+
+
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             ) : (
@@ -352,18 +442,30 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
             <CardTitle className="text-lg font-semibold">Hiệu suất kỹ thuật viên</CardTitle>
           </CardHeader>
           <CardContent>
-            {technicianChartData.some(item => item.completed > 0 || item.total > 0) ? (
-              <div className="h-64">
+            {technicianChartData.length > 0 ? (
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={technicianChartData} layout="horizontal">
+                  <ComposedChart data={technicianChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={80} />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={0}
+                    />
+                    <YAxis />
                     <Tooltip 
                       formatter={(value: number, name: string) => {
-                        if (name === 'completed') return [value, 'Hoàn thành'];
-                        if (name === 'total') return [value, 'Tổng ca'];
-                        return [value, name];
+                        const labels: { [key: string]: string } = {
+                          'completed': 'Hoàn thành',
+                          'canceled': 'Đã hủy',
+                          'approved': 'Đã duyệt',
+                          'pending': 'Đang chờ',
+                          'inProgress': 'Đang thực hiện',
+                          'total': 'Tổng ca'
+                        };
+                        return [value, labels[name] || name];
                       }}
                       labelFormatter={(label, payload) => {
                         if (payload && payload[0]) {
@@ -372,9 +474,12 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
                         return label;
                       }}
                     />
-                    <Bar dataKey="completed" fill={colors.primaryDark.hex} />
-                    <Bar dataKey="total" fill={colors.secondary.hex} />
-                  </BarChart>
+                    <Bar dataKey="completed" fill="#10B981" name="completed" stackId="a" />
+                    <Bar dataKey="canceled" fill="#6B7280" name="canceled" stackId="a" />
+                    <Bar dataKey="approved" fill="#3B82F6" name="approved" stackId="a" />
+                    <Bar dataKey="pending" fill="#F59E0B" name="pending" stackId="a" />
+                    <Bar dataKey="inProgress" fill="#8B5CF6" name="inProgress" stackId="a" />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             ) : (
@@ -624,10 +729,16 @@ function ChartExaminationStatistics({
           {doctorPerformanceData.some(item => item.completed > 0 || item.total > 0) ? (
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={doctorPerformanceData} layout="horizontal">
+                <ComposedChart data={doctorPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={100} />
+                  <XAxis 
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                  />
+                  <YAxis />
                   <Tooltip 
                     formatter={(value: number, name: string) => {
                       if (name === 'completed') return [value, 'Đã hoàn thành'];
@@ -642,9 +753,10 @@ function ChartExaminationStatistics({
                       return label;
                     }}
                   />
-                  <Bar dataKey="completed" fill={colors.primary.hex} />
-                  <Bar dataKey="total" fill={colors.primaryLight.hex} />
-                </BarChart>
+                  <Bar dataKey="completed" fill={colors.primary.hex} name="Đã hoàn thành" />
+                  <Bar dataKey="total" fill={colors.primaryLight.hex} name="Tổng lịch hẹn" />
+                  <Line type="monotone" dataKey="avgDuration" stroke={colors.primaryDark.hex} strokeWidth={2} name="Thời gian TB (phút)" />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           ) : (
