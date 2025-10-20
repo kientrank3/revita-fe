@@ -93,13 +93,13 @@ export function MainHeader() {
               Trang chủ
             </Link>
             <Link 
-              href="/services" 
+              href="/public/specialties" 
               className="text-gray-600 hover:text-primary transition-colors duration-200"
             >
               Dịch vụ
             </Link>
             <Link 
-              href="/doctors" 
+              href="/public/doctors" 
               className="text-gray-600 hover:text-primary transition-colors duration-200"
             >
               Bác sĩ

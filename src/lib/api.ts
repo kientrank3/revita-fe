@@ -584,6 +584,16 @@ export const aiChatbotApi = {
   }) => api.post('/ai-chatbot/chat', data, { timeout: 120000 }),
 };
 
+// Public API
+export const publicApi = {
+  // GET /public/doctors?specialtyId=&specialtyName=
+  getDoctors: (params?: { specialtyId?: string; specialtyName?: string }) =>
+    api.get('/public/doctors', { params }),
+
+  // GET /public/specialties
+  getSpecialties: () => api.get('/public/specialties'),
+};
+
 // Medication Prescription API
 export const medicationPrescriptionApi = {
   // Create medication prescription (Doctor only)

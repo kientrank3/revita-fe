@@ -104,7 +104,7 @@ export function MainFooter() {
               <div className="flex items-start space-x-3">
                 <MapPin className="h-4 w-4 text-primary mt-0.5" />
                 <span className="text-gray-300 text-sm">
-                  Đường Lê Văn Bảo, Quận Gò Vấp<br />
+                  Đường Nguyễn Văn Bảo, Quận Gò Vấp<br />
                   TP.HCM, Việt Nam
                 </span>
               </div>
