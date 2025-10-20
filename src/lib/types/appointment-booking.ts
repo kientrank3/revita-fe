@@ -78,7 +78,7 @@ export interface BookingStep {
 }
 
 export const BOOKING_STEPS: BookingStep[] = [
-  { id: 1, name: 'Chọn chuyên khoa', description: 'Chọn chuyên khoa bạn muốn khám' },
+  { id: 1, name: 'Chuyên khoa', description: 'Chọn chuyên khoa bạn muốn khám' },
   { id: 2, name: 'Chọn bác sĩ', description: 'Chọn bác sĩ phù hợp' },
   { id: 3, name: 'Chọn ngày', description: 'Chọn ngày khám' },
   { id: 4, name: 'Chọn dịch vụ', description: 'Chọn dịch vụ khám' },

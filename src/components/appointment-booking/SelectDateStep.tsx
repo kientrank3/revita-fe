@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppointmentBookingContext } from '@/lib/contexts/AppointmentBookingContext';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, User } from 'lucide-react';
 
 export function SelectDateStep() {
   const {
@@ -104,7 +105,67 @@ export function SelectDateStep() {
   const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Context Information */}
+      <Card className="border border-gray-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            {bookingFlow === 'BY_DATE' ? (
+              <>
+                <Calendar className="w-5 h-5 text-blue-600" />
+                <span>Chọn ngày khám</span>
+              </>
+            ) : (
+              <>
+                <User className="w-5 h-5 text-green-600" />
+                <span>Lịch làm việc của bác sĩ</span>
+              </>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {bookingFlow === 'BY_DATE' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-1">Chọn ngày khám</h4>
+                  <p className="text-sm text-blue-700">
+                    Chọn ngày bạn muốn khám. Sau đó sẽ hiển thị danh sách bác sĩ có sẵn trong ngày đó.
+                  </p>
+                  {selectedSpecialty && (
+                    <p className="text-xs text-blue-600 mt-2">
+                      Chuyên khoa: <span className="font-medium">{selectedSpecialty.name}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-green-900 mb-1">Lịch làm việc của bác sĩ</h4>
+                  <p className="text-sm text-green-700">
+                    Xem lịch làm việc của bác sĩ đã chọn. Chỉ những ngày có dấu tick màu xanh mới có thể đặt lịch.
+                  </p>
+                  {selectedDoctor && (
+                    <p className="text-xs text-green-600 mt-2">
+                      Bác sĩ: <span className="font-medium">{selectedDoctor.doctorName}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
@@ -139,14 +200,14 @@ export function SelectDateStep() {
               key={index}
               variant={day.isToday ? "default" : "ghost"}
               size="sm"
-              className={`h-12 ${
+              className={`h-12  ${
                 !day.isCurrentMonth 
                   ? 'text-gray-300' 
                   : day.isPast 
-                    ? 'text-gray-400 cursor-not-allowed' 
+                    ? 'text-gray-400' 
                     : day.isWorkingDay 
-                      ? 'hover:bg-primary/10 cursor-pointer' 
-                      : 'text-gray-400 cursor-not-allowed'
+                      ? 'cursor-pointer' 
+                      : 'cursor-pointer'
               }`}
               disabled={!canSelect}
               onClick={() => {
@@ -167,14 +228,18 @@ export function SelectDateStep() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+      <div className="flex items-center justify-center space-x-6 text-sm text-gray-600">
         <div className="flex items-center space-x-1">
           <Clock className="w-4 h-4 text-green-500" />
-          <span>Có lịch</span>
+          <span>{bookingFlow === 'BY_DOCTOR' ? 'Có lịch làm việc' : 'Có thể đặt lịch'}</span>
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-4 h-4 bg-gray-300 rounded"></div>
-          <span>Không có lịch</span>
+          <span>{bookingFlow === 'BY_DOCTOR' ? 'Không có lịch' : 'Không thể đặt lịch'}</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <div className="w-4 h-4 bg-gray-400 rounded"></div>
+          <span>Ngày đã qua</span>
         </div>
       </div>
 

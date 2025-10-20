@@ -371,9 +371,9 @@ export default function StaffProfile() {
       </div>
 
       {/* Profile Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Basic Info Card */}
-        <Card className="lg:col-span-1 border border-gray-200 bg-white">
+        <Card className="lg:col-span-3 border border-gray-200 bg-white">
           <CardHeader className="border-b border-gray-100 pb-4">
             <CardTitle className="flex items-center gap-2 text-gray-900 text-lg">
               <User className="h-5 w-5 text-gray-600" />
@@ -430,51 +430,78 @@ export default function StaffProfile() {
 
             <Separator className="my-3" />
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Mail className="h-4 w-4 text-gray-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{profileData.email || 'Chưa cập nhật'}</p>
+            <div className="space-y-4">
+              {/* Hàng 1: Email và Số điện thoại */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Mail className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Email</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.email || 'Chưa cập nhật'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Phone className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Số điện thoại</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.phone || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Phone className="h-4 w-4 text-gray-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{profileData.phone || 'Chưa cập nhật'}</p>
+              {/* Hàng 2: CCCD/CMND và Ngày sinh */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <IdCard className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">CCCD/CMND</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.citizenId || 'Chưa cập nhật'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Calendar className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Ngày sinh</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">
+                      {profileData.dateOfBirth 
+                        ? new Date(profileData.dateOfBirth).toLocaleDateString('vi-VN')
+                        : 'Chưa cập nhật'
+                      }
+                    </p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <IdCard className="h-4 w-4 text-gray-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{profileData.citizenId || 'Chưa cập nhật'}</p>
+              {/* Hàng 3: Giới tính và Địa chỉ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <User className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Giới tính</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.gender || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {profileData.dateOfBirth 
-                      ? new Date(profileData.dateOfBirth).toLocaleDateString('vi-VN')
-                      : 'Chưa cập nhật'
-                    }
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <User className="h-4 w-4 text-gray-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{profileData.gender || 'Chưa cập nhật'}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2">{profileData.address || 'Chưa cập nhật'}</p>
+                
+                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="p-2 bg-gray-100 rounded-lg mt-0.5">
+                    <MapPin className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Địa chỉ</span>
+                    <p className="text-sm font-medium text-gray-900 mt-0.5">{profileData.address || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
               </div>
             </div>

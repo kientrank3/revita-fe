@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppointmentBookingContext } from '@/lib/contexts/AppointmentBookingContext';
 import { Specialty } from '@/lib/types/appointment-booking';
-import { Stethoscope, Search } from 'lucide-react';
+import { Stethoscope, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export function SelectSpecialtyStep() {
   const { selectSpecialty, loadSpecialties, loading } = useAppointmentBookingContext();
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // 2 rows x 3 columns
 
   useEffect(() => {
     const loadSpecialtiesData = async () => {
@@ -22,10 +24,23 @@ export function SelectSpecialtyStep() {
     loadSpecialtiesData();
   }, [loadSpecialties]);
 
-  const filteredSpecialties = specialties.filter(specialty =>
-    specialty.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    specialty.specialtyCode.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSpecialties = useMemo(() => 
+    specialties.filter(specialty =>
+      specialty.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      specialty.specialtyCode.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [specialties, searchTerm]
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredSpecialties.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSpecialties = filteredSpecialties.slice(startIndex, endIndex);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleSelectSpecialty = (specialty: Specialty) => {
     console.log('Selecting specialty:', specialty);
@@ -55,7 +70,7 @@ export function SelectSpecialtyStep() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Search */}
       <div className="flex items-center space-x-2">
         <Search className="w-5 h-5 text-gray-400" />
@@ -68,12 +83,26 @@ export function SelectSpecialtyStep() {
         />
       </div>
 
+      {/* Results Info */}
+      {filteredSpecialties.length > 0 && (
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <span>
+            Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredSpecialties.length)} trong {filteredSpecialties.length} chuyên khoa
+          </span>
+          {totalPages > 1 && (
+            <span>
+              Trang {currentPage} / {totalPages}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Specialties Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredSpecialties.map((specialty) => (
+        {currentSpecialties.map((specialty) => (
           <Card
             key={specialty.specialtyId}
-            className="cursor-pointer hover:shadow-md transition-shadow duration-200 border-2 hover:border-primary/50"
+            className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-primary/50 hover:scale-105"
             onClick={() => handleSelectSpecialty(specialty)}
           >
             <CardHeader className="pb-3">
@@ -107,11 +136,55 @@ export function SelectSpecialtyStep() {
         ))}
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="flex items-center space-x-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Trước</span>
+          </Button>
+          
+          <div className="flex items-center space-x-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                variant={page === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                className="w-8 h-8 p-0"
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="flex items-center space-x-1"
+          >
+            <span>Sau</span>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
       {filteredSpecialties.length === 0 && (
-        <div className="text-center py-8">
-          <Stethoscope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">
+        <div className="text-center py-12">
+          <Stethoscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
             {searchTerm ? 'Không tìm thấy chuyên khoa phù hợp' : 'Không có chuyên khoa nào'}
+          </h3>
+          <p className="text-gray-500">
+            {searchTerm ? 'Thử tìm kiếm với từ khóa khác' : 'Vui lòng thử lại sau'}
           </p>
         </div>
       )}
