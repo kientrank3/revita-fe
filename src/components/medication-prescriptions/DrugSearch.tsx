@@ -98,6 +98,39 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
         </div>
       </div>
 
+      {/* Initial State - Before Search */}
+      {!hasSearched && (
+        <Card className="border-2 border-dashed border-gray-200 bg-gray-50/50">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <Search className="h-10 w-10 text-blue-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Tìm kiếm thuốc</h3>
+            <p className="text-gray-600 text-center max-w-md mb-6">
+              Nhập tên thuốc vào ô tìm kiếm để tra cứu thông tin chi tiết về thuốc từ cơ sở dữ liệu OpenFDA.
+            </p>
+            
+            {/* Search Tips */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 w-full max-w-md">
+              <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <Pill className="h-4 w-4 text-blue-500" />
+                Mẹo tìm kiếm:
+              </h4>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>• Tìm theo tên thuốc (generic name)</li>
+                <li>• Tìm theo tên thương hiệu (brand name)</li>
+                <li>• Sử dụng từ khóa tiếng Anh</li>
+                <li>• Kiểm tra chính tả cẩn thận</li>
+              </ul>
+            </div>
+            
+            <div className="mt-6 text-xs text-gray-400 text-center">
+              Dữ liệu từ OpenFDA • Cập nhật thường xuyên
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search Results */}
       {hasSearched && (
         <div className="space-y-3">

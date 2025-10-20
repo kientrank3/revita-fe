@@ -1,16 +1,32 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { usePatientProfiles } from '@/lib/hooks/usePatientProfiles';
 import { PatientProfileCard } from '@/components/patient/PatientProfileCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, FileText, AlertCircle } from 'lucide-react';
+import { Plus, FileText, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MyPatientProfilesPage() {
   const { patientProfiles, loading, error, refetch } = usePatientProfiles();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // 2 rows x 3 columns
+
+  // Pagination logic
+  const totalPages = Math.ceil((patientProfiles?.length || 0) / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProfiles = useMemo(() => {
+    if (!patientProfiles) return [];
+    return patientProfiles.slice(startIndex, endIndex);
+  }, [patientProfiles, startIndex, endIndex]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   if (loading) {
     return (
@@ -74,27 +90,28 @@ export default function MyPatientProfilesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Hồ sơ bệnh nhân
-              </h1>
-              <p className="text-gray-600">
-                Quản lý và xem thông tin các hồ sơ bệnh nhân của bạn
-              </p>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                  Hồ sơ bệnh nhân
+                </h1>
+                <p className="text-gray-600">
+                  Quản lý và xem thông tin các hồ sơ bệnh nhân của bạn
+                </p>
+              </div>
+              <Button asChild className="w-full sm:w-auto">
+                <Link href="/patient-profiles/create">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tạo hồ sơ mới
+                </Link>
+              </Button>
             </div>
-            <Button asChild>
-              <Link href="/patient-profiles/create">
-                <Plus className="h-4 w-4 mr-2" />
-                Tạo hồ sơ mới
-              </Link>
-            </Button>
           </div>
-        </div>
 
         {/* Content */}
         {!patientProfiles || patientProfiles.length === 0 ? (
@@ -117,28 +134,75 @@ export default function MyPatientProfilesPage() {
           </Card>
         ) : (
           <>
-            {/* Stats */}
+            {/* Stats and Results Info */}
             <div className="mb-6">
               <div className="bg-primary/5 rounded-lg p-4">
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="flex items-center space-x-2">
                     <FileText className="h-5 w-5 text-primary" />
                     <span className="text-sm font-medium text-gray-700">
                       Tổng số hồ sơ: <span className="font-semibold">{patientProfiles.length}</span>
                     </span>
                   </div>
+                  {totalPages > 1 && (
+                    <div className="text-sm text-gray-600">
+                      Hiển thị {startIndex + 1}-{Math.min(endIndex, patientProfiles.length)} trong {patientProfiles.length} hồ sơ
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Patient Profiles Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {patientProfiles.map((profile) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 sm:gap-6 mb-6">
+              {currentProfiles.map((profile) => (
                 <PatientProfileCard key={profile.id} profile={profile} />
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="flex items-center space-x-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Trước</span>
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center space-x-1"
+                >
+                  <span>Sau</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </>
         )}
+        </div>
       </div>
     </div>
   );

@@ -181,12 +181,31 @@ export function CreatePrescriptionDialog({
 
     try {
       setSaving(true);
+      // Sanitize items: ensure durationDays is integer >= 1 if provided
+      const sanitizedItems = validItems.map((it) => ({
+        ...it,
+        durationDays:
+          typeof it.durationDays === 'number'
+            ? Math.max(1, Math.floor(it.durationDays))
+            : it.durationDays !== undefined
+            ? Math.max(1, parseInt(String(it.durationDays).match(/\d+/)?.[0] || '0', 10))
+            : undefined,
+      }));
+
+      // Validate again after sanitization
+      for (let i = 0; i < sanitizedItems.length; i++) {
+        const d = sanitizedItems[i].durationDays;
+        if (d !== undefined && (!Number.isInteger(d) || d < 1)) {
+          throw new Error(`Thời gian dùng (ngày) của thuốc #${i + 1} phải là số nguyên >= 1`);
+        }
+      }
+
       await onSave({
         patientProfileId: selectedPatientProfile.id,
         medicalRecordId: selectedMedicalRecordId || undefined,
         note: note.trim() || undefined,
         status,
-        items: validItems
+        items: sanitizedItems
       });
       toast.success('Tạo đơn thuốc thành công');
       handleClose();

@@ -23,6 +23,7 @@ import {
   Calendar,
   User,
   // ExternalLink,
+  FileText
 } from 'lucide-react';
 import { 
   MedicalRecord, 
@@ -334,8 +335,34 @@ export function MedicalRecordList({
                 </TableRow>
               ) : paginatedRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    Không tìm thấy bệnh án nào
+                  <TableCell colSpan={6} className="text-center py-16">
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {searchTerm || statusFilter !== 'all' || templateFilter !== 'all' 
+                            ? 'Không tìm thấy bệnh án' 
+                            : 'Không có bệnh án nào'}
+                        </h3>
+                        <p className="text-gray-500 mb-4">
+                          {searchTerm || statusFilter !== 'all' || templateFilter !== 'all'
+                            ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc để tìm thấy kết quả phù hợp.'
+                            : 'Chưa có bệnh án nào được tạo. Hãy tạo bệnh án đầu tiên để bắt đầu.'}
+                        </p>
+                        {(searchTerm || statusFilter !== 'all' || templateFilter !== 'all') && (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-md mx-auto">
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">Mẹo tìm kiếm:</h4>
+                            <ul className="text-xs text-gray-600 space-y-1 text-left">
+                              <li>• Tìm theo tên bệnh nhân hoặc mã bệnh án</li>
+                              <li>• Sử dụng bộ lọc trạng thái và loại bệnh án</li>
+                              <li>• Kiểm tra chính tả từ khóa tìm kiếm</li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (

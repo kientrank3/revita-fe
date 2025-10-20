@@ -66,6 +66,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body = await response.json()
       message = body?.message || JSON.stringify(body)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_) {
       // ignore parse error
     }
@@ -74,6 +75,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   // Some DELETEs may return 204 with body per guide; still try json
   try {
     return (await response.json()) as T
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_) {
     return {} as T
   }

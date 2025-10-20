@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,9 @@ import {
   Calendar,
   Clock,
   FileText,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAppointmentBookingContext } from '@/lib/contexts/AppointmentBookingContext';
 import { Appointment } from '@/lib/types/appointment-booking';
@@ -21,6 +23,8 @@ export function MyAppointments() {
   const { loadPatientAppointments } = useAppointmentBookingContext();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -51,18 +55,30 @@ export function MyAppointments() {
     }
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(appointments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentAppointments = useMemo(() => {
+    return appointments.slice(startIndex, endIndex);
+  }, [appointments, startIndex, endIndex]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'CONFIRMED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       case 'COMPLETED':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
@@ -130,6 +146,11 @@ export function MyAppointments() {
           <h2 className="text-2xl font-bold text-gray-900">Lịch hẹn của tôi</h2>
           <p className="text-gray-600">
             Tổng cộng {appointments.length} lịch hẹn
+            {totalPages > 1 && (
+              <span className="ml-2 text-sm">
+                • Hiển thị {startIndex + 1}-{Math.min(endIndex, appointments.length)}
+              </span>
+            )}
           </p>
         </div>
         <Button
@@ -161,79 +182,122 @@ export function MyAppointments() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {appointments.map((appointment) => (
-            <Card key={appointment.appointmentId} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Stethoscope className="w-6 h-6 text-primary" />
+        <>
+          <div className="space-y-4">
+            {currentAppointments.map((appointment) => (
+              <Card key={appointment.appointmentId} className="hover:shadow-md transition-shadow border border-gray-200">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-[#35b8cf] rounded-full flex items-center justify-center">
+                        <Stethoscope className="w-6 h-6  text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg text-gray-900">{appointment.appointmentCode}</CardTitle>
+                        <p className="text-sm text-gray-500">
+                          Tạo lúc: {new Date(appointment.createdAt).toLocaleString('vi-VN')}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg">{appointment.appointmentCode}</CardTitle>
-                      <p className="text-sm text-gray-600">
-                        Tạo lúc: {new Date(appointment.createdAt).toLocaleString('vi-VN')}
-                      </p>
-                    </div>
+                    <Badge className={getStatusColor(appointment.status)}>
+                      {getStatusText(appointment.status)}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(appointment.status)}>
-                    {getStatusText(appointment.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Doctor Info */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-blue-600" />
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Doctor Info */}
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Bác sĩ</p>
+                        <p className="font-medium text-gray-900">{appointment.doctorName}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Bác sĩ</p>
-                      <p className="font-medium">{appointment.doctorName}</p>
-                    </div>
-                  </div>
 
-                  {/* Date Info */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-green-600" />
+                    {/* Date Info */}
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Ngày khám</p>
+                        <p className="font-medium text-gray-900">{formatDate(appointment.date)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Ngày khám</p>
-                      <p className="font-medium">{formatDate(appointment.date)}</p>
-                    </div>
-                  </div>
 
-                  {/* Time Info */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-orange-600" />
+                    {/* Time Info */}
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Giờ khám</p>
+                        <p className="font-medium text-gray-900">
+                          {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Giờ khám</p>
-                      <p className="font-medium">
-                        {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Service Info */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Dịch vụ</p>
-                      <p className="font-medium">{appointment.serviceName}</p>
+                    {/* Service Info */}
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Dịch vụ</p>
+                        <p className="font-medium text-gray-900">{appointment.serviceName}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center space-x-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center space-x-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Trước</span>
+              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={page === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(page)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center space-x-1"
+              >
+                <span>Sau</span>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -115,6 +115,19 @@ function InputWithSuggestions({
 export function DrugInput({ value, onChange, onRemove, showRemove = true }: DrugInputProps) {
   const [showSearch, setShowSearch] = useState(false);
 
+  const parseDurationDays = (input: string | number | undefined): number | undefined => {
+    if (input === undefined || input === null) return undefined;
+    if (typeof input === 'number') {
+      if (Number.isNaN(input)) return undefined;
+      return Math.max(1, Math.floor(input));
+    }
+    const match = String(input).match(/\d+/);
+    if (!match) return undefined;
+    const n = parseInt(match[0], 10);
+    if (Number.isNaN(n)) return undefined;
+    return Math.max(1, n);
+  };
+
   const handleDrugSelect = (drug: DrugSearchResult) => {
     const updates = {
       name: drug.openfda?.generic_name || drug.openfda?.brand_name || value.name,
@@ -308,8 +321,8 @@ export function DrugInput({ value, onChange, onRemove, showRemove = true }: Drug
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Thời gian</Label>
               <InputWithSuggestions
-                value={value.durationDays?.toString() || ''}
-                onChange={(val) => updateField('durationDays', val)}
+              value={value.durationDays?.toString() || ''}
+              onChange={(val) => updateField('durationDays', parseDurationDays(val))}
                 suggestions={durationSuggestions}
                 placeholder="Nhập thời gian (vd: 7 ngày)"
                 className="text-sm border-gray-300 focus:border-blue-500"

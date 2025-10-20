@@ -616,12 +616,20 @@ export function UserManagement() {
               </Table>
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                <Search className="h-6 w-6 text-gray-400" />
+            <div className="text-center py-16">
+              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                <Search className="h-8 w-8 text-gray-400" />
               </div>
-              <p className="font-medium">Không tìm thấy người dùng</p>
-              <p className="text-sm">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Không tìm thấy người dùng</h3>
+              <p className="text-gray-500 mb-4">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc để tìm thấy kết quả phù hợp.</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-md mx-auto">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Mẹo tìm kiếm:</h4>
+                <ul className="text-xs text-gray-600 space-y-1 text-left">
+                  <li>• Tìm theo tên, email hoặc số điện thoại</li>
+                  <li>• Sử dụng bộ lọc vai trò để thu hẹp kết quả</li>
+                  <li>• Kiểm tra chính tả từ khóa tìm kiếm</li>
+                </ul>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border shadow-sm">

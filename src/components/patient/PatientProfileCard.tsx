@@ -68,55 +68,55 @@ export function PatientProfileCard({ profile: profileProp, patientProfileId, sho
   const healthInsurance = profile.healthInsurance;
 
   return (
-    <Card className="w-full hover:shadow-lg transition-shadow duration-200">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+    <Card className="w-full hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
+      <CardHeader className="pb-3 flex-shrink-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
               <User className="h-6 w-6 text-primary" />
             </div>
-            <div>
-              <CardTitle className="text-lg font-semibold text-gray-900">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg font-semibold text-gray-900 truncate">
                 {safeName}
               </CardTitle>
               <div className="flex items-center space-x-2 mt-1">
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs flex-shrink-0">
                   {isMale ? 'Nam' : 'Nữ'}
                 </Badge>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 truncate">
                   {ageText}
                 </span>
               </div>
             </div>
           </div>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs flex-shrink-0">
             {relationship}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 flex-1 flex flex-col">
         {/* Basic Info */}
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Calendar className="h-4 w-4" />
-            <span>Sinh ngày: {dob}</span>
+            <Calendar className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">Sinh ngày: {dob}</span>
           </div>
           
           <div className="flex items-start space-x-2 text-sm text-gray-600">
             <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{address}</span>
+            <span className="line-clamp-2">{address}</span>
           </div>
           
           <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <User className="h-4 w-4" />
-            <span>Nghề nghiệp: {occupation}</span>
+            <User className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">Nghề nghiệp: {occupation}</span>
           </div>
           
           {emergency && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Phone className="h-4 w-4" />
-              <span>
+            <div className="flex items-start space-x-2 text-sm text-gray-600">
+              <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span className="line-clamp-2">
                 Liên hệ khẩn cấp: {emergency.name || '—'} 
                 ({emergency.relationship || '—'}) - {emergency.phone || '—'}
               </span>
@@ -125,38 +125,63 @@ export function PatientProfileCard({ profile: profileProp, patientProfileId, sho
           
           {healthInsurance && (
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <CreditCard className="h-4 w-4" />
-              <span>BHYT: {healthInsurance}</span>
+              <CreditCard className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">BHYT: {healthInsurance}</span>
             </div>
           )}
         </div>
 
         {/* Action Buttons */}
         {showActions && (
-          <div className="flex space-x-2 pt-3 border-t border-gray-100">
-            <Button asChild variant="outline" size="sm" className="flex-1">
-              <Link href={`/patient-profiles/${profile.id}/medical-records`}>
-                <FileText className="h-4 w-4 mr-2" />
-                Bệnh án
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="flex-1">
-              <Link href={`/patient-profiles/${profile.id}/prescriptions`}>
-                <FileText className="h-4 w-4 mr-2" />
-                Đơn thuốc
-              </Link>
-            </Button>
-            <Button asChild variant="secondary" size="sm" className="flex-1">
-              <Link href={`/patient-profiles/${profile.id}/edit`}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Sửa hồ sơ
-              </Link>
-            </Button>
+          <div className="pt-3 border-t border-gray-100 flex-shrink-0">
+            {/* Desktop: 3 buttons in a row */}
+            <div className="hidden sm:flex space-x-2">
+              <Button asChild variant="outline" size="sm" className="flex-1 min-w-0">
+                <Link href={`/patient-profiles/${profile.id}/medical-records`}>
+                  <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className=" xs:inline">Bệnh án</span>
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="flex-1 min-w-0">
+                <Link href={`/patient-profiles/${profile.id}/prescriptions`}>
+                  <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="xs:inline ">Đơn thuốc</span>
+                </Link>
+              </Button>
+              <Button asChild variant="secondary" size="sm" className="flex-1 min-w-0">
+                <Link href={`/patient-profiles/${profile.id}/edit`}>
+                  <Pencil className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className=" xs:inline">Sửa hồ sơ</span>
+                </Link>
+              </Button>
+            </div>
+            
+            {/* Mobile: Stacked buttons */}
+            <div className="flex flex-col space-y-2 sm:hidden">
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href={`/patient-profiles/${profile.id}/medical-records`}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Bệnh án
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="w-full">
+                <Link href={`/patient-profiles/${profile.id}/prescriptions`}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Đơn thuốc
+                </Link>
+              </Button>
+              <Button asChild variant="secondary" size="sm" className="w-full">
+                <Link href={`/patient-profiles/${profile.id}/edit`}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Sửa hồ sơ
+                </Link>
+              </Button>
+            </div>
           </div>
         )}
 
         {/* Created Date */}
-        <div className="text-xs text-gray-400 pt-2 border-t border-gray-50">
+        <div className="text-xs text-gray-400 pt-2 border-t border-gray-50 flex-shrink-0">
           Tạo ngày: {profile.createdAt ? formatDate(profile.createdAt) : '—'}
         </div>
       </CardContent>
