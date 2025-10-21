@@ -16,7 +16,7 @@ export function MainFooter() {
               <span className="text-xl font-bold">Revita</span>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
-              Hệ thống quản lý bệnh viện toàn diện, mang đến dịch vụ chăm sóc sức khỏe tốt nhất cho cộng đồng.
+              Hệ thống quản lý phòng khám toàn diện, mang đến dịch vụ chăm sóc sức khỏe tốt nhất cho cộng đồng.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">

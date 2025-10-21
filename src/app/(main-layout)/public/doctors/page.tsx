@@ -8,6 +8,17 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { publicApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { 
+  Search, 
+  Star, 
+  Award, 
+  TrendingUp, 
+  Clock, 
+  Users,
+  Sparkles,
+  Activity,
+  Shield
+} from 'lucide-react';
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (typeof err === 'object' && err !== null) {
@@ -73,14 +84,34 @@ export default function DoctorsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <section className="bg-gradient-to-b from-blue-50 to-white ">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section className="bg-gradient-to-b from-[#f0f9ff] to-white relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
+        
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
           <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Đội ngũ bác sĩ giàu kinh nghiệm</h1>
-            <p className="mt-3 text-gray-600 text-base sm:text-lg">Tìm bác sĩ phù hợp theo chuyên khoa và đặt lịch khám nhanh chóng.</p>
-            <div className="mt-6 flex items-center justify-center gap-3">
-             
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Đội ngũ chuyên nghiệp
+              </Badge>
+              <Badge variant="outline" className="border-green-200 text-green-700">
+                <Activity className="h-3 w-3 mr-1" />
+                Luôn sẵn sàng
+              </Badge>
             </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-4">
+              Đội ngũ bác sĩ <span className="text-primary relative">
+                giàu kinh nghiệm
+                <div className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-500 rounded-full"></div>
+              </span>
+            </h1>
+            <p className="mt-3 text-gray-600 text-base sm:text-lg max-w-3xl mx-auto">
+              Tìm bác sĩ phù hợp theo chuyên khoa và đặt lịch khám nhanh chóng với đội ngũ chuyên gia hàng đầu.
+            </p>
+            
+            
           </div>
         </div>
       </section>
@@ -88,61 +119,110 @@ export default function DoctorsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8"></div>
 
-          <div className="max-w-2xl mx-auto mb-6">
-            <Input
-              placeholder="Lọc theo chuyên khoa (vd: Tim mạch)"
-              value={specialtyName}
-              onChange={(e) => setSpecialtyName(e.target.value)}
-            />
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Lọc theo chuyên khoa (vd: Tim mạch)"
+                value={specialtyName}
+                onChange={(e) => setSpecialtyName(e.target.value)}
+                className="pl-10 pr-4 py-3 border-gray-300 focus:border-primary focus:ring-primary/20"
+              />
+            </div>
           </div>
 
-          <div className="text-sm text-gray-600 text-center mb-6">
-            {loading ? 'Đang tải...' : `Hiển thị ${data.length} bác sĩ`}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
+              <Users className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">
+                {loading ? 'Đang tải...' : `${data.length} bác sĩ`}
+              </span>
+            </div>
+            {specialtyName && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                <Shield className="h-3 w-3 mr-1" />
+                Đã lọc
+              </Badge>
+            )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {currentDoctors.map((d) => (
-              <Card key={d.id} className="border border-gray-200 bg-white">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="h-18 w-18 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
-                      <Image unoptimized src={d.avatar || '/logos/LogoRevita-v2-noneBG.png'} alt={d.name} width={60} height={60} />
+              <Card key={d.id} className="border border-gray-200 w-2/3 mx-auto bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
+                <CardContent className="p-6 relative">
+                  <div className="flex items-start gap-6">
+                    <div className="relative">
+                      <div className="w-40 h-40 sm:w-40 sm:h-40 rounded-xl overflow-hidden flex-shrink-0 relative group-hover:scale-105 transition-transform duration-300 ">
+                        <Image
+                          unoptimized
+                          src={d.avatar || '/logos/LogoRevita-v2-noneBG.png'}
+                          alt={d.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{d.name}</h3>
-                        <Badge variant="secondary" className="text-xs">{d.doctor.specialty?.name}</Badge>
+                      <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <h3 className="text-xl font-bold text-gray-900">{d.name}</h3>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                          {d.doctor.specialty?.name}
+                        </Badge>
                         {d.doctor.yearsExperience !== undefined && (
-                          <span className="text-xs text-gray-500">{d.doctor.yearsExperience}+ năm kinh nghiệm</span>
+                          <Badge variant="outline" className="border-amber-200 text-amber-700">
+                            <Award className="h-3 w-3 mr-1" />
+                            {d.doctor.yearsExperience}+ năm
+                          </Badge>
                         )}
                         {typeof d.doctor.rating === 'number' && (
-                          <span className="text-xs text-yellow-600">★ {d.doctor.rating.toFixed(1)}</span>
+                          <Badge variant="outline" className="border-yellow-200 text-yellow-700">
+                            <Star className="h-3 w-3 mr-1 fill-current" />
+                            {d.doctor.rating.toFixed(1)}
+                          </Badge>
                         )}
                       </div>
-                      <Separator className="my-3" />
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500">Mã bác sĩ</p>
-                          <p className="text-sm font-medium text-gray-800">{d.doctor.doctorCode}</p>
+                      
+                      <Separator className="my-4" />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            <p className="text-xs text-gray-500 font-medium">Mã bác sĩ</p>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-800">{d.doctor.doctorCode}</p>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500">Chuyên khoa</p>
-                          <p className="text-sm font-medium text-gray-800">{d.doctor.specialty?.name}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500">Mã chuyên khoa</p>
-                          <p className="text-sm font-medium text-gray-800">{d.doctor.specialty?.specialtyCode}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <p className="text-xs text-gray-500 font-medium">Chuyên khoa</p>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-800">{d.doctor.specialty?.name}</p>
                         </div>
                       </div>
-                      <div className="mt-3 space-y-2">
+                      
+                      <div className="space-y-3">
                         {d.doctor.workHistory && (
-                          <p className="text-sm text-gray-700"><span className="font-medium">Kinh nghiệm: </span>{d.doctor.workHistory}</p>
+                          <div className="flex items-start gap-3">
+                            <TrendingUp className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Kinh nghiệm</p>
+                              <p className="text-sm text-gray-600">{d.doctor.workHistory}</p>
+                            </div>
+                          </div>
                         )}
                         {d.doctor.description && (
-                          <p className="text-sm text-gray-700">{d.doctor.description}</p>
+                          <div className="flex items-start gap-3">
+                            <Clock className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Giới thiệu</p>
+                              <p className="text-sm text-gray-600">{d.doctor.description}</p>
+                            </div>
+                          </div>
                         )}
                       </div>
-                     
                     </div>
                   </div>
                 </CardContent>

@@ -71,46 +71,49 @@ export function MainHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-18">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+          <div className="flex items-center h-full">
+            <Link href="/" className="flex items-center space-x-2 h-full">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-               <Image src="/logos/LogoRevita-v1-noneBG.png" alt="Revita Logo" width={32} height={32} className='rounded-lg'/>
+               <Image src="/logos/LogoRevita-v1-noneBG.png" alt="Revita Logo" width={40} height={40} className='rounded-lg'/>
               </div>
-              <span className="text-xl font-bold text-gray-900">Revita</span>
+              <span className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300">Revita</span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-1">
             <Link 
               href="/" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Trang chủ
             </Link>
             <Link 
               href="/public/specialties" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Dịch vụ
             </Link>
             <Link 
               href="/public/doctors" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Bác sĩ
             </Link>
             <Link 
               href="/contact" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Liên hệ
             </Link>
-            <Link href="/drug-search" className="text-gray-600 hover:text-primary transition-colors duration-200">
+            <Link 
+              href="/drug-search" 
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
+            >
               Tra cứu thuốc
             </Link>
           </nav>
@@ -122,78 +125,83 @@ export function MainHeader() {
                 {/* Patient specific actions */}
                 {user.role === 'PATIENT' && (
                   <div className="hidden sm:flex items-center space-x-2">
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-200">
                       <Link href="/booking">
                         <Calendar className="h-4 w-4 mr-2" />
                         Đặt lịch
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="border-gray-300  transition-all duration-200">
                       <Link href="/my-appointments">
                         <Calendar className="h-4 w-4 mr-2" />
                         Lịch hẹn
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="border-gray-300  transition-all duration-200">
                       <Link href="/my-patient-profiles">
                         <FileText className="h-4 w-4 mr-2" />
                         Hồ sơ bệnh nhân
                       </Link>
                     </Button>
-                    
                   </div>
                 )}
 
                 {/* User Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-primary/10 transition-all duration-200">
+                      <Avatar className="h-10 w-10 ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
                         <AvatarImage src={user.avatar || ''} alt={user.name} />
-                        <AvatarFallback className="bg-primary text-white text-xs">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-sm font-semibold">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <div className="flex items-center justify-start gap-2 p-2">
+                  <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-3 p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg mb-2">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={user.avatar || ''} alt={user.name} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{user.name}</p>
-                        <p className="w-[200px] truncate text-sm text-muted-foreground">
+                        <p className="font-semibold text-gray-900">{user.name}</p>
+                        <p className="w-[200px] truncate text-sm text-gray-600">
                           {user.email}
                         </p>
                         <Badge 
                           variant={getRoleBadgeVariant(user.role)} 
-                          className="w-fit text-xs"
+                          className="w-fit text-xs mt-1"
                         >
                           {getRoleLabel(user.role)}
                         </Badge>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleProfile}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Hồ sơ cá nhân</span>
+                    <DropdownMenuItem onClick={handleProfile} className="p-3 hover:bg-primary/5 rounded-lg transition-colors duration-200">
+                      <User className="mr-3 h-4 w-4 text-gray-600" />
+                      <span className="font-medium">Hồ sơ cá nhân</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Cài đặt</span>
+                    <DropdownMenuItem className="p-3 hover:bg-primary/5 rounded-lg transition-colors duration-200">
+                      <Settings className="mr-3 h-4 w-4 text-gray-600" />
+                      <span className="font-medium">Cài đặt</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Đăng xuất</span>
+                    <DropdownMenuItem onClick={handleLogout} className="p-3 hover:text-red-600 text-red-600 rounded-lg transition-colors duration-200">
+                      <LogOut className="mr-3 h-4 w-4" />
+                      <span className="font-medium">Đăng xuất</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Button asChild variant="ghost">
+              <div className="flex items-center space-x-3">
+                <Button asChild variant="ghost" className="text-gray-600 border border-gray-300 hover:text-primary hover:bg-primary/5 hover:border-primary transition-all duration-200">
                   <Link href="/login">Đăng nhập</Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className="bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-200">
                   <Link href="/register">Đăng ký</Link>
                 </Button>
               </div>
@@ -203,13 +211,13 @@ export function MainHeader() {
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden"
+              className="md:hidden transition-all duration-200"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5 text-gray-700" />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5 text-gray-700" />
               )}
             </Button>
           </div>
@@ -217,32 +225,32 @@ export function MainHeader() {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/50">
+            <div className="px-4 pt-4 pb-6 space-y-2">
               <Link
                 href="/"
-                className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Trang chủ
               </Link>
               <Link
-                href="/services"
-                className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                href="/public/specialties"
+                className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Dịch vụ
               </Link>
               <Link
-                href="/doctors"
-                className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                href="/public/doctors"
+                className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Bác sĩ
               </Link>
               <Link
                 href="/contact"
-                className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Liên hệ
@@ -251,37 +259,37 @@ export function MainHeader() {
               {/* Patient specific mobile actions */}
               {user?.role === 'PATIENT' && (
                 <>
-                  <div className="border-t border-gray-200 my-2"></div>
+                  <div className="border-t border-gray-200 my-4"></div>
                   <Link
                     href="/booking"
-                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Calendar className="h-4 w-4 inline mr-2" />
+                    <Calendar className="h-4 w-4 inline mr-3" />
                     Đặt lịch
                   </Link>
                   <Link
                     href="/my-appointments"
-                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    className="block px-4 py-3   rounded-lg transition-all duration-200 font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Calendar className="h-4 w-4 inline mr-2" />
+                    <Calendar className="h-4 w-4 inline mr-3" />
                     Lịch hẹn
                   </Link>
                   <Link
                     href="/my-patient-profiles"
-                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    className="block px-4 py-3  rounded-lg transition-all duration-200 font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <FileText className="h-4 w-4 inline mr-2" />
+                    <FileText className="h-4 w-4 inline mr-3" />
                     Hồ sơ bệnh nhân
                   </Link>
                   <Link
                     href="/drug-search"
-                    className="block px-3 py-2 text-gray-600 hover:text-primary transition-colors duration-200"
+                    className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <FileText className="h-4 w-4 inline mr-2" />
+                    <FileText className="h-4 w-4 inline mr-3" />
                     Tìm thuốc
                   </Link>
                 </>

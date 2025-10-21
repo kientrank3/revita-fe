@@ -4,13 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { publicApi } from '@/lib/api';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import { 
+  Stethoscope, 
+  Award, 
+  TrendingUp, 
+  Shield,
+  Star
+} from 'lucide-react';
 
 type PublicSpecialty = {
   id: string;
   specialtyCode: string;
   name: string;
+  imgUrl?: string;
+  description?: string;
 };
 
 export default function SpecialtiesPage() {
@@ -53,30 +62,93 @@ export default function SpecialtiesPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <section className="bg-gradient-to-b from-blue-50 to-white border-b border-gray-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section className="bg-gradient-to-b from-[#f0f9ff] to-white relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
+        
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
           <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Các khoa của bệnh viện</h1>
-            <p className="mt-3 text-gray-600 text-base sm:text-lg">Khám phá chuyên khoa và dịch vụ phù hợp với nhu cầu của bạn.</p>
+            
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-4">
+              Các khoa của <span className="text-primary relative">
+                bệnh viện
+                <div className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-500 rounded-full"></div>
+              </span>
+            </h1>
+            <p className="mt-3 text-gray-600 text-base sm:text-lg max-w-3xl mx-auto">
+              Khám phá chuyên khoa và dịch vụ phù hợp với nhu cầu của bạn với đội ngũ chuyên gia hàng đầu.
+            </p>
+            
+            
           </div>
         </div>
       </section>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8"></div>
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
+              <Stethoscope className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">
+                {loading ? 'Đang tải...' : `${specialties.length} chuyên khoa`}
+              </span>
+            </div>
+            <Badge variant="secondary" className="bg-green-100 text-green-700">
+              <Shield className="h-3 w-3 mr-1" />
+              Đầy đủ dịch vụ
+            </Badge>
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {currentItems.map((dept) => (
-              <Card key={dept.id} className="border border-gray-200 bg-white">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg text-gray-900">{dept.name}</CardTitle>
-                        <Badge variant="secondary" className="text-xs">{dept.specialtyCode}</Badge>
+              <Card key={dept.id} className="border w-2/3 mx-auto border-gray-200 bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
+                <CardContent className="p-6 relative">
+                  <div className="flex items-start gap-6">
+                    <div className="relative">
+                      <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden flex-shrink-0 relative">
+                        <Image
+                          unoptimized
+                          src={dept.imgUrl || '/logos/LogoRevita-v2-noneBG.png'}
+                          alt={dept.name}
+                          fill
+                          className="object-cover"
+                        />
                       </div>
-                      <Separator className="my-2" />
-                      <p className="text-sm text-gray-600">Mã chuyên khoa: {dept.specialtyCode}</p>
+                     
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <CardTitle className="text-xl font-bold text-gray-900">{dept.name}</CardTitle>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                          {dept.specialtyCode}
+                        </Badge>
+                        <Badge variant="outline" className="border-blue-200 text-blue-700">
+                          <Award className="h-3 w-3 mr-1" />
+                          Chuyên khoa
+                        </Badge>
+                      </div>
+                      
+                      {dept.description && (
+                        <div className="flex items-start gap-3 mb-4">
+                          <TrendingUp className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 mb-1">Mô tả</p>
+                            <p className="text-sm text-gray-600 line-clamp-3">{dept.description}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
+                          <span className="text-xs text-gray-500 font-medium">Mã: {dept.specialtyCode}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                          <span className="text-xs text-gray-500">Chuyên khoa uy tín</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
