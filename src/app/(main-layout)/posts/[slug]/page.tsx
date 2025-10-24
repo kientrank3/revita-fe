@@ -33,8 +33,9 @@ export default function PostDetailPage() {
   const [postDetail, setPostDetail] = useState<PostDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentContent, setCommentContent] = useState('');
-  const [replyTo, setReplyTo] = useState<{ id: string; author: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null); // Store comment ID to reply to
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyContents, setReplyContents] = useState<Record<string, string>>({}); // Store reply content for each comment
   
   // Related content
   const [relatedPosts, setRelatedPosts] = useState<PostResponse[]>([]);
@@ -122,21 +123,31 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleSubmitComment = async () => {
-    if (!postDetail || !commentContent.trim()) return;
+  const handleSubmitComment = async (parentId?: string) => {
+    if (!postDetail) return;
+
+    const content = parentId ? replyContents[parentId] : commentContent;
+    if (!content?.trim()) return;
 
     try {
       setSubmittingComment(true);
       const newComment = await postsService.createComment(postDetail.post.id, {
-        content: commentContent.trim(),
-        parentId: replyTo?.id,
+        content: content.trim(),
+        parentId: parentId,
       });
 
       // Refresh post detail to get updated comments
       const updatedDetail = await postsService.getPostBySlug(slug);
       setPostDetail(updatedDetail);
-      setCommentContent('');
-      setReplyTo(null);
+      
+      // Clear appropriate input
+      if (parentId) {
+        setReplyContents(prev => ({ ...prev, [parentId]: '' }));
+        setReplyTo(null);
+      } else {
+        setCommentContent('');
+      }
+      
       toast.success('Đã thêm bình luận');
     } catch (error: any) {
       if (error.response?.status === 401) {
@@ -162,8 +173,17 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleReply = (commentId: string, authorName: string) => {
-    setReplyTo({ id: commentId, author: authorName });
+  const handleReply = (commentId: string) => {
+    setReplyTo(commentId);
+  };
+
+  const handleCancelReply = (commentId: string) => {
+    setReplyTo(null);
+    setReplyContents(prev => ({ ...prev, [commentId]: '' }));
+  };
+
+  const handleReplyContentChange = (commentId: string, content: string) => {
+    setReplyContents(prev => ({ ...prev, [commentId]: content }));
   };
 
   // Handle like/unlike for related posts
@@ -480,18 +500,7 @@ export default function PostDetailPage() {
             {/* Comment Form */}
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle className="text-lg">
-                  {replyTo ? `Trả lời ${replyTo.author}` : 'Viết bình luận'}
-                </CardTitle>
-                {replyTo && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setReplyTo(null)}
-                  >
-                    Hủy trả lời
-                  </Button>
-                )}
+                <CardTitle className="text-lg">Viết bình luận</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -502,7 +511,7 @@ export default function PostDetailPage() {
                   className="mb-4"
                 />
                 <Button
-                  onClick={handleSubmitComment}
+                  onClick={() => handleSubmitComment()}
                   disabled={!commentContent.trim() || submittingComment}
                   className="gap-2"
                 >
@@ -520,6 +529,12 @@ export default function PostDetailPage() {
                   comment={comment}
                   onLike={handleLikeComment}
                   onReply={handleReply}
+                  replyTo={replyTo}
+                  replyContents={replyContents}
+                  onReplyContentChange={handleReplyContentChange}
+                  onSubmitReply={handleSubmitComment}
+                  onCancelReply={handleCancelReply}
+                  submitting={submittingComment}
                 />
               ))}
 
@@ -642,11 +657,29 @@ export default function PostDetailPage() {
 interface CommentItemProps {
   comment: CommentNode;
   onLike: (commentId: string) => void;
-  onReply: (commentId: string, authorName: string) => void;
+  onReply: (commentId: string) => void;
+  replyTo: string | null;
+  replyContents: Record<string, string>;
+  onReplyContentChange: (commentId: string, content: string) => void;
+  onSubmitReply: (commentId: string) => void;
+  onCancelReply: (commentId: string) => void;
+  submitting: boolean;
   level?: number;
 }
 
-function CommentItem({ comment, onLike, onReply, level = 0 }: CommentItemProps) {
+function CommentItem({ 
+  comment, 
+  onLike, 
+  onReply, 
+  replyTo,
+  replyContents,
+  onReplyContentChange,
+  onSubmitReply,
+  onCancelReply,
+  submitting,
+  level = 0 
+}: CommentItemProps) {
+  const replyContent = replyContents[comment.id] || '';
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -706,9 +739,7 @@ function CommentItem({ comment, onLike, onReply, level = 0 }: CommentItemProps) 
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    onReply(comment.id, comment.author?.name || 'người dùng')
-                  }
+                  onClick={() => onReply(comment.id)}
                   className="gap-2"
                 >
                   <MessageCircle className="h-3 w-3" />
@@ -726,6 +757,46 @@ function CommentItem({ comment, onLike, onReply, level = 0 }: CommentItemProps) 
         </CardContent>
       </Card>
 
+      {/* Inline Reply Form */}
+      {replyTo === comment.id && (
+        <Card className="mt-3 ml-12">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">
+                Trả lời {comment.author?.name || 'người dùng'}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onCancelReply(comment.id)}
+                className="h-6 text-xs"
+              >
+                Hủy
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Nhập câu trả lời của bạn..."
+              value={replyContent}
+              onChange={(e) => onReplyContentChange(comment.id, e.target.value)}
+              rows={3}
+              className="mb-3"
+              autoFocus
+            />
+            <Button
+              onClick={() => onSubmitReply(comment.id)}
+              disabled={!replyContent.trim() || submitting}
+              size="sm"
+              className="gap-2"
+            >
+              <Send className="h-3 w-3" />
+              {submitting ? 'Đang gửi...' : 'Gửi trả lời'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Nested replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-4 space-y-4">
@@ -735,6 +806,12 @@ function CommentItem({ comment, onLike, onReply, level = 0 }: CommentItemProps) 
               comment={reply}
               onLike={onLike}
               onReply={onReply}
+              replyTo={replyTo}
+              replyContents={replyContents}
+              onReplyContentChange={onReplyContentChange}
+              onSubmitReply={onSubmitReply}
+              onCancelReply={onCancelReply}
+              submitting={submitting}
               level={level + 1}
             />
           ))}
