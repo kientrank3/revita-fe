@@ -119,6 +119,14 @@ const getMenuItems = () => {
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN"],
 		},
+		{
+			title: "Bài viết",
+			url: "/posts-management",
+			icon: FileTextIcon,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
+		},
 		
 	];
 

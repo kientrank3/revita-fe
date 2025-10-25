@@ -93,8 +93,14 @@ export function MainHeader() {
               Trang chủ
             </Link>
             <Link 
-              href="/public/specialties" 
-              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
+              href="/posts" 
+              className="text-gray-600 hover:text-primary transition-colors duration-200"
+            >
+              Tin tức
+            </Link>
+            <Link 
+              href="/services" 
+              className="text-gray-600 hover:text-primary transition-colors duration-200"
             >
               Dịch vụ
             </Link>
