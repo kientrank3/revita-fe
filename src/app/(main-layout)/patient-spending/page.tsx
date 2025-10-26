@@ -1,7 +1,6 @@
 "use client";
 
 import { PatientSpendingSelector } from "@/components/dashboard/PatientSpendingSelector";
-import { AdvancedStatistics } from "@/components/dashboard/AdvancedStatistics";
 import { usePatientSpendingStatistics, usePeriodSelection } from "@/lib/hooks/use-statistics";
 import { PeriodType } from "@/lib/types/statistics";
 import { useState } from "react";
@@ -11,16 +10,11 @@ export default function PatientSpendingPage() {
   const { user } = useAuth();
   const userRole = user?.role;
   
-  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [selectedPatientProfileId, setSelectedPatientProfileId] = useState<string>('');
-  const [searchType, setSearchType] = useState<'patient' | 'profile'>('patient');
+  const [selectedPatientId] = useState<string>('');
+  const [selectedPatientProfileId] = useState<string>('');
+  const [searchType] = useState<'patient' | 'profile'>('patient');
 
   const {
-    period,
-    customStartDate,
-    customEndDate,
-    handlePeriodChange,
-    handleCustomDateChange,
     getCurrentParams
   } = usePeriodSelection('month');
 

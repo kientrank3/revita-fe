@@ -82,9 +82,14 @@ export default function SeriesDetailPage() {
           ),
         });
       }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để thích bài viết');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để thích bài viết');
+        } else {
+          toast.error('Không thể thực hiện thao tác');
+        }
       } else {
         toast.error('Không thể thực hiện thao tác');
       }

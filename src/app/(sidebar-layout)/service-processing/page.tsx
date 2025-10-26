@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -16,7 +17,6 @@ import {
   CheckCircle,
   AlertCircle,
   Play,
-  Square,
   FileCheck,
   Stethoscope,
   Users
@@ -28,9 +28,7 @@ import {
   PrescriptionService,
   ServiceStatus,
   WorkSession,
-  GetMyServicesResponse,
-  ScanPrescriptionResponse,
-  GetWorkSessionResponse
+  GetMyServicesResponse
 } from '@/lib/types/service-processing';
 import { UpdateResultsDialog } from '@/components/service-processing/UpdateResultsDialog';
 
@@ -53,24 +51,10 @@ export default function ServiceProcessingPage() {
       console.log('User authenticated:', user);
       console.log('Loading service processing data...');
 
-      // loadWorkSession(); // Backend chưa có endpoint này
       loadMyServices();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
-
-  const loadWorkSession = async () => {
-    try {
-      const response = await serviceProcessingService.getCurrentWorkSession();
-      setWorkSession(response.workSession);
-    } catch (error: any) {
-      console.error('Error loading work session:', error);
-      if (error.response?.status === 404) {
-        console.warn('Work session API not implemented on backend yet');
-      }
-      // Don't show error toast for work session, it's optional
-    }
-  };
 
   const loadMyServices = async () => {
     setLoadingMyServices(true);
@@ -509,7 +493,7 @@ export default function ServiceProcessingPage() {
     onQuickComplete,
     onUpdateResults,
     updatingService,
-    isFirstInQueue = false,
+    isFirstInQueue: _isFirstInQueue = false,
     showStartButton = true,
     showNextBadge = false,
     hideCard = false

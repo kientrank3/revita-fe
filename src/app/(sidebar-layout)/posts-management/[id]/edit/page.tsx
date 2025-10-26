@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Editor } from "@tinymce/tinymce-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ export default function EditPostPage() {
     { seriesId: string; order?: number }[]
   >([]);
 
-  const editorRef = React.useRef<any>(null);
+  const editorRef = React.useRef<unknown>(null);
   const coverImageInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load post data
@@ -101,8 +102,7 @@ export default function EditPostPage() {
 
   // Handle image upload in TinyMCE
   const handleImageUpload = async (
-    blobInfo: any,
-    progress: (percent: number) => void
+    blobInfo: { blob: () => Blob }
   ): Promise<string> => {
     try {
       const file = blobInfo.blob() as File;
@@ -157,7 +157,7 @@ export default function EditPostPage() {
       
       setCoverImage(uploadedFile.url);
       toast.success("Upload ảnh bìa thành công!");
-    } catch (error) {
+    } catch {
       toast.error("Lỗi upload ảnh bìa");
     }
   };
@@ -380,16 +380,17 @@ export default function EditPostPage() {
             <div className="space-y-2 p-4 border rounded-lg">
               <Label>Ảnh bìa</Label>
               {coverImage && (
-                <div className="relative">
-                  <img
+                <div className="relative w-full h-48">
+                  <Image
                     src={coverImage}
                     alt="Cover Image"
-                    className="w-full h-48 object-cover rounded-md"
+                    fill
+                    className="object-cover rounded-md"
                   />
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2"
+                    className="absolute top-2 right-2 z-10"
                     onClick={() => setCoverImage("")}
                   >
                     <X className="h-4 w-4" />

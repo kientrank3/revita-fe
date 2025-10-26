@@ -200,9 +200,9 @@ function CategoriesTab() {
             <TableRow key={c.id}>
               <TableCell>{c.code}</TableCell>
               <TableCell>{c.name}</TableCell>
-              <TableCell>{(c as any).description || "-"}</TableCell>
+              <TableCell>{(c as { description?: string }).description || "-"}</TableCell>
               <TableCell className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEdit(c as any)}>
+                <Button variant="outline" size="sm" onClick={() => openEdit(c as ServiceCategory)}>
                   <Pencil className="size-4" /> Sửa
                 </Button>
                 <Button variant="destructive" size="sm" onClick={() => onDelete(c)}>
@@ -335,7 +335,7 @@ function ServicesTab() {
         await servicesService.updateService(editing.id, { ...form, price: form.price ?? undefined, unit: "1", currency: "VND" })
         toast.success("Cập nhật dịch vụ thành công")
       } else {
-        await servicesService.createService({ ...form, price: form.price ?? 0, unit: "1", currency: "VND" } as any)
+        await servicesService.createService({ ...form, price: form.price ?? 0, unit: "1", currency: "VND" } as Parameters<typeof servicesService.createService>[0])
         toast.success("Tạo dịch vụ thành công")
       }
       setOpen(false)
@@ -705,10 +705,10 @@ function PackagesTab() {
     setSubmitting(true)
     try {
       if (editing) {
-        await packagesService.updatePackage(editing.id, form as any)
+        await packagesService.updatePackage(editing.id, form as Parameters<typeof packagesService.updatePackage>[1])
         toast.success("Cập nhật gói thành công")
       } else {
-        await packagesService.createPackage(form as any)
+        await packagesService.createPackage(form as Parameters<typeof packagesService.createPackage>[0])
         toast.success("Tạo gói thành công")
       }
       setOpen(false)

@@ -21,7 +21,6 @@ import {
   Heart,
   MessageCircle,
   Pin,
-  ChevronRight,
   TrendingUp,
   BookOpen,
   Layers,
@@ -155,26 +154,6 @@ export default function PostsPage() {
     setCurrentPage(0);
   };
 
-  // Handle filter
-  const handleCategoryFilter = (categoryId: string) => {
-    setSelectedCategory(categoryId === selectedCategory ? '' : categoryId);
-    setCurrentPage(0);
-  };
-
-  const handleSeriesFilter = (seriesId: string) => {
-    setSelectedSeries(seriesId === selectedSeries ? '' : seriesId);
-    setCurrentPage(0);
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
   // Handle like/unlike post
   const handleToggleLike = async (post: PostResponse) => {
     try {
@@ -197,9 +176,14 @@ export default function PostsPage() {
         setTopPosts(prev => prev.map(updatePost));
         setPosts(prev => ({ ...prev, items: prev.items.map(updatePost) }));
       }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để thích bài viết');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để thích bài viết');
+        } else {
+          toast.error('Không thể thực hiện thao tác');
+        }
       } else {
         toast.error('Không thể thực hiện thao tác');
       }

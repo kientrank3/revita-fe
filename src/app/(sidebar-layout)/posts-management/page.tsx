@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Tabs,
   TabsContent,
@@ -44,7 +45,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Eye,
   Pin,
   PinOff,
   GripVertical,
@@ -416,7 +416,6 @@ function PostsTab() {
 
 // ============== CATEGORIES TAB ==============
 function CategoriesTab() {
-  const router = useRouter();
   const [categories, setCategories] = React.useState<CategoryResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -493,13 +492,6 @@ function CategoriesTab() {
     }
   };
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
-    setCoverImageFile(null);
-    setOpen(true);
-  };
-
   const openEdit = (cat: CategoryResponse) => {
     setEditing(cat);
     setForm({ 
@@ -541,8 +533,6 @@ function CategoriesTab() {
       if (coverImageFile && editing) {
         toast.info("Đang upload ảnh bìa...");
         const { fileStorageService } = await import("@/lib/services/file-storage.service");
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substring(7);
         const extension = coverImageFile.name.split(".").pop() || "jpg";
         const uniqueFileName = `${editing.id}.${extension}`;
         
@@ -743,11 +733,12 @@ function CategoriesTab() {
               <div className="space-y-2">
                 <Label>Ảnh bìa</Label>
                 {form.coverImage && (
-                  <div className="relative">
-                    <img
+                  <div className="relative w-full h-48">
+                    <Image
                       src={form.coverImage}
                       alt="Cover"
-                      className="w-full h-48 object-cover rounded-md"
+                      fill
+                      className="object-cover rounded-md"
                     />
                     <Button
                       variant="destructive"
@@ -830,11 +821,14 @@ function CategoriesTab() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {cat.coverImage && (
-                          <img 
-                            src={cat.coverImage} 
-                            alt={cat.name}
-                            className="w-10 h-10 object-cover rounded"
-                          />
+                          <div className="relative w-10 h-10">
+                            <Image 
+                              src={cat.coverImage} 
+                              alt={cat.name}
+                              fill
+                              className="object-cover rounded"
+                            />
+                          </div>
                         )}
                         <span>{cat.name}</span>
                       </div>
@@ -951,7 +945,6 @@ function SortablePostItem({ post, onRemove, index }: SortablePostItemProps) {
 
 // ============== SERIES TAB ==============
 function SeriesTab() {
-  const router = useRouter();
   const [series, setSeries] = React.useState<SeriesResponse[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -1041,14 +1034,6 @@ function SeriesTab() {
     }
   };
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", slug: "", description: "", coverImage: "", status: "DRAFT" });
-    setPosts([]);
-    setCoverImageFile(null);
-    setOpen(true);
-  };
-
   const openEdit = (s: SeriesResponse) => {
     setEditing(s);
     setForm({ 
@@ -1091,7 +1076,7 @@ function SeriesTab() {
       const existingPostIds = new Set(posts.map(p => p.id));
       const filtered = res.items.filter(p => !existingPostIds.has(p.id));
       setSearchResults(filtered);
-    } catch (e) {
+    } catch {
       toast.error("Lỗi tìm kiếm bài viết");
       setSearchResults([]);
     } finally {
@@ -1184,8 +1169,6 @@ function SeriesTab() {
       if (coverImageFile && editing) {
         toast.info("Đang upload ảnh bìa...");
         const { fileStorageService } = await import("@/lib/services/file-storage.service");
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substring(7);
         const extension = coverImageFile.name.split(".").pop() || "jpg";
         const uniqueFileName = `${editing.id}.${extension}`;
         
@@ -1396,11 +1379,12 @@ function SeriesTab() {
                 <div className="space-y-2">
                   <Label>Ảnh bìa</Label>
                   {form.coverImage && (
-                    <div className="relative">
-                      <img
+                    <div className="relative w-full h-48">
+                      <Image
                         src={form.coverImage}
                         alt="Cover"
-                        className="w-full h-48 object-cover rounded-md"
+                        fill
+                        className="object-cover rounded-md"
                       />
                       <Button
                         variant="destructive"
@@ -1596,11 +1580,14 @@ function SeriesTab() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {s.coverImage && (
-                          <img 
-                            src={s.coverImage} 
-                            alt={s.name}
-                            className="w-10 h-10 object-cover rounded"
-                          />
+                          <div className="relative w-10 h-10">
+                            <Image 
+                              src={s.coverImage} 
+                              alt={s.name}
+                              fill
+                              className="object-cover rounded"
+                            />
+                          </div>
                         )}
                         <span>{s.name}</span>
                       </div>

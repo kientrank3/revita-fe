@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { postsService } from '@/lib/services/posts.service';
 import { PostDetailResponse, CommentNode, PostResponse, PostSeriesResponse } from '@/lib/types/posts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -114,9 +114,14 @@ export default function PostDetailPage() {
         });
         toast.success('Đã thích bài viết');
       }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để thích bài viết');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để thích bài viết');
+        } else {
+          toast.error('Không thể thực hiện thao tác');
+        }
       } else {
         toast.error('Không thể thực hiện thao tác');
       }
@@ -131,7 +136,7 @@ export default function PostDetailPage() {
 
     try {
       setSubmittingComment(true);
-      const newComment = await postsService.createComment(postDetail.post.id, {
+      await postsService.createComment(postDetail.post.id, {
         content: content.trim(),
         parentId: parentId,
       });
@@ -149,9 +154,14 @@ export default function PostDetailPage() {
       }
       
       toast.success('Đã thêm bình luận');
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để bình luận');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để bình luận');
+        } else {
+          toast.error('Không thể thêm bình luận');
+        }
       } else {
         toast.error('Không thể thêm bình luận');
       }
@@ -166,9 +176,12 @@ export default function PostDetailPage() {
       // Refresh to get updated comment likes
       const updatedDetail = await postsService.getPostBySlug(slug);
       setPostDetail(updatedDetail);
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để thích bình luận');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để thích bình luận');
+        }
       }
     }
   };
@@ -204,9 +217,14 @@ export default function PostDetailPage() {
             : p
         ));
       }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        toast.error('Vui lòng đăng nhập để thích bài viết');
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 401) {
+          toast.error('Vui lòng đăng nhập để thích bài viết');
+        } else {
+          toast.error('Không thể thực hiện thao tác');
+        }
       } else {
         toast.error('Không thể thực hiện thao tác');
       }
@@ -214,7 +232,7 @@ export default function PostDetailPage() {
   };
 
   // Socket event handlers
-  const handlePostLiked = React.useCallback((event: any) => {
+  const handlePostLiked = React.useCallback((event: { postId: string; likesCount: number }) => {
     if (!postDetail) return;
     setPostDetail(prev => prev ? {
       ...prev,
@@ -232,7 +250,7 @@ export default function PostDetailPage() {
     ));
   }, [postDetail]);
 
-  const handlePostUnliked = React.useCallback((event: any) => {
+  const handlePostUnliked = React.useCallback((event: { postId: string; likesCount: number }) => {
     if (!postDetail) return;
     setPostDetail(prev => prev ? {
       ...prev,
@@ -250,7 +268,7 @@ export default function PostDetailPage() {
     ));
   }, [postDetail]);
 
-  const handleCommentCreated = React.useCallback(async (event: any) => {
+  const handleCommentCreated = React.useCallback(async () => {
     // Refresh comments to get the new comment
     if (!slug) return;
     try {
@@ -261,7 +279,7 @@ export default function PostDetailPage() {
     }
   }, [slug]);
 
-  const handleCommentDeleted = React.useCallback((event: any) => {
+  const handleCommentDeleted = React.useCallback((event: { commentId: string }) => {
     if (!postDetail) return;
     // Remove deleted comment from the tree
     const removeComment = (comments: CommentNode[]): CommentNode[] => {
@@ -286,7 +304,7 @@ export default function PostDetailPage() {
     } : null);
   }, [postDetail]);
 
-  const handleCommentLiked = React.useCallback((event: any) => {
+  const handleCommentLiked = React.useCallback((event: { commentId: string; likeCount: number }) => {
     if (!postDetail) return;
     // Update like count for specific comment
     const updateCommentLikes = (comments: CommentNode[]): CommentNode[] => {
@@ -307,7 +325,7 @@ export default function PostDetailPage() {
     } : null);
   }, [postDetail]);
 
-  const handleCommentUnliked = React.useCallback((event: any) => {
+  const handleCommentUnliked = React.useCallback((event: { commentId: string; likeCount: number }) => {
     if (!postDetail) return;
     // Update like count for specific comment
     const updateCommentLikes = (comments: CommentNode[]): CommentNode[] => {
@@ -376,7 +394,7 @@ export default function PostDetailPage() {
     return null;
   }
 
-  const { post, likedByViewer, comments } = postDetail;
+  const { post, comments } = postDetail;
 
   return (
     <div className="container mx-auto px-4 py-8">

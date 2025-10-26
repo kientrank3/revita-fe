@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -535,11 +536,11 @@ export default function StaffManagementPage() {
   const removeCertificate = (index: number, isEdit = false) => {
     if (isEdit) {
       setEditCertificates(editCertificates.filter((_, i) => i !== index));
-      const { [index]: removed, ...rest } = editCertificateFiles;
+      const { [index]: _removed, ...rest } = editCertificateFiles;
       setEditCertificateFiles(rest);
     } else {
       setCertificates(certificates.filter((_, i) => i !== index));
-      const { [index]: removed, ...rest } = certificateFiles;
+      const { [index]: _removed, ...rest } = certificateFiles;
       setCertificateFiles(rest);
     }
   };

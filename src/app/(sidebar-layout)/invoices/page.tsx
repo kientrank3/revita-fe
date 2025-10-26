@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -41,7 +43,7 @@ type LoadedPrescription = {
     prescriptionId: string;
     serviceId: string;
     status: PrescriptionStatus;
-    results: any[];
+    results: unknown[];
     order: number;
     note?: string | null;
     service: {
@@ -72,7 +74,6 @@ export default function InvoicesPage() {
   const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [creating, setCreating] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [createdInvoice, setCreatedInvoice] = useState<{ invoiceCode: string; totalAmount: number } | null>(null);
   const [confirmResult, setConfirmResult] = useState<
     | null
@@ -128,12 +129,12 @@ export default function InvoicesPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const exportSectionAsPdf = useCallback(async (type: 'invoice' | 'routing', data?: any) => {
+  const exportSectionAsPdf = useCallback(async (type: 'invoice' | 'routing', data?: typeof confirmResult) => {
     const pdfData = data || confirmResult;
     if (!pdfData) return;
 
     // Helper function to get practitioner display info
-    const getPractitionerDisplay = (assignment: any) => {
+    const getPractitionerDisplay = (assignment: { doctorId?: string; doctorName?: string; doctorCode?: string; technicianId?: string; technicianName?: string; technicianCode?: string }) => {
       if (assignment.doctorId && assignment.doctorName !== 'N/A') {
         return {
           label: 'Bác sĩ',
@@ -221,7 +222,7 @@ export default function InvoicesPage() {
                   { text: 'Dịch vụ', style: 'tableHeader' },
                   { text: 'Giá', style: 'tableHeader', alignment: 'right' }
                 ],
-                ...pdfData.invoiceDetails?.map((item: any) => [
+                ...pdfData.invoiceDetails?.map((item: { serviceName: string; price: number }) => [
                   { text: item.serviceName, fontSize: 10 },
                   { text: `${item.price.toLocaleString()} đ`, fontSize: 10, alignment: 'right' }
                 ]) || [],
@@ -348,20 +349,20 @@ export default function InvoicesPage() {
             console.log('PDF Export - Invoice Details:', pdfData.invoiceDetails);
             console.log('PDF Export - Routing Assignments:', pdfData.routingAssignments);
 
-            return pdfData.routingAssignments.sort((a: any, b: any) => {
+            return pdfData.routingAssignments.sort((a: { serviceCode: string }, b: { serviceCode: string }) => {
               // Create mapping of service codes to order
               const serviceOrderMap: { [key: string]: number } = {};
 
               // Get order from invoice details (most reliable source)
               if (pdfData.invoiceDetails) {
-                pdfData.invoiceDetails.forEach((detail: any, index: number) => {
+                pdfData.invoiceDetails.forEach((detail: { serviceCode: string }, index: number) => {
                   serviceOrderMap[detail.serviceCode] = index + 1;
                   console.log(`Service ${detail.serviceCode} -> Order ${index + 1}`);
                 });
               }
 
               // Function to get service order for an assignment
-              const getServiceOrder = (assignment: any) => {
+              const getServiceOrder = (assignment: { roomCode?: string; roomName?: string; serviceCode?: string }) => {
                 const roomPrefix = assignment.roomCode?.split('-')[0]; // e.g., "HUY" from "HUY-1403"
                 console.log(`Assignment ${assignment.roomName} (${assignment.roomCode}) -> Room Prefix: ${roomPrefix}`);
 
@@ -577,9 +578,6 @@ export default function InvoicesPage() {
     };
   }, [prescription, selectedCodes]);
 
-  // Remove onPreview function as it's now automatic
-  const onPreview = async () => {}; // Keep for compatibility but do nothing
-
   const onPayment = useCallback(async () => {
     console.log('onPayment called with:', {
       prescription: !!prescription,
@@ -655,7 +653,6 @@ export default function InvoicesPage() {
 
   const onConfirm = useCallback(async () => {
     if (!createdInvoice || !user) return;
-    setConfirming(true);
     try {
       const { data } = await cashierApi.confirmPayment({
         invoiceCode: createdInvoice.invoiceCode,
@@ -679,12 +676,11 @@ export default function InvoicesPage() {
         window.location.reload();
       }, 4000);
 
-    } catch (err: any) {
-      toast.error(err.message || 'Không thể xác nhận thanh toán');
-    } finally {
-      setConfirming(false);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message || 'Không thể xác nhận thanh toán');
     }
-  }, []);
+  }, [createdInvoice, user, exportSectionAsPdf]);
 
   const handlePrint = (mode: 'invoice' | 'routing') => {
     setPrintMode(mode);
