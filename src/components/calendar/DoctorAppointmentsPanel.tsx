@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +36,7 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(asSheet);
+  const [isOpen,] = useState(asSheet);
 
   const loadAppointments = async () => {
     try {
@@ -125,26 +125,26 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
     );
   }
 
-  return (
-    <Card className="border rounded-md">
-      <CardHeader className="py-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Lịch hẹn của bác sĩ</CardTitle>
-          <div className="flex gap-2">
-            {isOpen && (
-              <Button variant="outline" size="sm" onClick={loadAppointments} disabled={loading}>
-                <RefreshCw className="w-4 h-4 mr-1" /> Tải lại
-              </Button>
-            )}
-            <Button size="sm" onClick={() => setIsOpen((v) => !v)}>
-              {isOpen ? 'Ẩn danh sách' : 'Xem danh sách'}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      {isOpen && <CardContent className="py-3">{listBody}</CardContent>}
-    </Card>
-  );
+  // return (
+  //   <Card className="border rounded-md">
+  //     <CardHeader className="py-3">
+  //       <div className="flex items-center justify-between">
+  //         <CardTitle className="text-base">Lịch hẹn của bác sĩ</CardTitle>
+  //         <div className="flex gap-2">
+  //           {isOpen && (
+  //             <Button variant="outline" size="sm" onClick={loadAppointments} disabled={loading}>
+  //               <RefreshCw className="w-4 h-4 mr-1" /> Tải lại
+  //             </Button>
+  //           )}
+  //           <Button size="sm" onClick={() => setIsOpen((v) => !v)}>
+  //             {isOpen ? 'Ẩn danh sách' : 'Xem danh sách'}
+  //           </Button>
+  //         </div>
+  //       </div>
+  //     </CardHeader>
+  //     {isOpen && <CardContent className="py-3">{listBody}</CardContent>}
+  //   </Card>
+  // );
 }
 
 

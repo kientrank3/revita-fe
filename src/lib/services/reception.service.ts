@@ -27,6 +27,7 @@ class ReceptionService {
     try {
       const res = await api.get(`${this.countersBase}/current`);
       return res.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       if (e.response?.status === 404) return null;
       throw e;

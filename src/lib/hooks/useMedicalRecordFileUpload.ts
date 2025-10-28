@@ -19,7 +19,7 @@ interface UseMedicalRecordFileUploadReturn {
 export function useMedicalRecordFileUpload(): UseMedicalRecordFileUploadReturn {
   const [files, setFiles] = useState<File[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const addFiles = useCallback((newFiles: File[]) => {

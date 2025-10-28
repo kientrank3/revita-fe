@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ import { CreatePrescriptionDialog } from '@/components/medication-prescriptions/
 import { medicationPrescriptionApi } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
 
-export default function CreateMedicalRecordPage() {
+function CreateMedicalRecordPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -440,5 +440,22 @@ export default function CreateMedicalRecordPage() {
         preselectedMedicalRecordId={createdMedicalRecordId || undefined}
       />
     </div>
+  );
+}
+
+export default function CreateMedicalRecordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="flex items-center gap-2 text-gray-500">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></span>
+            Đang tải...
+          </div>
+        </div>
+      }
+    >
+      <CreateMedicalRecordPageContent />
+    </Suspense>
   );
 }

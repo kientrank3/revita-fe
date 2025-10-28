@@ -100,7 +100,8 @@ export function WorkSessionCalendar({
         if (calendarApi) {
           const currentDate = calendarApi.getDate();
           const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-          const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          // Use first day of next month as end boundary to include the last day
+          const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
           
           try {
             const newEvents = await loadEvents(startDate, endDate);
@@ -125,7 +126,7 @@ export function WorkSessionCalendar({
     // Load events when month changes for any view
     const currentDate = dateInfo.view.calendar.getDate();
     const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
     
     try {
       const newEvents = await loadEvents(startDate, endDate);
@@ -157,7 +158,7 @@ export function WorkSessionCalendar({
       
       if (currentMonth !== prevMonth) {
         const startDate = new Date(prevDate.getFullYear(), prevDate.getMonth(), 1);
-        const endDate = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0);
+        const endDate = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 1);
         
         try {
           const newEvents = await loadEvents(startDate, endDate);
@@ -194,7 +195,7 @@ export function WorkSessionCalendar({
       
       if (currentMonth !== nextMonth) {
         const startDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-        const endDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+        const endDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 1);
         
         try {
           const newEvents = await loadEvents(startDate, endDate);
@@ -219,7 +220,7 @@ export function WorkSessionCalendar({
       // Load events for current month when going to today
       const today = new Date();
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
       
       try {
         const newEvents = await loadEvents(startDate, endDate);
@@ -243,7 +244,7 @@ export function WorkSessionCalendar({
       if (newView === 'month') {
         const currentDate = calendarApi.getDate();
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
         
         try {
           const newEvents = await loadEvents(startDate, endDate);

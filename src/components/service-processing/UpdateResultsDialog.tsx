@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
-import { PrescriptionService, UploadResultFilesResponse } from '@/lib/types/service-processing';
+import { PrescriptionService } from '@/lib/types/service-processing';
 
 interface UpdateResultsDialogProps {
   open: boolean;
@@ -60,6 +60,7 @@ export function UpdateResultsDialog({
       setResults(prev => [...prev, ...uploadResponse.urls]);
       setUploadedFiles([]);
       toast.success(`Đã upload ${files.length} file thành công`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Error uploading files:', error);
       toast.error(error.response?.data?.message || 'Không thể upload files');
@@ -118,6 +119,7 @@ export function UpdateResultsDialog({
       toast.success('Cập nhật kết quả thành công');
       onOpenChange(false);
       onUpdate();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error updating results:', error);
       toast.error(error.response?.data?.message || 'Không thể cập nhật kết quả');

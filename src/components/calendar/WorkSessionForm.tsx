@@ -60,14 +60,16 @@ export function WorkSessionForm({
       const end = new Date(editingSession.endTime);
       
       setFormData({
-        date: start.toISOString().split('T')[0],
+        // Use local date to avoid timezone shifting the selected day
+        date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,
         startTime: start.toTimeString().slice(0, 5),
         endTime: end.toTimeString().slice(0, 5),
         serviceIds: editingSession.services.map(s => s.id),
       });
     } else if (selectedDate) {
       setFormData({
-        date: selectedDate.toISOString().split('T')[0],
+        // Use local date to avoid timezone shifting the selected day
+        date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
         startTime: '08:00',
         endTime: '12:00',
         serviceIds: [],

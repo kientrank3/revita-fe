@@ -51,13 +51,22 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
     loadServices();
   }, []);
 
+  // Format a Date to YYYY-MM-DD in local time (avoid UTC shift)
+  const formatLocalDate = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   // Load work sessions when date changes
   const loadWorkSessions = useCallback(async (startDate?: Date, endDate?: Date) => {
     try {
       // Avoid fetching until auth/role is ready
       if (!isReady) return;
       const start = startDate || new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-      const end = endDate || new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+      // Use first day of next month as end boundary to avoid excluding the last day
+      const end = endDate || new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
       
       let response;
       
@@ -65,20 +74,20 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
         // Admin viewing specific doctor's schedule
         response = await workSessionApi.getUserWorkSessions(selectedDoctorId, {
           userType: 'DOCTOR',
-          startDate: start.toISOString().split('T')[0],
-          endDate: end.toISOString().split('T')[0],
+          startDate: formatLocalDate(start),
+          endDate: formatLocalDate(end),
         });
       } else if (isAdmin) {
         // Admin viewing all work sessions
         response = await workSessionApi.getAll({
-          startDate: start.toISOString().split('T')[0],
-          endDate: end.toISOString().split('T')[0],
+          startDate: formatLocalDate(start),
+          endDate: formatLocalDate(end),
         });
       } else {
         // Regular user viewing their own schedule
         response = await getMySchedule({
-          startDate: start.toISOString().split('T')[0],
-          endDate: end.toISOString().split('T')[0],
+          startDate: formatLocalDate(start),
+          endDate: formatLocalDate(end),
         });
       }
       
@@ -102,20 +111,20 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
         // Admin viewing specific doctor's schedule
         response = await workSessionApi.getUserWorkSessions(selectedDoctorId, {
           userType: 'DOCTOR',
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: formatLocalDate(startDate),
+          endDate: formatLocalDate(endDate),
         });
       } else if (isAdmin) {
         // Admin viewing all work sessions
         response = await workSessionApi.getAll({
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: formatLocalDate(startDate),
+          endDate: formatLocalDate(endDate),
         });
       } else {
         // Regular user viewing their own schedule
         response = await getMySchedule({
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: formatLocalDate(startDate),
+          endDate: formatLocalDate(endDate),
         });
       }
       
@@ -278,9 +287,10 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
 
   // Get work sessions for a specific date
   const getSessionsForDate = useCallback((date: Date): WorkSession[] => {
-    const targetDate = date.toISOString().split('T')[0];
+    const targetDate = formatLocalDate(date);
     return workSessions.filter(session => {
-      const sessionDate = new Date(session.startTime).toISOString().split('T')[0];
+      const dt = new Date(session.startTime);
+      const sessionDate = formatLocalDate(dt);
       return sessionDate === targetDate;
     });
   }, [workSessions]);

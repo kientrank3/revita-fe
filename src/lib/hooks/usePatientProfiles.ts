@@ -19,6 +19,7 @@ export const usePatientProfiles = () => {
       setError(null);
       const response = await patientProfileApi.getByPatientId(user.id);
       setPatientProfiles(response.data || []);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch patient profiles');
       console.error('Error fetching patient profiles:', err);
@@ -29,6 +30,7 @@ export const usePatientProfiles = () => {
 
   useEffect(() => {
     fetchPatientProfiles();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   return {

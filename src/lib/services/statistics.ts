@@ -1,12 +1,5 @@
 import api from '../config';
 import {
-  KPIData,
-  RevenueData,
-  WorkSessionData,
-  ExaminationVolumeData,
-  PaymentMethodData,
-  TopServicesData,
-  PatientSpendingData,
   KPIRequestParams,
   RevenueRequestParams,
   WorkSessionRequestParams,
@@ -14,9 +7,6 @@ import {
   PaymentMethodRequestParams,
   TopServicesRequestParams,
   PatientSpendingRequestParams,
-  AppointmentsByTimeData,
-  ExaminationsByTimeData,
-  RevenueByTimeData,
   TimeBasedRequestParams,
 } from '../types/statistics';
 

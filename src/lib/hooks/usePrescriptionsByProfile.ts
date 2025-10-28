@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { medicationPrescriptionApi } from '@/lib/api';
 
@@ -133,6 +134,7 @@ export const usePrescriptionsByProfile = (patientProfileId: string, params?: { p
 
   useEffect(() => {
     fetchPrescriptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientProfileId, params?.page, params?.limit]);
 
   return {

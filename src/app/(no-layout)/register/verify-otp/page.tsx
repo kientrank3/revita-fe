@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import { registerApi } from "@/lib/api";
 
-export default function VerifyOtp() {
+function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
@@ -233,4 +233,21 @@ export default function VerifyOtp() {
       </div>
     </div>
   );
-} 
+}
+
+export default function VerifyOtp() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="flex items-center gap-2 text-gray-500">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></span>
+            Đang tải...
+          </div>
+        </div>
+      }
+    >
+      <VerifyOtpContent />
+    </Suspense>
+  );
+}

@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // GET /api/work-sessions/[id] - Get work session by ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request) {
   try {
-    const { id } = params;
+    const url = new URL(request.url);
+    const segments = url.pathname.split('/').filter(Boolean);
+    const id = segments[segments.length - 1];
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
     const response = await fetch(
@@ -39,12 +38,11 @@ export async function GET(
 }
 
 // PUT /api/work-sessions/[id] - Update work session
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request) {
   try {
-    const { id } = params;
+    const url = new URL(request.url);
+    const segments = url.pathname.split('/').filter(Boolean);
+    const id = segments[segments.length - 1];
     const body = await request.json();
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -80,12 +78,11 @@ export async function PUT(
 }
 
 // DELETE /api/work-sessions/[id] - Delete work session
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request) {
   try {
-    const { id } = params;
+    const url = new URL(request.url);
+    const segments = url.pathname.split('/').filter(Boolean);
+    const id = segments[segments.length - 1];
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
     const response = await fetch(

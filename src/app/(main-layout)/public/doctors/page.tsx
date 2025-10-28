@@ -241,7 +241,7 @@ export default function DoctorsPage() {
 
           {/* Pagination */}
           {!loading && data.length > 0 && (
-            <div className="mt-8 flex items-center justify-center gap-2">
+            <div className="mt-8 mb-8 flex items-center justify-center gap-2">
               <Button
                 variant="outline"
                 size="sm"

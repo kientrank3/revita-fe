@@ -43,18 +43,18 @@ export const useWorkSession = () => {
   }, [fetchWorkSession]);
 
   // Check if user has an active work session
-  const hasActiveWorkSession = workSession?.data?.workSession?.endTime 
-    ? new Date(workSession.data.workSession.endTime) > new Date() 
+  const hasActiveWorkSession = workSession?.workSession?.endTime 
+    ? new Date(workSession.workSession.endTime) > new Date() 
     : false;
 
   // Get current user info from work session
-  const currentUser = workSession?.data?.user;
+  const currentUser = workSession?.user;
 
   // Get current booth info
-  const currentBooth = workSession?.data?.workSession?.booth;
+  const currentBooth = workSession?.workSession?.booth;
 
   return {
-    workSession: workSession?.data,
+    workSession,
     loading,
     error,
     clearError,

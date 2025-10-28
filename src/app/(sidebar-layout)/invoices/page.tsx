@@ -349,8 +349,8 @@ export default function InvoicesPage() {
             console.log('PDF Export - Invoice Details:', pdfData.invoiceDetails);
             console.log('PDF Export - Routing Assignments:', pdfData.routingAssignments);
 
-            return pdfData.routingAssignments.sort((a: { serviceCode: string }, b: { serviceCode: string }) => {
-              // Create mapping of service codes to order
+            return pdfData.routingAssignments.sort((a: { roomId: string; roomCode: string; roomName: string; boothId: string; boothCode: string; boothName: string; doctorId: string; doctorCode: string; doctorName: string }, b: { roomId: string; roomCode: string; roomName: string; boothId: string; boothCode: string; boothName: string; doctorId: string; doctorCode: string; doctorName: string }) => {
+              // Create mapping of service codes to order  
               const serviceOrderMap: { [key: string]: number } = {};
 
               // Get order from invoice details (most reliable source)
@@ -651,6 +651,7 @@ export default function InvoicesPage() {
     }
   }, [prescription, user, customerMoney, totalSelected, selectedCodes, paymentMethod]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onConfirm = useCallback(async () => {
     if (!createdInvoice || !user) return;
     try {
@@ -691,7 +692,7 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 px-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />

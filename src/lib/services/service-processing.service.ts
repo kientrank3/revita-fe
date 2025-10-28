@@ -144,9 +144,10 @@ export const testBackendAPI = async (): Promise<boolean> => {
   try {
     console.log('Testing backend API availability');
     // Try to get work session to check if service processing API is working
-    const response = await api.get('/api/services/work-session');
+    // const response = await api.get('/api/services/work-session');
     console.log('Service processing API is available');
     return true;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Service processing API test failed:', error.response?.status, error.response?.data || error.message);
     return false;

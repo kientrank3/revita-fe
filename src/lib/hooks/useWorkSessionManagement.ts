@@ -199,7 +199,7 @@ export const useWorkSessionManagement = () => {
         id: session.id,
         startTime: session.startTime,
         endTime: session.endTime,
-        services: session.services,
+        services: session.services.map((s) => s.service),
       }));
 
     return {

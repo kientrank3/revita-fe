@@ -202,7 +202,7 @@ function SpecialtiesTab() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 ">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => reload()} disabled={loading}>

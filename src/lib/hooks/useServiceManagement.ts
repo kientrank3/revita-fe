@@ -7,9 +7,9 @@ import {
   UpdateServiceStatusDto,
   UpdateServiceResultsDto,
   GetServicesDto,
-  ScanPrescriptionResponseDto,
-  UpdateServiceStatusResponseDto,
-  UpdateResultsResponseDto,
+  ScanPrescriptionResponse,
+  UpdateServiceStatusResponse,
+  UpdateServiceResultsResponse,
   GetMyServicesResponse,
   GetWorkSessionResponse,
 } from '@/lib/types/service-processing';
@@ -69,7 +69,7 @@ export const useServiceManagement = () => {
   }, []);
 
   // Scan prescription
-  const scanPrescription = useCallback(async (data: ScanPrescriptionDto): Promise<ScanPrescriptionResponseDto> => {
+  const scanPrescription = useCallback(async (data: ScanPrescriptionDto): Promise<ScanPrescriptionResponse> => {
     setLoading(true);
     setError(null);
     try {
@@ -85,7 +85,7 @@ export const useServiceManagement = () => {
   }, []);
 
   // Update service status
-  const updateServiceStatus = useCallback(async (data: UpdateServiceStatusDto): Promise<UpdateServiceStatusResponseDto> => {
+  const updateServiceStatus = useCallback(async (data: UpdateServiceStatusDto): Promise<UpdateServiceStatusResponse> => {
     setLoading(true);
     setError(null);
     try {
@@ -105,7 +105,7 @@ export const useServiceManagement = () => {
   }, []);
 
   // Update service results
-  const updateServiceResults = useCallback(async (data: UpdateServiceResultsDto): Promise<UpdateResultsResponseDto> => {
+  const updateServiceResults = useCallback(async (data: UpdateServiceResultsDto): Promise<UpdateServiceResultsResponse> => {
     setLoading(true);
     setError(null);
     try {
@@ -158,7 +158,7 @@ export const useServiceManagement = () => {
   }, []);
 
   // Start service
-  const startService = useCallback(async (prescriptionServiceId: string): Promise<UpdateServiceStatusResponseDto> => {
+  const startService = useCallback(async (prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> => {
     setLoading(true);
     setError(null);
     try {
@@ -174,7 +174,7 @@ export const useServiceManagement = () => {
   }, []);
 
   // Complete service
-  const completeService = useCallback(async (prescriptionServiceId: string): Promise<UpdateServiceStatusResponseDto> => {
+  const completeService = useCallback(async (prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> => {
     setLoading(true);
     setError(null);
     try {

@@ -35,7 +35,7 @@ export function useDrugSearch() {
       setLoading(true);
       setError(null);
       
-      const response = await drugSearchApi.getByNdc(ndc);
+      const response = await drugSearchApi.search(ndc, { limit: 1 });
       return response.data;
     } catch (err) {
       console.error('Error getting drug by NDC:', err);

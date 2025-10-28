@@ -94,15 +94,15 @@ export function MainHeader() {
             </Link>
             <Link 
               href="/posts" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Tin tức
             </Link>
             <Link 
-              href="/services" 
-              className="text-gray-600 hover:text-primary transition-colors duration-200"
+              href="public/specialties" 
+              className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
-              Dịch vụ
+              Chuyên khoa
             </Link>
             <Link 
               href="/public/doctors" 
@@ -146,7 +146,7 @@ export function MainHeader() {
                     <Button asChild variant="outline" size="sm" className="border-gray-300  transition-all duration-200">
                       <Link href="/my-patient-profiles">
                         <FileText className="h-4 w-4 mr-2" />
-                        Hồ sơ bệnh nhân
+                        Hồ sơ
                       </Link>
                     </Button>
                   </div>
@@ -288,7 +288,7 @@ export function MainHeader() {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <FileText className="h-4 w-4 inline mr-3" />
-                    Hồ sơ bệnh nhân
+                    Hồ sơ
                   </Link>
                   <Link
                     href="/drug-search"

@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { prescriptionServiceId: string } }
-) {
+export async function POST(request: Request) {
   try {
-    const { prescriptionServiceId } = params;
+    const url = new URL(request.url);
+    const segments = url.pathname.split('/').filter(Boolean);
+    // segments: ["src","app","api",...,"prescription-service","{id}","complete"] when built
+    const prescriptionServiceId = segments[segments.length - 2];
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
     const response = await fetch(

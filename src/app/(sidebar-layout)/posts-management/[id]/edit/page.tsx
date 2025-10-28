@@ -4,6 +4,7 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Editor } from "@tinymce/tinymce-react";
+type TinyMCEEditorLike = { getContent: () => string };
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,7 @@ export default function EditPostPage() {
     { seriesId: string; order?: number }[]
   >([]);
 
-  const editorRef = React.useRef<unknown>(null);
+  const editorRef = React.useRef<TinyMCEEditorLike | null>(null);
   const coverImageInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load post data

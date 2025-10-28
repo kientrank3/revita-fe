@@ -155,8 +155,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body = await response.json()
       message = body?.message || JSON.stringify(body)
-    } catch (_) {
-      // ignore
+    } catch (error) {
+      console.error('Error fetching services:', error)
     }
     throw new Error(message)
   }

@@ -241,7 +241,7 @@ export function AdminWorkSessionManager({
                     />
                   </div>
                 </div>
-                <div className="border rounded-lg bg-white max-h-[100%] overflow-auto p-4">
+                <div className="border rounded-lg bg-white max-h-[70vh] overflow-y-auto p-0">
                   {loadingDoctors ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-[#35b8cf]"></div>
@@ -249,36 +249,28 @@ export function AdminWorkSessionManager({
                   ) : filteredDoctors.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">Không có bác sĩ nào</div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredDoctors.map((d) => ( console.log(d),
-                        <Card
+                    <div className="divide-y">
+                      {filteredDoctors.map((d) => (
+                        <button
                           key={d.id}
-                          className="cursor-pointer border hover:shadow-md transition-shadow"
+                          type="button"
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 transition-colors"
                           onClick={() => {
                             setInternalDoctorId(d.id);
                             onSelectDoctor?.(d.id);
                           }}
                         >
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              <div className="w-12 h-12 rounded-full bg-[#35b8cf]/10 flex items-center justify-center shrink-0">
-                             <User className="h-6 w-6 text-[#35b8cf]" />
-                              {/* <Avatar className="h-8 w-8">
-                                <AvatarImage src={d.auth.avatar || undefined} alt={d.auth.name} />
-                              </Avatar> */}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <div className="font-semibold text-gray-900 truncate" title={d.name}>{d.name}</div>
-                                </div>
-                                <div className="text-xs text-gray-500 truncate mt-1" title={d.email || ''}>{d.email || '—'}</div>
-                                <div className="mt-3 flex items-center gap-2">
-                                  <span className="text-[11px] text-gray-500">Nhấn để xem lịch</span>
-                                </div>
-                              </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#35b8cf]/10 flex items-center justify-center shrink-0">
+                              <User className="h-5 w-5 text-[#35b8cf]" />
                             </div>
-                          </CardContent>
-                        </Card>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-gray-900 truncate" title={d.name}>{d.name}</div>
+                              <div className="text-xs text-gray-500 truncate" title={d.email || ''}>{d.email || '—'}</div>
+                            </div>
+                            <div className="text-[11px] text-gray-500 whitespace-nowrap">Nhấn để xem lịch</div>
+                          </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -471,9 +463,9 @@ export function AdminWorkSessionManager({
                                       <SelectContent>
                                         <SelectItem value="PENDING">Chờ duyệt</SelectItem>
                                         <SelectItem value="APPROVED">Đã duyệt</SelectItem>
-                                        <SelectItem value="IN_PROGRESS">Đang tiến hành</SelectItem>
+                                        {/* <SelectItem value="IN_PROGRESS">Đang tiến hành</SelectItem> */}
                                         <SelectItem value="CANCELED">Đã hủy</SelectItem>
-                                        <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                                        {/* <SelectItem value="COMPLETED">Hoàn thành</SelectItem> */}
                                       </SelectContent>
                                     </Select>
                                     

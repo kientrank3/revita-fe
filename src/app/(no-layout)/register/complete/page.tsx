@@ -1,6 +1,6 @@
 // Bước 3: Hoàn tất đăng ký
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { registerApi } from "@/lib/api";
 
-export default function CompleteRegistration() {
+function CompleteRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
@@ -315,4 +315,21 @@ export default function CompleteRegistration() {
       </div>
     </div>
   );
-} 
+}
+
+export default function CompleteRegistration() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="flex items-center gap-2 text-gray-500">
+            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></span>
+            Đang tải...
+          </div>
+        </div>
+      }
+    >
+      <CompleteRegistrationContent />
+    </Suspense>
+  );
+}
