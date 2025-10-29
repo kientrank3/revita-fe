@@ -99,13 +99,13 @@ export function MainHeader() {
               Tin tức
             </Link>
             <Link 
-              href="public/specialties" 
+              href="specialties" 
               className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Chuyên khoa
             </Link>
             <Link 
-              href="/public/doctors" 
+              href="/doctors" 
               className="px-4 py-2 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
             >
               Bác sĩ
@@ -241,14 +241,14 @@ export function MainHeader() {
                 Trang chủ
               </Link>
               <Link
-                href="/public/specialties"
+                href="/specialties"
                 className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Dịch vụ
               </Link>
               <Link
-                href="/public/doctors"
+                href="/doctors"
                 className="block px-4 py-3 text-gray-600 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-200 font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
