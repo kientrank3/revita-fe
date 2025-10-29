@@ -137,6 +137,22 @@ class ServiceProcessingService {
     console.log('🎯 Service completed successfully:', response.data);
     return response.data;
   }
+
+  // 9. GET WAITING QUEUE
+  async getWaitingQueue(): Promise<{
+    patients: Array<{
+      patientProfileId: string;
+      patientName: string;
+      prescriptionCode: string;
+      services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
+      overallStatus: 'SERVING' | 'PREPARING' | 'SKIPPED' | 'WAITING_RESULT' | 'RETURNING' | 'WAITING';
+      queueOrder: number;
+    }>;
+    totalCount: number;
+  }> {
+    const response = await api.get(`/prescriptions/queue`);
+    return response.data;
+  }
 }
 
 // Test method to check if backend API is available
