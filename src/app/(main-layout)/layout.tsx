@@ -10,7 +10,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen w-full flex flex-col bg-white">
       <MainHeader />
       <main className="flex-1">
         <Toaster />
