@@ -8,6 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,6 +35,8 @@ import {
   Play,
   SkipForward,
   Loader2,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 
 type QueueStatus = 'WAITING' | 'NEXT' | 'SERVING' | 'SKIPPED' | 'COMPLETED' | 'REMOVED';
@@ -61,6 +73,12 @@ type CounterSummary = {
   counterId: string;
   counterCode: string;
   counterName: string;
+  location?: string;
+  status?: 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+  assignedReceptionist?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 type PlainObject = Record<string, unknown>;
@@ -138,11 +156,34 @@ const normalizeCounter = (raw: unknown): CounterSummary | null => {
   if (!isPlainObject(raw)) return null;
   const counterIdRaw = pickValue(raw, ['counterId', 'id', 'counter_id', 'uuid']);
   if (counterIdRaw === undefined || counterIdRaw === null) return null;
+
+  // Extract assigned receptionist information
+  const assignedReceptionistRaw = pickValue(raw, ['assignedReceptionist', 'currentAssignment', 'assigned_receptionist']);
+  let assignedReceptionist = null;
+  
+  if (assignedReceptionistRaw && isPlainObject(assignedReceptionistRaw)) {
+    const receptionistId = toMaybeString(pickValue(assignedReceptionistRaw, ['id', 'receptionistId', 'receptionist_id']));
+    const receptionistName = toMaybeString(pickValue(assignedReceptionistRaw, ['name', 'receptionistName', 'receptionist_name']));
+    
+    if (receptionistId && receptionistName) {
+      assignedReceptionist = {
+        id: receptionistId,
+        name: receptionistName
+      };
+    }
+  }
+
+  // Determine status based on assigned receptionist
+  const status = assignedReceptionist ? 'BUSY' : 'AVAILABLE';
+
   return {
     counterId: String(counterIdRaw),
     counterCode: toMaybeString(pickValue(raw, ['counterCode', 'code', 'counter_code'])) ?? 'N/A',
     counterName:
       toMaybeString(pickValue(raw, ['counterName', 'name', 'counter_code'])) ?? 'Không rõ tên',
+    location: toMaybeString(pickValue(raw, ['location', 'floor', 'tầng'])) ?? undefined,
+    status: toMaybeString(pickValue(raw, ['status'])) as 'AVAILABLE' | 'BUSY' | 'OFFLINE' | undefined ?? status,
+    assignedReceptionist,
   };
 };
 
@@ -264,10 +305,20 @@ const normalizeQueueSnapshot = (raw: unknown, fallbackCounterId: string): QueueS
 };
 
 const fetchQueueSnapshotFromApi = async (counterId: string): Promise<QueueSnapshot> => {
-  const response = await fetch(`${API_BASE_URL}/counter-assignment/queue/${counterId}`, {
-    credentials: 'include',
-    cache: 'no-store',
-  });
+  const url = `${API_BASE_URL}/counter-assignment/queue/${counterId}`;
+  
+  // Get auth token from localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
+  const options = {
+    credentials: 'include' as RequestCredentials,
+    cache: 'no-store' as RequestCache,
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  const response = await fetch(url, options);
 
   if (response.status === 204) {
     return {
@@ -290,10 +341,20 @@ const fetchQueueSnapshotFromApi = async (counterId: string): Promise<QueueSnapsh
 };
 
 const fetchCountersFromApi = async (): Promise<CounterSummary[]> => {
-  const response = await fetch(`${API_BASE_URL}/counter-assignment/counters`, {
-    credentials: 'include',
-    cache: 'no-store',
-  });
+  const url = `${API_BASE_URL}/counter-assignment/counters`;
+  
+  // Get auth token from localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
+  const options = {
+    credentials: 'include' as RequestCredentials,
+    cache: 'no-store' as RequestCache,
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  const response = await fetch(url, options);
 
   if (response.status === 204) {
     return [];
@@ -315,6 +376,83 @@ const fetchCountersFromApi = async (): Promise<CounterSummary[]> => {
   return countersRaw
     .map((item) => normalizeCounter(item))
     .filter((item): item is CounterSummary => Boolean(item));
+};
+
+const assignCounterApi = async (counterId: string, notes?: string): Promise<{ success: boolean; message?: string }> => {
+  const url = `${API_BASE_URL}/counter-assignment/assign`;
+  const body = {
+    counterId,
+    notes: notes || undefined,
+  };
+
+  // Get auth token from localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    credentials: 'include' as RequestCredentials,
+    body: JSON.stringify(body),
+  };
+
+  const response = await fetch(url, options);
+
+  const data: unknown = await response.json().catch(() => ({}));
+
+  const successFlag =
+    (typeof data === 'object' && data !== null && 'success' in data && (data as any).success) ||
+    response.ok;
+
+  if (!successFlag) {
+    const message = isPlainObject(data) && typeof data.message === 'string' ? data.message : null;
+    throw new Error(message || 'Không thể assign counter');
+  }
+
+  return {
+    success: true,
+    message: isPlainObject(data) && typeof data.message === 'string' ? data.message : 'Đã assign counter thành công',
+  };
+};
+
+const checkoutCounterApi = async (counterId: string): Promise<{ success: boolean; message?: string }> => {
+  const url = `${API_BASE_URL}/counter-assignment/checkout`;
+  const body = {
+    counterId,
+  };
+
+  // Get auth token from localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    credentials: 'include' as RequestCredentials,
+    body: JSON.stringify(body),
+  };
+
+  const response = await fetch(url, options);
+
+  const data: unknown = await response.json().catch(() => ({}));
+
+  const successFlag =
+    (typeof data === 'object' && data !== null && 'success' in data && (data as any).success) ||
+    response.ok;
+
+  if (!successFlag) {
+    const message = isPlainObject(data) && typeof data.message === 'string' ? data.message : null;
+    throw new Error(message || 'Không thể checkout counter');
+  }
+
+  return {
+    success: true,
+    message: isPlainObject(data) && typeof data.message === 'string' ? data.message : 'Đã checkout counter thành công',
+  };
 };
 
 const statusBadgeClass = (status: QueueStatus) => {
@@ -350,9 +488,17 @@ export default function ReceptionPage() {
   const [selectedCounterId, setSelectedCounterId] = useState<string>('');
   const [snapshot, setSnapshot] = useState<QueueSnapshot | null>(null);
 
+
+
   const [loadingCounters, setLoadingCounters] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [loadingAssign, setLoadingAssign] = useState(false);
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [assignNotes, setAssignNotes] = useState('');
+  const [showCounterModal, setShowCounterModal] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -376,8 +522,6 @@ export default function ReceptionPage() {
         if (!options.silent) {
           const message = error instanceof Error ? error.message : 'Không thể tải hàng chờ';
           toast.error(message);
-        } else {
-          console.warn('[reception] silent queue refresh failed', error);
         }
         return null;
       } finally {
@@ -398,10 +542,20 @@ export default function ReceptionPage() {
     setLoadingAction(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/counter-assignment/next-patient/${selectedCounterId}`, {
+      const url = `${API_BASE_URL}/counter-assignment/next-patient/${selectedCounterId}`;
+      
+      // Get auth token from localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      
+      const options = {
         method: 'POST',
-        credentials: 'include',
-      });
+        credentials: 'include' as RequestCredentials,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      };
+
+      const response = await fetch(url, options);
 
       const raw = await response.json().catch(() => ({}));
       const data = isPlainObject(raw) ? raw : {};
@@ -435,13 +589,24 @@ export default function ReceptionPage() {
     setLoadingAction(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/counter-assignment/skip-current/${selectedCounterId}`, {
+      const url = `${API_BASE_URL}/counter-assignment/skip-current/${selectedCounterId}`;
+      
+      // Get auth token from localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      
+      const options = {
         method: 'POST',
-        credentials: 'include',
-      });
+        credentials: 'include' as RequestCredentials,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      };
+
+      const response = await fetch(url, options);
 
       const raw = await response.json().catch(() => ({}));
       const data = isPlainObject(raw) ? raw : {};
+
       const successFlag =
         (typeof data.success === 'boolean' && data.success) ||
         (typeof data.ok === 'boolean' && data.ok);
@@ -475,6 +640,53 @@ export default function ReceptionPage() {
       setLoadingCounters(false);
     }
   }, []);
+
+  const handleAssignCounter = useCallback(async () => {
+    if (!selectedCounterId) {
+      toast.error('Vui lòng chọn quầy trước khi assign');
+      return;
+    }
+
+    setLoadingAssign(true);
+
+    try {
+      const result = await assignCounterApi(selectedCounterId, assignNotes);
+      toast.success(result.message || 'Đã assign counter thành công');
+      setShowAssignDialog(false);
+      setShowCounterModal(false);
+      setAssignNotes('');
+      // Refresh counters list to update status
+      await loadCounters();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể assign counter';
+      toast.error(message);
+    } finally {
+      setLoadingAssign(false);
+    }
+  }, [selectedCounterId, assignNotes, loadCounters]);
+
+  const handleCheckoutCounter = useCallback(async () => {
+    if (!selectedCounterId) {
+      toast.error('Vui lòng chọn quầy trước khi checkout');
+      return;
+    }
+
+    setLoadingCheckout(true);
+
+    try {
+      const result = await checkoutCounterApi(selectedCounterId);
+      toast.success(result.message || 'Đã checkout counter thành công');
+      setShowCheckoutDialog(false);
+      setShowCounterModal(false);
+      // Refresh counters list to update status
+      await loadCounters();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể checkout counter';
+      toast.error(message);
+    } finally {
+      setLoadingCheckout(false);
+    }
+  }, [selectedCounterId, loadCounters]);
 
   useEffect(() => {
     loadCounters();
@@ -519,7 +731,7 @@ export default function ReceptionPage() {
 
     socket.on('connect', handleConnect);
     socket.on('joined_counter', () => {
-      console.info('[socket] joined counter room', counterId);
+      // Joined counter room
     });
     socket.on('new_ticket', handleRealtimeRefresh);
     socket.on('queue_position_changes', handleRealtimeRefresh);
@@ -532,16 +744,15 @@ export default function ReceptionPage() {
             : payload;
         const normalized = normalizeQueueSnapshot(queuePayload, counterId);
         setSnapshot(normalized);
-      } catch (error) {
-        console.warn('[socket] queue_update parse failed, falling back to refresh', error);
-        refreshQueueSnapshot(counterId, { silent: true });
-      }
+        } catch (error) {
+          refreshQueueSnapshot(counterId, { silent: true });
+        }
     });
     socket.on('error', (error: unknown) => {
-      console.warn('[socket] error', error);
+      // Socket error
     });
     socket.on('disconnect', (reason: string) => {
-      console.warn('[socket] disconnected', reason);
+      // Socket disconnected
     });
 
     handleConnect();
@@ -585,72 +796,20 @@ export default function ReceptionPage() {
             )}
             Làm mới hàng chờ
           </Button>
+          {selectedCounterId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCounterModal(true)}
+            >
+              <User className="mr-2 h-4 w-4" />
+              Quản lý quầy
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
-        <Card className="border border-gray-200 xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Users className="h-5 w-5 text-gray-600" />
-              Quầy tiếp nhận
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-700">Chọn quầy</p>
-              <Select
-                value={selectedCounterId || undefined}
-                onValueChange={(value) => setSelectedCounterId(value)}
-                disabled={loadingCounters}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder={loadingCounters ? 'Đang tải...' : 'Chọn quầy tiếp nhận'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {counters.length === 0 && !loadingCounters ? (
-                    <div className="p-2 text-sm text-gray-500">Không có quầy khả dụng</div>
-                  ) : (
-                    counters.map((counter) => (
-                      <SelectItem key={counter.counterId} value={counter.counterId}>
-                        {counter.counterName} ({counter.counterCode})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedCounter ? (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-                <p className="text-sm font-semibold text-green-800">Đang theo dõi</p>
-                <p className="text-sm text-green-700">
-                  {selectedCounter.counterName} ({selectedCounter.counterCode})
-                </p>
-                <p className="text-xs text-green-600 break-all">ID: {selectedCounter.counterId}</p>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                Vui lòng chọn quầy để xem thông tin hàng chờ.
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg border border-gray-200 bg-white p-3">
-                <p className="text-xs text-gray-500">Đang phục vụ</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {currentPatient?.queueNumber ?? '--'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-white p-3">
-                <p className="text-xs text-gray-500">Trong hàng chờ</p>
-                <p className="text-lg font-semibold text-gray-900">{waitingCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
         <Card className="border border-gray-200 xl:col-span-1">
           <CardHeader>
@@ -658,6 +817,11 @@ export default function ReceptionPage() {
               <UserCheck className="h-5 w-5 text-gray-600" />
               Trạng thái phục vụ
             </CardTitle>
+            {selectedCounter && (
+              <div className="text-sm text-gray-600">
+                Quầy: {selectedCounter.counterName} ({selectedCounter.counterCode})
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {loadingQueue && !currentPatient && !nextPatient ? (
@@ -886,6 +1050,266 @@ export default function ReceptionPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Counter Management Modal */}
+      <Dialog open={showCounterModal} onOpenChange={setShowCounterModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Quản lý quầy</DialogTitle>
+            <DialogDescription>
+              Chọn quầy và thực hiện checkin/checkout
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            {/* Counter Selection */}
+            <div>
+              <Label htmlFor="counter-select" className="text-sm font-medium text-gray-700">
+                Chọn quầy
+              </Label>
+              <Select
+                value={selectedCounterId || undefined}
+                onValueChange={(value) => setSelectedCounterId(value)}
+                disabled={loadingCounters}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder={loadingCounters ? 'Đang tải...' : 'Chọn quầy tiếp nhận'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {counters.length === 0 && !loadingCounters ? (
+                    <div className="p-2 text-sm text-gray-500">Không có quầy khả dụng</div>
+                  ) : (
+                    counters.map((counter) => (
+                      <SelectItem key={counter.counterId} value={counter.counterId}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{counter.counterName} ({counter.counterCode})</span>
+                          <div className="flex items-center gap-2 ml-2">
+                            {counter.assignedReceptionist ? (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                                {counter.assignedReceptionist.name}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-xs">
+                                Trống
+                              </Badge>
+                            )}
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                counter.status === 'BUSY' 
+                                  ? 'bg-red-100 text-red-800 border-red-200' 
+                                  : counter.status === 'AVAILABLE'
+                                  ? 'bg-green-100 text-green-800 border-green-200'
+                                  : 'bg-gray-100 text-gray-600 border-gray-200'
+                              }`}
+                            >
+                              {counter.status === 'BUSY' ? 'Bận' : counter.status === 'AVAILABLE' ? 'Sẵn sàng' : 'Offline'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Counter Status and Actions */}
+            {selectedCounter ? (
+              <div className="space-y-4">
+                {/* Counter Info */}
+                <div className={`rounded-lg border p-4 ${
+                  selectedCounter.assignedReceptionist 
+                    ? 'border-blue-200 bg-blue-50' 
+                    : 'border-green-200 bg-green-50'
+                }`}>
+                  <p className={`text-sm font-semibold ${
+                    selectedCounter.assignedReceptionist ? 'text-blue-800' : 'text-green-800'
+                  }`}>
+                    Thông tin quầy
+                  </p>
+                  <p className={`text-sm ${
+                    selectedCounter.assignedReceptionist ? 'text-blue-700' : 'text-green-700'
+                  }`}>
+                    {selectedCounter.counterName} ({selectedCounter.counterCode})
+                  </p>
+                  {selectedCounter.location && (
+                    <p className={`text-xs ${
+                      selectedCounter.assignedReceptionist ? 'text-blue-600' : 'text-green-600'
+                    }`}>
+                      Vị trí: {selectedCounter.location}
+                    </p>
+                  )}
+                  {selectedCounter.assignedReceptionist ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-blue-700">
+                        Đang phục vụ: <span className="font-semibold">{selectedCounter.assignedReceptionist.name}</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2">
+                      <User className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-700">Chưa có người phục vụ</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Button */}
+                {selectedCounter.assignedReceptionist ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setShowCheckoutDialog(true)}
+                    disabled={loadingCheckout}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {loadingCheckout ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogOut className="mr-2 h-4 w-4" />
+                    )}
+                    Checkout khỏi quầy
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => setShowAssignDialog(true)}
+                    disabled={loadingAssign}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {loadingAssign ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogIn className="mr-2 h-4 w-4" />
+                    )}
+                    Checkin vào quầy
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Vui lòng chọn quầy để quản lý
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCounterModal(false)}
+            >
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Counter Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Assign Counter</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn vào làm việc tại quầy{' '}
+              <span className="font-semibold">
+                {selectedCounter?.counterName} ({selectedCounter?.counterCode})
+              </span>{' '}
+              không?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="assign-notes" className="text-right">
+                Ghi chú
+              </Label>
+              <Textarea
+                id="assign-notes"
+                placeholder="Ví dụ: Ca sáng - 8h-12h"
+                className="col-span-3"
+                value={assignNotes}
+                onChange={(e) => setAssignNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowAssignDialog(false);
+                setAssignNotes('');
+              }}
+              disabled={loadingAssign}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignCounter}
+              disabled={loadingAssign}
+            >
+              {loadingAssign ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
+              Xác nhận Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Checkout Counter Dialog */}
+      <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Checkout Counter</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn rời khỏi quầy{' '}
+              <span className="font-semibold">
+                {selectedCounter?.counterName} ({selectedCounter?.counterCode})
+              </span>{' '}
+              không?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <p className="text-sm text-yellow-800">
+                  <strong>Lưu ý:</strong> Sau khi checkout, bạn sẽ không thể quản lý hàng chờ tại quầy này nữa.
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCheckoutDialog(false)}
+              disabled={loadingCheckout}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleCheckoutCounter}
+              disabled={loadingCheckout}
+            >
+              {loadingCheckout ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" />
+              )}
+              Xác nhận Checkout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

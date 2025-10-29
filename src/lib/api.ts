@@ -308,10 +308,18 @@ export const cashierApi = {
     paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'WALLET';
     cashierId: string;
     selectedServiceCodes: string[];
+    returnUrl?: string;
+    cancelUrl?: string;
   }) => api.post('/invoice-payments/create', data),
 
+  // Manually refresh a transfer transaction (PayOS)
+  refreshTransferTransaction: (
+    invoiceCode: string,
+    data: { returnUrl?: string; cancelUrl?: string }
+  ) => api.post(`/invoice-payments/invoice/${encodeURIComponent(invoiceCode)}/refresh`, data),
+
   // Confirm payment for an invoice
-  confirmPayment: (data: { invoiceCode: string; cashierId: string }) =>
+  confirmPayment: (data: { invoiceCode: string; cashierId: string; transactionId?: string }) =>
     api.post('/invoice-payments/confirm', data),
 };
 
