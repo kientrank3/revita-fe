@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
+import { workSessionService } from '@/lib/services/work-session.service';
+import type { WorkSession as WS } from '@/lib/types/work-session';
 import {
   Prescription,
   PrescriptionService,
@@ -44,6 +46,9 @@ export default function ServiceProcessingPage() {
   const [updatingService, setUpdatingService] = useState<string | null>(null);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<PrescriptionService | null>(null);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [todaySessions, setTodaySessions] = useState<WS[]>([]);
+  const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
 
   // Load work session and my services on mount
   useEffect(() => {
@@ -55,6 +60,59 @@ export default function ServiceProcessingPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  const sortByStartTime = (a: WS, b: WS) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+
+  const toggleTodaySessions = async () => {
+    try {
+      if (!sessionsOpen) {
+        const list = await workSessionService.getTodayMyWorkSessions();
+        setTodaySessions([...list].sort(sortByStartTime));
+      }
+    } catch (e) {
+      console.error('Error loading today work sessions', e);
+      toast.error('Không thể tải phiên làm việc hôm nay');
+    } finally {
+      setSessionsOpen((o) => !o);
+    }
+  };
+
+  const findFirstApproved = (sessions: WS[]) => sessions.find(ws => ws.status === 'APPROVED');
+  const getFirstStartableApproved = (sessions: WS[]) => sessions.find(ws => ws.status === 'APPROVED' && !isOverdue(ws));
+
+  const isOverdue = (ws: WS) => new Date().getTime() > new Date(ws.endTime).getTime();
+
+  const onStartSession = async (ws: WS) => {
+    if (!window.confirm('Bạn có muốn bắt đầu phiên làm việc này không?')) return;
+    try {
+      setProcessingSessionId(ws.id);
+      await workSessionService.updateStatus(ws.id, 'IN_PROGRESS');
+      toast.success('Đã bắt đầu phiên làm việc');
+      const list = await workSessionService.getTodayMyWorkSessions();
+      setTodaySessions([...list].sort(sortByStartTime));
+    } catch (e) {
+      console.error('Start session failed', e);
+      toast.error('Không thể bắt đầu phiên làm việc');
+    } finally {
+      setProcessingSessionId(null);
+    }
+  };
+
+  const onCompleteSession = async (ws: WS) => {
+    if (!window.confirm('Bạn có muốn hoàn thành phiên làm việc này không?')) return;
+    try {
+      setProcessingSessionId(ws.id);
+      await workSessionService.updateStatus(ws.id, 'COMPLETED');
+      toast.success('Đã hoàn thành phiên làm việc');
+      const list = await workSessionService.getTodayMyWorkSessions();
+      setTodaySessions([...list].sort(sortByStartTime));
+    } catch (e) {
+      console.error('Complete session failed', e);
+      toast.error('Không thể hoàn thành phiên làm việc');
+    } finally {
+      setProcessingSessionId(null);
+    }
+  };
 
   const loadMyServices = async () => {
     setLoadingMyServices(true);
@@ -672,14 +730,66 @@ export default function ServiceProcessingPage() {
           <h1 className="text-2xl font-semibold">Xử lý dịch vụ</h1>
         </div>
 
-        {workSession && (
-          <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-            <div className="text-sm text-blue-600">
-              <div className="font-medium">Ca làm việc hiện tại:</div>
-              <div>{workSession.booth.room.roomName} - {workSession.booth.name}</div>
+        <div className="flex items-center gap-3 relative">
+          <Button variant="outline" onClick={toggleTodaySessions}>
+            Quản lý phiên làm việc
+          </Button>
+          {sessionsOpen && (
+            <div className="absolute right-0 top-full mt-2 w-[28rem] max-h-96 overflow-auto bg-white border rounded-md shadow-lg z-20">
+              <div className="px-4 py-2 border-b text-sm font-medium">Phiên hôm nay</div>
+              {todaySessions.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-gray-500">Không có phiên làm việc nào hôm nay</div>
+              ) : (
+                <div className="divide-y">
+                  {todaySessions.map((ws) => (
+                    <div key={ws.id} className="p-3 hover:bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-sm">{ws.booth?.room.roomName} - {ws.booth?.name}</div>
+                        <Badge className="text-xs" variant={ws.status === 'IN_PROGRESS' ? 'default' : 'secondary'}>
+                          {ws.status === 'IN_PROGRESS' ? 'Đang diễn ra' : ws.status === 'COMPLETED' ? 'Đã xong' : ws.status === 'PENDING' ? 'Chờ duyệt' : ws.status === 'APPROVED' ? 'Đã duyệt' : ws.status === 'CANCELED' ? 'Đã hủy' : ws.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(ws.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {' - '}
+                        {new Date(ws.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      {ws.status === 'APPROVED' && isOverdue(ws) && (
+                        <div className="text-xs text-red-600 mt-1">Phiên làm việc đã quá hạn</div>
+                      )}
+                      {ws.services?.length > 0 && (
+                        <div className="text-xs text-gray-600 mt-2 line-clamp-2">
+                          {ws.services.map(s => s.service?.name || s.service.name).join(', ')}
+                        </div>
+                      )}
+                      <div className="mt-2 flex gap-2">
+                        {ws.status === 'APPROVED' && ws.id === getFirstStartableApproved(todaySessions)?.id && (
+                          <Button size="sm" onClick={() => onStartSession(ws)} disabled={processingSessionId === ws.id}>
+                            {processingSessionId === ws.id ? 'Đang xử lý...' : 'Bắt đầu'}
+                          </Button>
+                        )}
+                        {ws.status === 'IN_PROGRESS' && (
+                          <Button size="sm" variant="outline" onClick={() => onCompleteSession(ws)} disabled={processingSessionId === ws.id}>
+                            {processingSessionId === ws.id ? 'Đang xử lý...' : 'Hoàn thành'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {workSession && (
+            <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-600">
+                <div className="font-medium">Ca làm việc hiện tại:</div>
+                <div>{workSession.booth.room.roomName} - {workSession.booth.name}</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Work Session Info */}
