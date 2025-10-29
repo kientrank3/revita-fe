@@ -67,7 +67,7 @@ export default function SpecialtiesPage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
         
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
           <div className="max-w-5xl mx-auto text-center">
             
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-4">
@@ -84,16 +84,16 @@ export default function SpecialtiesPage() {
           </div>
         </div>
       </section>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center gap-4 mb-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className=" mx-auto">
+          <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
               <Stethoscope className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">
                 {loading ? 'Đang tải...' : `${specialties.length} chuyên khoa`}
               </span>
             </div>
-            <Badge variant="secondary" className="bg-green-100 text-green-700">
+            <Badge variant="secondary" className="bg-green-100 py-2 rounded-full text-green-700">
               <Shield className="h-3 w-3 mr-1" />
               Đầy đủ dịch vụ
             </Badge>
@@ -101,7 +101,7 @@ export default function SpecialtiesPage() {
 
           <div className="space-y-6">
             {currentItems.map((dept) => (
-              <Card key={dept.id} className="border w-2/3 mx-auto border-gray-200 bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+              <Card key={dept.id} className="border w-full mx-auto border-gray-200 bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
                 <CardContent className="p-6 relative">
                   <div className="flex items-start gap-6">

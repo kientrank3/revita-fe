@@ -89,9 +89,9 @@ export default function DoctorsPage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
         
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
           <div className="max-w-5xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="flex items-center justify-center gap-3 mb-4">
               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                 <Sparkles className="h-3 w-3 mr-1" />
                 Đội ngũ chuyên nghiệp
@@ -116,22 +116,22 @@ export default function DoctorsPage() {
         </div>
       </section>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 ">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8"></div>
+        <div className=" mx-auto">
+          <div className="text-center mb-4"></div>
 
-          <div className="max-w-2xl mx-auto mb-8">
+          <div className="max-w-2xl mx-auto mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Lọc theo chuyên khoa (vd: Tim mạch)"
                 value={specialtyName}
                 onChange={(e) => setSpecialtyName(e.target.value)}
-                className="pl-10 pr-4 py-3 border-gray-300 focus:border-primary focus:ring-primary/20"
+                className="pl-10 pr-4 py-5 border-gray-300 focus:border-primary focus:ring-primary/20"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
               <Users className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">
@@ -148,7 +148,7 @@ export default function DoctorsPage() {
 
           <div className="space-y-6">
             {currentDoctors.map((d) => (
-              <Card key={d.id} className="border border-gray-200 w-2/3 mx-auto bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+              <Card key={d.id} className="border border-gray-200 w-full mx-auto bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
                 <CardContent className="p-6 relative">
                   <div className="flex items-start gap-6">
