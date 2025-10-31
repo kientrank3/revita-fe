@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 // import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+// import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { appointmentBookingApi } from '@/lib/api';
 import { Clock, RefreshCw } from 'lucide-react';
@@ -35,6 +35,7 @@ type DoctorAppointment = {
 export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean }) {
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [validatingId, setValidatingId] = useState<string | null>(null);
   const [isOpen,] = useState(asSheet);
 
@@ -61,6 +62,7 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
     }
   }, [isOpen]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const validateSlot = async (appt: DoctorAppointment) => {
     try {
       setValidatingId(appt.appointmentId);
@@ -98,12 +100,12 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
                 <span className="text-gray-600">{new Date(a.date).toLocaleDateString('vi-VN')} · <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{a.startTime}-{a.endTime}</span></span>
                 <span className="text-gray-600">{a.services?.[0]?.serviceName || '-'}</span>
               </div>
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Badge variant="secondary">{a.status}</Badge>
                 <Button variant="outline" size="sm" onClick={() => validateSlot(a)} disabled={validatingId === a.appointmentId}>
                   {validatingId === a.appointmentId ? 'Đang kiểm...' : 'Xác thực'}
                 </Button>
-              </div>
+              </div> */}
             </div>
           ))}
         </div>

@@ -50,7 +50,7 @@ export function WorkSessionForm({
     loading: servicesLoading, 
     error: servicesError, 
     total: totalServices,
-    filterServices 
+    searchServices 
   } = useServices();
 
   // Initialize form data
@@ -155,10 +155,15 @@ export function WorkSessionForm({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
-    // Filter services immediately (client-side)
-    filterServices(query);
   };
+
+  // Debounce backend search
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      void searchServices(searchQuery);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery, searchServices]);
 
   const selectedServices = (services || []).filter(s => formData.serviceIds.includes(s.id));
   const availableServices = (services || []).filter(s => !formData.serviceIds.includes(s.id));

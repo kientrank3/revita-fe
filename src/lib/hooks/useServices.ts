@@ -24,7 +24,7 @@ interface UseServicesReturn {
   error: string | null;
   total: number;
   refetch: () => Promise<void>;
-  filterServices: (query: string) => void;
+  searchServices: (query: string) => Promise<void>;
 }
 
 export function useServices(): UseServicesReturn {
@@ -39,7 +39,8 @@ export function useServices(): UseServicesReturn {
       setLoading(true);
       setError(null);
       
-      const response = await serviceApi.getAll();
+      // Respect API limit (max 100)
+      const response = await serviceApi.getAll({ limit: 100, offset: 0 });
       
       // Extract services from API response with correct structure
       const responseData = response.data as ServicesApiResponse;
@@ -62,20 +63,34 @@ export function useServices(): UseServicesReturn {
     }
   }, []);
 
-  const filterServices = useCallback((query: string) => {
-    if (!query.trim()) {
+  const searchServices = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    // When query empty, restore initial list
+    if (!trimmed) {
       setServices(allServices);
       return;
     }
 
-    const searchTerm = query.trim().toLowerCase();
-    const filtered = allServices.filter(service => 
-      service.name.toLowerCase().includes(searchTerm) ||
-      service.serviceCode.toLowerCase().includes(searchTerm) ||
-      (service.description && service.description.toLowerCase().includes(searchTerm))
-    );
-    
-    setServices(filtered);
+    try {
+      setLoading(true);
+      setError(null);
+      // Respect API limit (max 100)
+      const response = await serviceApi.search({ query: trimmed, limit: 100, offset: 0 });
+      const responseData = response.data as ServicesApiResponse;
+      const servicesData = responseData?.data?.services || [];
+      const validServices = Array.isArray(servicesData) ? servicesData : [];
+      const totalCount = responseData?.data?.pagination?.total || validServices.length;
+
+      setServices(validServices);
+      setTotal(totalCount);
+    } catch (err) {
+      console.error('Error searching services:', err);
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi tìm kiếm dịch vụ');
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
   }, [allServices]);
 
   const refetch = async () => {
@@ -93,6 +108,6 @@ export function useServices(): UseServicesReturn {
     error,
     total,
     refetch,
-    filterServices,
+    searchServices,
   };
 }
