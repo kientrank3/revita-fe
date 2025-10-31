@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,18 @@ export default function ServiceProcessingPage() {
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [queue, setQueue] = useState<{
+    patients: Array<{
+      patientProfileId: string;
+      patientName: string;
+      prescriptionCode: string;
+      services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
+      overallStatus: 'SERVING' | 'PREPARING' | 'SKIPPED' | 'WAITING_RESULT' | 'RETURNING' | 'WAITING';
+      queueOrder: number;
+    }>;
+    totalCount: number;
+  } | null>(null);
 
   // Load work session and my services on mount
   useEffect(() => {
@@ -57,8 +70,59 @@ export default function ServiceProcessingPage() {
       console.log('Loading service processing data...');
 
       loadMyServices();
+      // Load waiting queue
+      (async () => {
+        try {
+          const q = await serviceProcessingService.getWaitingQueue();
+          setQueue(q);
+        } catch (e) {
+          console.error('Error loading queue', e);
+        }
+      })();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Socket connection and event listeners
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Connect to socket
+    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001');
+    setSocket(newSocket);
+
+    // Join doctor room
+    newSocket.emit('join_doctor', { doctorId: user.id });
+
+    // Event listeners
+    newSocket.on('NEW_PRESCRIPTION_PATIENT', (data) => {
+      console.log('Bệnh nhân mới:', data);
+      // Reload queue when new patient arrives
+      serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    });
+
+    newSocket.on('PATIENT_CALLED', (data) => {
+      console.log('Bệnh nhân được gọi:', data);
+      // Reload queue when patient is called
+      serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    });
+
+    newSocket.on('PATIENT_SKIPPED', (data) => {
+      console.log('Bệnh nhân bị skip:', data);
+      // Reload queue when patient is skipped
+      serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    });
+
+    newSocket.on('PATIENT_STATUS_CHANGED', (data) => {
+      console.log('Trạng thái thay đổi:', data);
+      // Reload queue when patient status changes
+      serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      newSocket.disconnect();
+    };
   }, [user?.id]);
 
   const sortByStartTime = (a: WS, b: WS) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
@@ -1004,128 +1068,50 @@ export default function ServiceProcessingPage() {
         </Card>
       )}
 
-      {/* My Services Queue */}
+      {/* Waiting Queue (by patient) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="h-5 w-5 text-orange-600" />
-            Hàng đợi dịch vụ của tôi ({myServices.length})
+            <Users className="h-5 w-5 text-blue-600" />
+            Hàng chờ hôm nay {queue ? `(${queue.totalCount})` : ''}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loadingMyServices ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
-            </div>
-          ) : myServices.length === 0 ? (
+          {!queue || queue.patients.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Chưa có dịch vụ nào được giao</p>
-              <p className="text-xs mt-1">Dịch vụ sẽ xuất hiện khi được phân công</p>
+              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Không có bệnh nhân trong hàng chờ</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Row 1: Đang phục vụ */}
-              {(() => {
-                const servingServices = myServices.filter(s => s.status === 'SERVING');
-                const servingPatients = groupServicesByPatient(servingServices);
-                
-                return servingPatients.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <AlertCircle className="h-5 w-5 text-orange-600" />
-                      Đang phục vụ
-                    </h3>
-                    <div className="grid gap-4">
-                      {servingPatients.map((patient) => (
-                        <PatientServiceCard
-                          key={patient.patientId}
-                          patient={patient}
-                          onQuickComplete={handleQuickComplete}
-                          onUpdateResults={handleOpenResultsDialog}
-                          updatingService={updatingService}
-                        />
-                      ))}
+            <div className="space-y-3">
+              {queue.patients
+                .slice()
+                .sort((a, b) => a.queueOrder - b.queueOrder)
+                .map((p) => (
+                <div key={p.patientProfileId} className="p-3 border rounded-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
+                        {p.queueOrder}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{p.patientName}</div>
+                        <div className="text-xs text-gray-500">{p.prescriptionCode}</div>
+                      </div>
                     </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {p.overallStatus}
+                    </Badge>
                   </div>
-                );
-              })()}
-
-              {/* Row 2: 2 cột - Đang chờ phục vụ và Chờ kết quả */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Cột 1: Đang chờ phục vụ */}
-                <div>
-                  {(() => {
-                    const waitingServices = myServices.filter(s => s.status === 'WAITING');
-                    const waitingPatients = groupServicesByPatient(waitingServices);
-                    
-                    return (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-blue-600" />
-                          Đang chờ phục vụ ({Math.min(waitingPatients.length, 2)})
-                        </h3>
-                        {waitingPatients.length > 0 ? (
-                          <div className="space-y-4">
-                            {waitingPatients.map((patient, index) => (
-                              <PatientServiceCard
-                                key={patient.patientId}
-                                patient={patient}
-                                onQuickStart={handleQuickStart}
-                                updatingService={updatingService}
-                                isFirstInQueue={index === 0}
-                                showStartButton={index === 0} // Chỉ bệnh nhân đầu tiên có nút bắt đầu
-                                showNextBadge={index === 1} // Chỉ bệnh nhân thứ hai có badge "Kế tiếp"
-                                hideCard={index > 1} // Ẩn các bệnh nhân từ thứ 3 trở đi
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm">Không có bệnh nhân đang chờ</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <div className="mt-2 text-xs text-gray-600">
+                    {p.services
+                      .slice()
+                      .sort((a, b) => (a.order || 0) - (b.order || 0))
+                      .map(s => `${s.order ? `#${s.order} ` : ''}${s.serviceName} (${s.status})`) 
+                      .join(' • ')}
+                  </div>
                 </div>
-
-                {/* Cột 2: Chờ kết quả */}
-                <div>
-                  {(() => {
-                    const waitingResultServices = myServices.filter(s => s.status === 'WAITING_RESULT');
-                    const waitingResultPatients = groupServicesByPatient(waitingResultServices);
-                    
-                    return (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-yellow-600" />
-                          Chờ kết quả
-                        </h3>
-                        {waitingResultPatients.length > 0 ? (
-                          <div className="space-y-4">
-                            {waitingResultPatients.map((patient) => (
-                              <PatientServiceCard
-                                key={patient.patientId}
-                                patient={patient}
-                                onUpdateResults={handleOpenResultsDialog}
-                                updatingService={updatingService}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm">Không có bệnh nhân chờ kết quả</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
+              ))}
             </div>
           )}
         </CardContent>
