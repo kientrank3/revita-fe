@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
@@ -14,7 +15,7 @@ import { toast } from 'sonner';
 import { cashierApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clipboard, Copy, CreditCard, ExternalLink, FileSearch, Printer, QrCode, RefreshCcw, Scan, Timer } from 'lucide-react';
+import { CheckCircle2, Clipboard, Copy, CreditCard, ExternalLink, FileSearch, Printer, QrCode, RefreshCcw, Scan } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 enum PrescriptionStatus {
@@ -830,7 +831,7 @@ export default function InvoicesPage() {
   }, [paymentMethod, prescription, selectedCodes]);
 
   // Remove onPreview function as it's now automatic
-  const onPreview = async () => {}; // Keep for compatibility but do nothing
+  // const onPreview = async () => {}; // Keep for compatibility but do nothing
 
   const getPayosUrls = useCallback(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';

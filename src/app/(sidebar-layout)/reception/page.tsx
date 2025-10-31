@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -745,13 +746,16 @@ export default function ReceptionPage() {
         const normalized = normalizeQueueSnapshot(queuePayload, counterId);
         setSnapshot(normalized);
         } catch (error) {
+          console.error('[socket] queue_update error:', error);
           refreshQueueSnapshot(counterId, { silent: true });
         }
     });
     socket.on('error', (error: unknown) => {
+      console.error('[socket] error:', error);
       // Socket error
     });
     socket.on('disconnect', (reason: string) => {
+      console.error('[socket] disconnect:', reason);
       // Socket disconnected
     });
 
@@ -771,7 +775,7 @@ export default function ReceptionPage() {
   const queueTickets = orderedTickets.filter(
     (ticket) => ticket.ticketId !== currentPatient?.ticketId && ticket.ticketId !== nextPatient?.ticketId
   );
-  const waitingCount = snapshot?.queue.length ?? 0;
+  // const waitingCount = snapshot?.queue.length ?? 0;
 
   return (
     <div className="min-h-screen space-y-6 bg-gray-50 px-8 py-6">
