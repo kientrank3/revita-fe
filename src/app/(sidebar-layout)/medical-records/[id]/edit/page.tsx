@@ -11,12 +11,14 @@ import {
   ArrowLeft, 
   FileText,
   Stethoscope,
-  ClipboardList
+  ClipboardList,
+  Brain
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { toast } from 'sonner';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
+import api from '@/lib/config';
 
 export default function EditMedicalRecordPage() {
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function EditMedicalRecordPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [, setIsSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<MedicalRecordStatus>(MedicalRecordStatus.DRAFT);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictions, setPredictions] = useState<Array<{ icd_code: string; probability: number; disease_name_en: string; disease_name_vi: string }>>([]);
 
   // Load medical record and template
   useEffect(() => {
@@ -126,6 +130,29 @@ export default function EditMedicalRecordPage() {
     }
   };
 
+  const handlePredict = async () => {
+    if (!recordId) return;
+    try {
+      setIsPredicting(true);
+      // Use GET as requested
+      const response = await api.get(`/medical-records/${recordId}/predict`);
+      const payload = response?.data ?? {};
+      const list = (payload?.data?.predictions ?? payload?.predictions) as Array<{ icd_code: string; probability: number; disease_name_en: string; disease_name_vi: string }>;
+      if (Array.isArray(list)) {
+        setPredictions(list);
+        if (!list.length) toast.info('Không có gợi ý bệnh phù hợp');
+      } else {
+        setPredictions([]);
+        toast.error('Dữ liệu dự đoán không hợp lệ');
+      }
+    } catch (error) {
+      console.error('Error predicting diseases:', error);
+      toast.error('Có lỗi xảy ra khi chuẩn đoán tự động');
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-8 py-6">
@@ -188,6 +215,15 @@ export default function EditMedicalRecordPage() {
               {getStatusText(medicalRecord.status)}
             </Badge>
             <Button
+              onClick={handlePredict}
+              variant="secondary"
+              className="flex items-center gap-2 text-sm"
+              disabled={isPredicting}
+            >
+              <Brain className="h-4 w-4" />
+              {isPredicting ? 'Đang chuẩn đoán...' : 'Chuẩn đoán tự động'}
+            </Button>
+            <Button
               onClick={() => router.push(`/medical-records/${recordId}/prescription`)}
               className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700"
             >
@@ -197,6 +233,33 @@ export default function EditMedicalRecordPage() {
           </div>
         </div>
       </div>
+
+      {predictions.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Brain className="h-5 w-5 text-purple-600" />
+              Kết quả chuẩn đoán tự động
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {predictions.map((p, idx) => (
+                <li key={`${p.icd_code}-${idx}`} className="flex items-center justify-between rounded-md border p-3 text-sm">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{p.disease_name_vi}</p>
+                    <p className="text-xs text-gray-500">ICD: {p.icd_code}</p>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <span className="text-xs text-gray-600">Xác suất</span>
+                    <div className="font-semibold">{(p.probability * 100).toFixed(1)}%</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column - Status & Info */}
