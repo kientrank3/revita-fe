@@ -40,7 +40,7 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/.env ./.env
 
 # Cài đặt chỉ các phụ thuộc cần thiết cho production
-RUN npm ci  --legacy-peer-deps --ignore-scripts
+RUN npm ci --production --legacy-peer-deps --ignore-scripts
 
 # Mở cổng mà ứng dụng sẽ chạy
 EXPOSE 3000
