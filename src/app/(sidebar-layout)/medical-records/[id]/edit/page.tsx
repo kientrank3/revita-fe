@@ -19,6 +19,7 @@ import { medicalRecordService } from '@/lib/services/medical-record.service';
 import { toast } from 'sonner';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import api from '@/lib/config';
+import { MedicalRecordPrescriptions } from '@/components/medical-records/MedicalRecordPrescriptions';
 
 export default function EditMedicalRecordPage() {
   const router = useRouter();
@@ -304,6 +305,12 @@ export default function EditMedicalRecordPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Prescriptions List */}
+          <MedicalRecordPrescriptions
+            medicalRecordId={medicalRecord.id}
+            patientProfileId={medicalRecord.patientProfileId}
+          />
         </div>
 
         {/* Right Column - Edit Form */}

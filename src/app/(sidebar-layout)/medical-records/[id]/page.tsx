@@ -14,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Eye,
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -91,6 +92,9 @@ export default function MedicalRecordDetailPage() {
   const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
   const [, setIsSaving] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   // Load prescriptions for this medical record
   const loadPrescriptions = async () => {
@@ -370,6 +374,156 @@ export default function MedicalRecordDetailPage() {
     }
   };
 
+  const downloadServicePrescriptionPdf = async (prescription: Prescription) => {
+    try {
+      setDownloadingPdfId(prescription.id);
+      const { default: pdfMake } = await import('pdfmake/build/pdfmake');
+      const { default: pdfFonts } = await import('pdfmake/build/vfs_fonts');
+      pdfMake.vfs = pdfFonts.vfs;
+
+      const doctorName = doctor?.name || prescription.doctor?.name || 'Bác sĩ phụ trách';
+      const doctorPosition = prescription.doctor?.position || 'Bác sĩ';
+
+      const docDefinition = {
+        pageMargins: [36, 36, 36, 40],
+        content: [
+          // Header: left info + right QR in one box
+          {
+            table: {
+              widths: ['*', 110],
+              body: [[
+                {
+                  stack: [
+                    { text: 'PHIẾU CHỈ ĐỊNH DỊCH VỤ', style: 'title' },
+                    {
+                      columns: [
+                        { width: 120, text: 'Mã phiếu:', style: 'label' },
+                        { text: prescription.prescriptionCode, style: 'value' }
+                      ], margin: [0, 4, 0, 0]
+                    },
+                    {
+                      columns: [
+                        { width: 120, text: 'Trạng thái:', style: 'label' },
+                        { text: getStatusText(prescription.status), style: 'value' }
+                      ]
+                    },
+                    {
+                      columns: [
+                        { width: 120, text: 'Ngày tạo:', style: 'label' },
+                        { text: new Date().toLocaleString('vi-VN'), style: 'value' }
+                      ]
+                    }
+                  ]
+                },
+                { qr: prescription.prescriptionCode, fit: 100, alignment: 'right' }
+              ]]
+            },
+            layout: {
+              fillColor: () => '#ffffff',
+              hLineColor: () => '#e5e7eb',
+              vLineColor: () => '#e5e7eb'
+            },
+            margin: [0, 0, 0, 12]
+          },
+
+          // Patient info
+          ...(prescription.patientProfile ? [
+            { text: 'Thông tin bệnh nhân', style: 'sectionHeader', margin: [0, 6, 0, 6] },
+            {
+              table: {
+                widths: [120, '*', 120, '*'],
+                body: [
+                  [
+                    { text: 'Tên', style: 'label' },
+                    { text: prescription.patientProfile.name || '—', style: 'value' },
+                    { text: 'Mã hồ sơ', style: 'label' },
+                    { text: prescription.patientProfile.profileCode || '—', style: 'value' }
+                  ],
+                  [
+                    { text: 'SĐT', style: 'label' },
+                    { text: prescription.patientProfile.phone || '—', style: 'value' },
+                    { text: 'Địa chỉ', style: 'label' },
+                    { text: prescription.patientProfile.address || '—', style: 'value' }
+                  ]
+                ]
+              },
+              layout: {
+                fillColor: (rowIndex: number) => (rowIndex % 2 === 0 ? '#f9fafb' : null),
+                hLineColor: () => '#e5e7eb',
+                vLineColor: () => '#e5e7eb'
+              },
+              margin: [0, 0, 0, 12]
+            }
+          ] : []),
+
+          // Note
+          ...(prescription.note ? [
+            { text: 'Ghi chú', style: 'sectionHeader', margin: [0, 6, 0, 4] },
+            { text: prescription.note, fontSize: 11, margin: [0, 0, 0, 10] }
+          ] : []),
+
+          // Services table
+          { text: 'Danh sách dịch vụ', style: 'sectionHeader', margin: [0, 6, 0, 6] },
+          {
+            table: {
+              headerRows: 1,
+              widths: [28, 120, '*'],
+              body: [
+                [
+                  { text: '#', style: 'tableHeader', alignment: 'center' },
+                  { text: 'Mã dịch vụ', style: 'tableHeader' },
+                  { text: 'Tên dịch vụ', style: 'tableHeader' }
+                ],
+                ...prescription.services.map((s) => [
+                  { text: String(s.order), alignment: 'center', fontSize: 10 },
+                  { text: s.service?.serviceCode || '—', fontSize: 10 },
+                  { text: s.service?.name || '—', fontSize: 10 }
+                ])
+              ]
+            },
+            layout: {
+              fillColor: (rowIndex: number) => (rowIndex === 0 ? '#f3f4f6' : null),
+              hLineColor: () => '#e5e7eb',
+              vLineColor: () => '#e5e7eb'
+            },
+            margin: [0, 0, 0, 14]
+          },
+
+          // Footer signature
+          {
+            columns: [
+              { width: '*', text: `In từ hệ thống Revita\nNgày in: ${new Date().toLocaleString('vi-VN')}`, fontSize: 10 },
+              {
+                width: 'auto',
+                stack: [
+                  { text: 'Chữ ký bác sĩ', bold: true, alignment: 'right', margin: [0, 0, 0, 24] },
+                  { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.5, lineColor: '#9ca3af' }] },
+                  { text: `${doctorPosition}: ${doctorName}`, alignment: 'right', margin: [0, 6, 0, 0] }
+                ]
+              }
+            ]
+          }
+        ],
+        styles: {
+          title: { fontSize: 16, bold: true, color: '#111827' },
+          sectionHeader: { fontSize: 13, bold: true, color: '#111827' },
+          tableHeader: { bold: true, fontSize: 11, color: '#111827' },
+          label: { fontSize: 11, color: '#374151' },
+          value: { fontSize: 11, color: '#111827' }
+        },
+        defaultStyle: { fontSize: 11, color: '#111827' }
+      } as any;
+
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      pdfDoc.download(`Phieu-chi-dinh-${prescription.prescriptionCode}.pdf`);
+    } catch (e) {
+      console.error('PDF generate error', e);
+      toast.error('Không thể tạo PDF phiếu chỉ định');
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
 
  
 
@@ -410,7 +564,7 @@ export default function MedicalRecordDetailPage() {
   }
 
   return (
-    <div className="container mx-auto  bg-white px-8 py-6">
+    <div className="container mx-auto  bg-white pl-4 pr-6 py-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
@@ -443,9 +597,9 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column - Medical Record Document */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-7">
           <MedicalRecordViewer
             medicalRecord={medicalRecord}
             template={template}
@@ -458,7 +612,7 @@ export default function MedicalRecordDetailPage() {
         </div>
 
         {/* Right Column - Prescriptions & Attachments */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-5 space-y-6">
         <Card className="border-l-1 border-l-orange-500">
             <CardHeader className="">
               <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
@@ -494,9 +648,32 @@ export default function MedicalRecordDetailPage() {
                             {getStatusText(prescription.status)}
                           </Badge>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {prescription.prescriptionCode}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500 mr-2">
+                            {prescription.prescriptionCode}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              setSelectedPrescription(prescription);
+                              setIsPrescriptionDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Xem chi tiết
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => downloadServicePrescriptionPdf(prescription)}
+                            disabled={downloadingPdfId === prescription.id}
+                          >
+                            {downloadingPdfId === prescription.id ? 'Đang tạo...' : 'Tải PDF'}
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Services List */}
@@ -616,6 +793,54 @@ export default function MedicalRecordDetailPage() {
             <div className="text-center py-8">
               <p className="text-gray-500">Đang tải form...</p>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Prescription Detail Dialog */}
+      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Chi tiết phiếu chỉ định {selectedPrescription ? `#${selectedPrescription.prescriptionCode}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPrescription ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className={`${getStatusColor(selectedPrescription.status)} text-xs`}>
+                    {getStatusText(selectedPrescription.status)}
+                  </Badge>
+                </div>
+                {selectedPrescription.note && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Ghi chú:</span> {selectedPrescription.note}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h4 className="font-medium text-sm text-gray-900 mb-2">Dịch vụ ({selectedPrescription.services.length})</h4>
+                <div className="space-y-2">
+                  {selectedPrescription.services.map((service) => (
+                    <div key={service.serviceId} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+                      <Badge variant="outline" className="text-xs">{service.order}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
+                        <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
+                      </div>
+                      <Badge className={`${getStatusColor(service.status)} text-xs`}>
+                        {getStatusText(service.status, service.order, selectedPrescription.services)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">Không có dữ liệu phiếu chỉ định</div>
           )}
         </DialogContent>
       </Dialog>
