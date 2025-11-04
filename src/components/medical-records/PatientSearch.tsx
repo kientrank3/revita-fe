@@ -154,13 +154,13 @@ export function PatientSearch({
         ) : (
           /* Search Input */
           <div className="relative">
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm bệnh nhân..."
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="text-sm"
+                className="text-sm h-10"
               />
               <Button 
                 onClick={handleSearch} 

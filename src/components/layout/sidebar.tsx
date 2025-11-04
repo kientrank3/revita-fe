@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
 	CalendarDays,
-	ChartColumn,
 	CreditCard,
 	FileTextIcon,
 	Home,
@@ -15,6 +14,7 @@ import {
 	Library,
 	Stethoscope,
 	Users,
+	ClipboardList,
 } from "lucide-react";
 
 import {
@@ -47,13 +47,22 @@ const getMenuItems = () => {
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
 		},
+		// {
+		// 	title: "Báo cáo",
+		// 	url: "/reports",
+		// 	icon: ChartColumn,
+		// 	color: "text-primary",
+		// 	bgColor: "bg-primary/10",
+		// 	roles: ["ADMIN", "DOCTOR"],
+		// },
+		// Receptionist: dedicated create-prescription screen replaces Reports
 		{
-			title: "Báo cáo",
-			url: "/reports",
-			icon: ChartColumn,
+			title: "Tạo phiếu chỉ định",
+			url: "/reception/prescription",
+			icon: ClipboardList,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+			roles: ["RECEPTIONIST"],
 		},
 		{
 			title: "Bệnh án & Đơn thuốc",
@@ -90,6 +99,14 @@ const getMenuItems = () => {
 		{
 			title: "Màn hình tiếp nhận",
 			url: "/reception",
+			icon: Users,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["RECEPTIONIST"],
+		},
+		{
+			title: "Hồ sơ bệnh nhân",
+			url: "/reception/patients",
 			icon: Users,
 			color: "text-primary",
 			bgColor: "bg-primary/10",

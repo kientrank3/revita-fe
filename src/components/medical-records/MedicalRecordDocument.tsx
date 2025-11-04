@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,10 +12,9 @@ import {
 } from '@/lib/types/medical-record';
 import { 
   FileText, 
-  Edit,
-  Download,
   Printer,
 } from 'lucide-react';
+import QRCode from 'react-qr-code';
 
 interface MedicalRecordDocumentProps {
   medicalRecord: MedicalRecord;
@@ -32,9 +31,9 @@ export function MedicalRecordDocument({
   template,
   patientProfile,
   doctor,
-  onEdit,
-  onPrint,
-  onDownload,
+  // onEdit,
+  // onPrint,
+  // onDownload,
 }: MedicalRecordDocumentProps) {
   
   const formatDate = (dateString: string) => {
@@ -142,21 +141,57 @@ export function MedicalRecordDocument({
     }
   };
 
+  const documentRef = useRef<HTMLDivElement | null>(null);
+
+  const handlePrintDocument = useCallback(() => {
+    if (!documentRef.current) return;
+    const docHtml = documentRef.current.outerHTML;
+    const headContent = document?.head?.innerHTML || '';
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html><head><title>In bệnh án</title>${headContent}
+      <style>
+        @page { size: A4; margin: 12mm; }
+        html, body { background: #fff; }
+      </style>
+    </head><body>${docHtml}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
+  }, []);
+
+  
+
   return (
-    <div className="bg-white border border-gray-300 shadow-lg">
+    <div ref={documentRef} className="bg-white border border-gray-300 shadow-lg">
       {/* Document Header */}
       <div className="border-b-2 border-gray-800 px-8 py-6 bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            BỆNH ÁN
-          </h1>
-          <div className="flex items-center justify-center gap-4 text-sm text-gray-700">
-            <span>Mẫu: <strong>{template.name}</strong></span>
-            <span>•</span>
-            <span>Chuyên khoa: <strong>{template.specialtyName}</strong></span>
-            <span>•</span>
-            <span>ID: <strong>{medicalRecord.id.slice(0, 8)}</strong></span>
+        <div className="flex items-center justify-between">
+          <div className="flex-1 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              BỆNH ÁN
+            </h1>
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-700">
+              <span>Mẫu: <strong>{template.name}</strong></span>
+              <span>•</span>
+              <span>Chuyên khoa: <strong>{template.specialtyName}</strong></span>
+              <span>•</span>
+              <span>ID: <strong>{medicalRecord.id.slice(0, 8)}</strong></span>
+            </div>
           </div>
+          {(() => {
+            const codeObj = medicalRecord as unknown as { code?: string; medicalRecordCode?: string };
+            const recordCode = codeObj.code || codeObj.medicalRecordCode || medicalRecord.id;
+            return (
+              <div className="ml-4 bg-white p-2 rounded border border-gray-200">
+                <QRCode value={String(recordCode)} size={84} style={{ width: '84px', height: '84px' }} />
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -172,24 +207,10 @@ export function MedicalRecordDocument({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {onEdit && (
-              <Button variant="outline" size="sm" onClick={onEdit} className="text-sm">
-                <Edit className="h-4 w-4 mr-1" />
-                Chỉnh sửa
-              </Button>
-            )}
-            {onPrint && (
-              <Button variant="outline" size="sm" onClick={onPrint} className="text-sm">
-                <Printer className="h-4 w-4 mr-1" />
-                In
-              </Button>
-            )}
-            {onDownload && (
-              <Button variant="outline" size="sm" onClick={onDownload} className="text-sm">
-                <Download className="h-4 w-4 mr-1" />
-                Tải xuống
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={handlePrintDocument} className="text-sm">
+              <Printer className="h-4 w-4 mr-1" />
+              In
+            </Button>
           </div>
         </div>
       </div>
