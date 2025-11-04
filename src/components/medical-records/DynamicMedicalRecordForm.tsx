@@ -245,10 +245,19 @@ export function DynamicMedicalRecordForm({
     }));
   };
 
+  // Determine if a field is required based on mode (create vs edit)
+  const isFieldRequired = useCallback((field: FieldDefinition) => {
+    if (field.name === 'diagnosis') {
+      // Diagnosis is required only when editing; optional when creating
+      return !!isEditing;
+    }
+    return !!field.required;
+  }, [isEditing]);
+
 
   const renderField = (field: FieldDefinition) => {
     const value = formData[field.name];
-    const isRequired = field.required;
+    const isRequired = isFieldRequired(field);
     
     // console.log(`Rendering field ${field.name}:`, value, 'formData keys:', Object.keys(formData));
 
@@ -258,7 +267,7 @@ export function DynamicMedicalRecordForm({
           // Select adapters for certain string fields
           if (field.name === 'diagnosis') {
             return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm md:col-span-2">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-primary rounded-full"></div>
@@ -267,12 +276,12 @@ export function DynamicMedicalRecordForm({
                       {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
                     </Label>
                   </div>
-                  <Input
+                  <Textarea
                     id={field.name}
-                    list="diagnosis-list"
                     value={value !== undefined && value !== null ? value : ''}
                     onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    placeholder="Nhập hoặc chọn chẩn đoán"
+                    placeholder="Nhập chẩn đoán"
+                    rows={6}
                     required={isRequired}
                     className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
                   />
@@ -711,7 +720,13 @@ export function DynamicMedicalRecordForm({
     e.preventDefault();
     
     // Validate required fields
-    const requiredFields = template.fields.fields.filter(field => field.required);
+    const requiredFields = template.fields.fields.filter((field) => {
+      if (field.name === 'diagnosis') {
+        // Force required when editing, optional when creating
+        return !!isEditing;
+      }
+      return !!field.required;
+    });
     const missingFields = requiredFields.filter(field => !formData[field.name]);
 
     const validationErrors: string[] = [];
@@ -801,7 +816,7 @@ export function DynamicMedicalRecordForm({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`${isEditing ? 'grid grid-cols-1 md:grid-cols-2' : 'grid grid-cols-1'} gap-4`}>
             {template.fields.fields.map((field) => renderField(field))}
           </div>
         </CardContent>

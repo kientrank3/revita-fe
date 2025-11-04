@@ -512,6 +512,7 @@ export default function MedicalRecordDetailPage() {
           value: { fontSize: 11, color: '#111827' }
         },
         defaultStyle: { fontSize: 11, color: '#111827' }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       const pdfDoc = pdfMake.createPdf(docDefinition);
@@ -564,7 +565,7 @@ export default function MedicalRecordDetailPage() {
   }
 
   return (
-    <div className="container mx-auto  bg-white pl-4 pr-6 py-6">
+    <div className="container mx-auto  bg-white  py-6 px-8">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
@@ -597,9 +598,9 @@ export default function MedicalRecordDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Medical Record Document */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-2">
           <MedicalRecordViewer
             medicalRecord={medicalRecord}
             template={template}
@@ -612,7 +613,7 @@ export default function MedicalRecordDetailPage() {
         </div>
 
         {/* Right Column - Prescriptions & Attachments */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-1 space-y-6">
         <Card className="border-l-1 border-l-orange-500">
             <CardHeader className="">
               <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
