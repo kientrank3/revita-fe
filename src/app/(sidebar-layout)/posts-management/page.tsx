@@ -85,14 +85,20 @@ export default function PostsManagementPage() {
     <div className="min-h-screen bg-white">
       <div className="flex flex-col gap-6 px-8 py-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Quản lý bài viết</h1>
+          <h2 className="text-2xl font-semibold">Quản lý bài viết</h2>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList>
-            <TabsTrigger value="posts">Bài viết</TabsTrigger>
-            <TabsTrigger value="categories">Danh mục</TabsTrigger>
-            <TabsTrigger value="series">Series</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="posts">Bài viết</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="categories">Danh mục</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="series">Series</TabsTrigger>
           </TabsList>
 
           <TabsContent value="posts" className="mt-4">
@@ -295,15 +301,15 @@ function PostsTab() {
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Tiêu đề</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Danh mục</TableHead>
-                  <TableHead>Lượt thích</TableHead>
-                  <TableHead>Bình luận</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
+                <TableRow className="bg-muted px-8">
+                  <TableHead className="w-12 px-4">#</TableHead>
+                  <TableHead className="px-4">Tiêu đề</TableHead>
+                  <TableHead className="px-4">Trạng thái</TableHead>
+                  <TableHead className="px-4">Danh mục</TableHead>
+                  <TableHead className="px-4">Lượt thích</TableHead>
+                  <TableHead className="px-4">Bình luận</TableHead>
+                  <TableHead className="px-4">Ngày tạo</TableHead>
+                  <TableHead className="text-right px-4">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -315,20 +321,20 @@ function PostsTab() {
                   </TableRow>
                 ) : (
                   data.map((post, idx) => (
-                    <TableRow key={post.id}>
-                      <TableCell>{offset + idx + 1}</TableCell>
+                    <TableRow key={post.id} className="px-4">
+                      <TableCell className="px-4">{offset + idx + 1}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {post.isPinned && (
                             <Pin className="h-4 w-4 text-blue-500" />
                           )}
-                          <span className="font-medium">{post.title}</span>
+                          <span className="font-medium px-4">{post.title}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(post.status)}</TableCell>
+                      <TableCell className="px-4">{getStatusBadge(post.status)}</TableCell>
                       <TableCell>
                         {post.categories.length > 0 ? (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 px-4">
                             {post.categories.map((cat) => (
                               <Badge key={cat.id} variant="outline">
                                 {cat.name}
@@ -336,15 +342,15 @@ function PostsTab() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400 px-4">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{post.likesCount}</TableCell>
-                      <TableCell>{post.commentsCount}</TableCell>
-                      <TableCell>
+                      <TableCell className="px-4">{post.likesCount}</TableCell>
+                      <TableCell className="px-4">{post.commentsCount}</TableCell>
+                      <TableCell className="px-4">
                         {new Date(post.createdAt).toLocaleDateString("vi-VN")}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right px-4">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
@@ -798,27 +804,27 @@ function CategoriesTab() {
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Tên</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Mô tả</TableHead>
-                <TableHead>Số bài viết</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+              <TableRow className="bg-muted px-8">
+                <TableHead className="w-12 px-4">#</TableHead>
+                <TableHead className="px-4">Tên</TableHead>
+                <TableHead className="px-4">Slug</TableHead>
+                <TableHead className="px-4">Mô tả</TableHead>
+                <TableHead className="px-4">Số bài viết</TableHead>
+                <TableHead className="text-right px-4">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.length === 0 ? (
-                <TableRow>
+                <TableRow className=" px-8">
                   <TableCell colSpan={7} className="text-center text-gray-500">
                     Không có danh mục nào
                   </TableCell>
                 </TableRow>
               ) : (
                 categories.map((cat, idx) => (
-                  <TableRow key={cat.id}>
+                  <TableRow key={cat.id} className="px-4">
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium px-4">
                       <div className="flex items-center gap-2">
                         {cat.coverImage && (
                           <div className="relative w-10 h-10">
@@ -830,7 +836,7 @@ function CategoriesTab() {
                             />
                           </div>
                         )}
-                        <span>{cat.name}</span>
+                        <span className="px-4">{cat.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -838,12 +844,12 @@ function CategoriesTab() {
                         {cat.slug}
                       </code>
                     </TableCell>
-                    <TableCell>{getStatusBadge(cat.status)}</TableCell>
-                    <TableCell className="max-w-md truncate">
+                    <TableCell className="px-4">{getStatusBadge(cat.status)}</TableCell>
+                    <TableCell className="max-w-md truncate px-4">
                       {cat.description}
                     </TableCell>
-                    <TableCell>{cat.totalPosts}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-4">{cat.totalPosts}</TableCell>
+                    <TableCell className="text-right px-4">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
@@ -1556,28 +1562,28 @@ function SeriesTab() {
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Tên</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Mô tả</TableHead>
-                <TableHead>Số bài viết</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+              <TableRow className="bg-muted px-8">
+                <TableHead className="w-12 px-4">#</TableHead>
+                <TableHead className="px-4">Tên</TableHead>
+                <TableHead className="px-4">Slug</TableHead>
+                <TableHead className="px-4">Trạng thái</TableHead>
+                <TableHead className="px-4">Mô tả</TableHead>
+                <TableHead className="px-4">Số bài viết</TableHead>
+                <TableHead className="text-right px-4">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {series.length === 0 ? (
-                <TableRow>
+                <TableRow className="px-8">
                   <TableCell colSpan={7} className="text-center text-gray-500">
                     Không có series nào
                   </TableCell>
                 </TableRow>
               ) : (
                 series.map((s, idx) => (
-                  <TableRow key={s.id}>
+                  <TableRow key={s.id} className="px-4">
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium px-4">
                       <div className="flex items-center gap-2">
                         {s.coverImage && (
                           <div className="relative w-10 h-10">
@@ -1589,7 +1595,7 @@ function SeriesTab() {
                             />
                           </div>
                         )}
-                        <span>{s.name}</span>
+                        <span className="px-4">{s.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1597,11 +1603,11 @@ function SeriesTab() {
                         {s.slug}
                       </code>
                     </TableCell>
-                    <TableCell>{getStatusBadge(s.status)}</TableCell>
+                    <TableCell className="px-4">{getStatusBadge(s.status)}</TableCell>
                     <TableCell className="max-w-md truncate">
                       {s.description}
                     </TableCell>
-                    <TableCell>{s.totalPosts}</TableCell>
+                    <TableCell className="px-4">{s.totalPosts}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button

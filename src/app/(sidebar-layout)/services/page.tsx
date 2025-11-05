@@ -28,17 +28,22 @@ import {
 export default function ServicesPage() {
   const [tab, setTab] = React.useState("categories")
   return (
-    <div className="min-h-screen bg-white">
-      <div className="flex flex-col gap-6 px-8 py-6">
+    <div className="min-h-screen bg-white px-8 py-6">
+      <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Quản lý dịch vụ & gói khám</h1>
-        </div>
-
+          <h2 className="text-2xl font-semibold">Quản lý dịch vụ & gói khám</h2>
+        </div>  
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="categories">Danh mục dịch vụ</TabsTrigger>
-            <TabsTrigger value="services">Dịch vụ</TabsTrigger>
-            <TabsTrigger value="packages">Gói dịch vụ</TabsTrigger>
+          <TabsList className="flex items-center gap-2  bg-muted p-1 rounded-lg">
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="categories">Danh mục dịch vụ</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="services">Dịch vụ</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="packages">Gói dịch vụ</TabsTrigger>
           </TabsList>
 
           <TabsContent value="categories" className="mt-4">

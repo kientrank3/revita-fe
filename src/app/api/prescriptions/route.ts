@@ -1,17 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface PrescriptionServiceRequest {
+  order: number;
+  serviceCode?: string;
+  serviceId?: string;
+  doctorId?: string;
+}
+
+interface PrescriptionRequestBody {
+  patientProfileId: string;
+  medicalRecordId?: string;
+  services: PrescriptionServiceRequest[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { patientProfileId, medicalRecordId, services } = body;
 
     // Validate required fields (doctorId removed since it comes from token)
-    if (!patientProfileId || !medicalRecordId || !services || !Array.isArray(services)) {
+    if (!patientProfileId || !services || !Array.isArray(services)) {
       return NextResponse.json(
-        { error: 'Missing required fields: patientProfileId, medicalRecordId, services' },
+        { error: 'Missing required fields: patientProfileId, services' },
         { status: 400 }
       );
     }
+
+    // Validate and clean services format
+    const cleanedServices = services.map((s: PrescriptionServiceRequest) => {
+      const cleaned: PrescriptionServiceRequest = {
+        order: s.order
+      };
+      
+      // Only include non-empty values
+      if (s.serviceId && String(s.serviceId).trim().length > 0) {
+        cleaned.serviceId = String(s.serviceId).trim();
+      }
+      
+      if (s.serviceCode && String(s.serviceCode).trim().length > 0) {
+        cleaned.serviceCode = String(s.serviceCode).trim();
+      }
+      
+      if (s.doctorId && String(s.doctorId).trim().length > 0) {
+        cleaned.doctorId = String(s.doctorId).trim();
+      }
+      
+      return cleaned;
+    });
+
+    // Validate that each service has at least serviceId or serviceCode
+    const invalidServices = cleanedServices.filter((s: PrescriptionServiceRequest) => {
+      const hasServiceId = s.serviceId && String(s.serviceId).trim().length > 0;
+      const hasServiceCode = s.serviceCode && String(s.serviceCode).trim().length > 0;
+      return !hasServiceId && !hasServiceCode;
+    });
+
+    if (invalidServices.length > 0) {
+      console.error('Invalid services received:', invalidServices);
+      console.error('All services:', services);
+      return NextResponse.json(
+        { error: 'Each service must include serviceId or serviceCode' },
+        { status: 400 }
+      );
+    }
+
+    // Prepare request body - only include defined values
+    const requestBody: PrescriptionRequestBody = {
+      patientProfileId,
+      services: cleanedServices,
+    };
+    
+    if (medicalRecordId && String(medicalRecordId).trim().length > 0) {
+      requestBody.medicalRecordId = String(medicalRecordId).trim();
+    }
+
+    console.log('Forwarding to backend:', JSON.stringify(requestBody, null, 2));
 
     // Forward the request to the backend service
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -21,11 +84,7 @@ export async function POST(request: NextRequest) {
         'Authorization': request.headers.get('Authorization') || '',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        patientProfileId,
-        medicalRecordId,
-        services,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

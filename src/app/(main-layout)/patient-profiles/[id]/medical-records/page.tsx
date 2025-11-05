@@ -119,8 +119,7 @@ export default function PatientProfileMedicalRecordsPage() {
           <div className="flex items-center space-x-4 mb-4">
             <Button asChild variant="outline" size="sm">
               <Link href="/my-patient-profiles">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Quay lại
+                <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
           </div>

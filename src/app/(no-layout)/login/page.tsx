@@ -242,8 +242,7 @@ export default function LoginPage() {
         onClick={handleBack}
         className="absolute top-6 left-6 inline-flex items-center text-gray-600 hover:text-gray-800 font-medium transition-colors bg-white/80 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm hover:shadow-md"
       >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Quay lại
+        <ArrowLeft className="w-4 h-4" />
       </button>
 
       <div className="w-full max-w-md">

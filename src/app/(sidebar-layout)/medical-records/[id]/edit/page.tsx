@@ -181,7 +181,6 @@ export default function EditMedicalRecordPage() {
             </p>
             <Button onClick={handleBack} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Quay lại
             </Button>
           </CardContent>
         </Card>
@@ -202,7 +201,6 @@ export default function EditMedicalRecordPage() {
             className="flex items-center gap-2 text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
-            Quay lại
           </Button>
           <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">
@@ -343,7 +341,6 @@ export default function EditMedicalRecordPage() {
                   </p>
                   <Button onClick={handleBack} variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-4 w-4" />
-                    Quay lại
                   </Button>
                 </div>
               </CardContent>

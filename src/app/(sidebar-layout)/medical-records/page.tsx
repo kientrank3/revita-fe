@@ -276,9 +276,9 @@ export default function MedicalRecordsPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
               Quản lý bệnh án & Đơn thuốc
-            </h1>
+            </h2>
             <p className="text-gray-600">
               Chào mừng, Bác sĩ {user?.name || user?.email}! Quản lý bệnh án, hồ sơ bệnh nhân và tạo đơn thuốc
             </p>
@@ -297,10 +297,10 @@ export default function MedicalRecordsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 bg-white">
-        <TabsList className="grid w-full grid-cols-3 bg-muted p-1 rounded-lg">
+        <TabsList className="flex items-center gap-2  bg-muted p-1 rounded-lg">
           <TabsTrigger
             value="medical-records"
-            className="flex items-center gap-2 rounded-md transition
+            className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
             data-[state=inactive]:text-muted-foreground"
           >
@@ -309,7 +309,7 @@ export default function MedicalRecordsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="prescriptions"
-            className="flex items-center gap-2 rounded-md transition
+            className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
             data-[state=inactive]:text-muted-foreground"
           >
@@ -318,7 +318,7 @@ export default function MedicalRecordsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="patient-search"
-            className="flex items-center gap-2 rounded-md transition
+            className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
             data-[state=inactive]:text-muted-foreground"
           >
@@ -354,14 +354,12 @@ export default function MedicalRecordsPage() {
 
         <TabsContent value="patient-search" className="space-y-6 bg-white">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
                 Tìm kiếm & chọn bệnh nhân
               </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between ">
                 <div className="flex items-center gap-2"></div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" onClick={handleCreateNewProfile}>
@@ -377,6 +375,9 @@ export default function MedicalRecordsPage() {
                   }}>Xoá trắng</Button>
                 </div>
               </div>
+            </CardHeader>
+            <CardContent>
+              
 
               <PatientSearch
                 key={searchResetKey}
@@ -556,12 +557,12 @@ export default function MedicalRecordsPage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="list" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="list" className="flex items-center gap-2">
+                <TabsList className="flex items-center gap-2">
+                  <TabsTrigger value="list" className="flex items-center gap-2 min-w-52">
                     <FileText className="h-4 w-4" />
                     Đơn thuốc của tôi
                   </TabsTrigger>
-                  <TabsTrigger value="search" className="flex items-center gap-2">
+                  <TabsTrigger value="search" className="flex items-center gap-2 min-w-52">
                     <Search className="h-4 w-4" />
                     Tìm kiếm thuốc
                   </TabsTrigger>

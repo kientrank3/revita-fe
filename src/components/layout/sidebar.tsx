@@ -62,7 +62,7 @@ const getMenuItems = () => {
 			icon: ClipboardList,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["RECEPTIONIST"],
+			roles: ["RECEPTIONIST", "DOCTOR"],
 		},
 		{
 			title: "Bệnh án & Đơn thuốc",

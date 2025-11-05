@@ -117,14 +117,20 @@ export default function FacilitiesPage() {
     <div className="min-h-screen bg-white">
       <div className="flex flex-col gap-6 px-8 py-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Quản lý cơ sở khám chữa bệnh</h1>
+          <h2 className="text-2xl font-semibold">Quản lý cơ sở khám chữa bệnh</h2>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList>
-            <TabsTrigger value="specialties">Khoa chuyên môn</TabsTrigger>
-            <TabsTrigger value="rooms">Phòng chức năng</TabsTrigger>
-            <TabsTrigger value="booths">Buồng khám</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="specialties">Khoa chuyên môn</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="rooms">Phòng chức năng</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="booths">Buồng khám</TabsTrigger>
           </TabsList>
 
           <TabsContent value="specialties" className="mt-4">
@@ -241,25 +247,25 @@ function SpecialtiesTab() {
 
       {error && <div className="text-destructive">{error}</div>}
 
-      <Table>
+      <Table className="rounded-lg ">
         <TableHeader>
-          <TableRow>
-            <TableHead>Mã khoa</TableHead>
-            <TableHead>Tên khoa</TableHead>
-            <TableHead>Hành động</TableHead>
+          <TableRow className="bg-muted px-8">
+            <TableHead className="px-4">Mã khoa</TableHead>
+            <TableHead className="px-4">Tên khoa</TableHead>
+            <TableHead className="px-4">Hành động</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell>{s.specialtyCode}</TableCell>
-              <TableCell>{s.name}</TableCell>
-              <TableCell className="flex gap-2">
+            <TableRow key={s.id} className="px-4">
+              <TableCell className="px-4">{s.specialtyCode}</TableCell>
+              <TableCell className="px-4">{s.name}</TableCell>
+              <TableCell className="flex gap-2 px-4">
                 <Button variant="outline" size="sm" onClick={() => openEdit(s)}>
                   <Pencil className="size-4" /> Sửa
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => onDelete(s)}>
-                  <Trash2 className="size-4" /> Xóa
+                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(s)}>
+                  <Trash2 className="size-4"  color="red"/> Xóa
                 </Button>
               </TableCell>
             </TableRow>
@@ -409,28 +415,28 @@ function ClinicRoomsTab() {
 
       {error && <div className="text-destructive">{error}</div>}
 
-      <Table>
+      <Table className="rounded-lg ">
         <TableHeader>
-          <TableRow>
-            <TableHead>Mã phòng</TableHead>
-            <TableHead>Tên phòng</TableHead>
-            <TableHead>Khoa</TableHead>
-            <TableHead>Mô tả</TableHead>
-            <TableHead>Địa chỉ</TableHead>
-            <TableHead>Hành động</TableHead>
+          <TableRow className="bg-muted px-8">
+            <TableHead className="px-4">Mã phòng</TableHead>
+            <TableHead className="px-4">Tên phòng</TableHead>
+            <TableHead className="px-4">Khoa</TableHead>
+            <TableHead className="px-4">Mô tả</TableHead>
+            <TableHead className="px-4">Địa chỉ</TableHead>
+            <TableHead className="px-4">Hành động</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell>{r.roomCode}</TableCell>
-              <TableCell>{r.roomName}</TableCell>
-              <TableCell>{r.specialty ? `${r.specialty.name} (${r.specialty.specialtyCode})` : ""}</TableCell>
-              <TableCell>{r.description}</TableCell>
-              <TableCell>{r.address}</TableCell>
-              <TableCell className="flex gap-2">
+            <TableRow key={r.id} className="px-4">
+              <TableCell className="px-4">{r.roomCode}</TableCell>
+              <TableCell className="px-4">{r.roomName}</TableCell>
+              <TableCell className="px-4">{r.specialty ? `${r.specialty.name} (${r.specialty.specialtyCode})` : ""}</TableCell>
+              <TableCell className="px-4">{r.description}</TableCell>
+              <TableCell className="px-4">{r.address}</TableCell>
+              <TableCell className="flex gap-2 px-4">
                 <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Pencil className="size-4" /> Sửa</Button>
-                <Button variant="destructive" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4" /> Xóa</Button>
+                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
               </TableCell>
             </TableRow>
           ))}
@@ -592,28 +598,28 @@ function BoothsTab() {
 
       {error && <div className="text-destructive">{error}</div>}
 
-      <Table>
+      <Table className="rounded-lg ">
         <TableHeader>
-          <TableRow>
-            <TableHead>Mã buồng</TableHead>
-            <TableHead>Tên buồng</TableHead>
-            <TableHead>Phòng</TableHead>
-            <TableHead>Mô tả</TableHead>
-            <TableHead>Trạng thái</TableHead>
-            <TableHead>Hành động</TableHead>
+          <TableRow className="bg-muted px-8">
+            <TableHead className="px-4">Mã buồng</TableHead>
+            <TableHead className="px-4">Tên buồng</TableHead>
+            <TableHead className="px-4">Phòng</TableHead>
+            <TableHead className="px-4">Mô tả</TableHead>
+            <TableHead className="px-4">Trạng thái</TableHead>
+            <TableHead className="px-4">Hành động</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((b) => (
-            <TableRow key={b.id}>
-              <TableCell>{b.boothCode}</TableCell>
-              <TableCell>{b.name}</TableCell>
-              <TableCell>{b.room ? `${b.room.roomName} (${b.room.roomCode})` : ""}</TableCell>
-              <TableCell>{b.description}</TableCell>
-              <TableCell>{b.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</TableCell>
-              <TableCell className="flex gap-2">
+            <TableRow key={b.id} className="px-4">
+              <TableCell className="px-4">{b.boothCode}</TableCell>
+              <TableCell className="px-4">{b.name}</TableCell>
+              <TableCell className="px-4">{b.room ? `${b.room.roomName} (${b.room.roomCode})` : ""}</TableCell>
+              <TableCell className="px-4">{b.description}</TableCell>
+              <TableCell className="px-4">{b.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</TableCell>
+              <TableCell className="flex gap-2 px-4">
                 <Button variant="outline" size="sm" onClick={() => openEdit(b)}><Pencil className="size-4" /> Sửa</Button>
-                <Button variant="destructive" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4" /> Xóa</Button>
+                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
               </TableCell>
             </TableRow>
           ))}

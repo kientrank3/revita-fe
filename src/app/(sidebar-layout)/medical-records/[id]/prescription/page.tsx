@@ -197,7 +197,6 @@ export default function CreatePrescriptionPage() {
             className="flex items-center gap-2 text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
-            Quay lại
           </Button>
           <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">

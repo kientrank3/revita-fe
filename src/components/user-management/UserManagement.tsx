@@ -482,15 +482,9 @@ export function UserManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-semibold text-gray-900">
             {isAdmin ? 'Quản lý người dùng' : 'Quản lý bệnh nhân'}
           </h2>
-          <p className="text-gray-600">
-            {isAdmin 
-              ? 'Quản lý tất cả người dùng trong hệ thống' 
-              : 'Đăng ký và quản lý thông tin bệnh nhân'
-            }
-          </p>
         </div>
         <Button onClick={() => {
           resetCreateForm(); // Reset form khi mở dialog
@@ -503,7 +497,7 @@ export function UserManagement() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Label htmlFor="search" className="mb-2.5">Tìm kiếm</Label>
