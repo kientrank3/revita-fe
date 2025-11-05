@@ -21,13 +21,16 @@ import {
   List,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  QrCode
 } from 'lucide-react';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { PatientProfile } from '@/lib/types/user';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MedicalRecord } from '@/lib/types/medical-record';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
 
 interface Service {
   id: string;
@@ -87,6 +90,27 @@ interface PrescriptionsListResponse {
   meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
+// Appointment endpoints types
+interface AppointmentServiceItem {
+  serviceId: string;
+  service?: { id: string; serviceCode: string; name: string } | null;
+}
+
+interface AppointmentLookup {
+  id: string;
+  appointmentCode: string;
+  status: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  patientProfile: { id: string; name: string; dateOfBirth?: string; gender?: string };
+  specialty?: { id: string; name: string } | null;
+  doctor?: { id: string; doctorCode: string; auth?: { name?: string } } | null;
+  service?: { id: string; serviceCode: string; name: string } | null;
+  workSession?: { id: string; startTime: string; endTime: string; status: string; doctorId?: string; technicianId?: string } | null;
+  appointmentServices?: AppointmentServiceItem[] | null;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 export default function ReceptionCreatePrescriptionPage() {
   const router = useRouter();
@@ -109,6 +133,23 @@ export default function ReceptionCreatePrescriptionPage() {
   const [prescriptionsPage, setPrescriptionsPage] = useState(1);
   const [prescriptionsLimit] = useState(20);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
+
+  // Appointment lookup states
+  const [appointmentCode, setAppointmentCode] = useState('');
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const [appointment, setAppointment] = useState<AppointmentLookup | null>(null);
+
+  // QR scanner states (persistent panel)
+  const [scanning, setScanning] = useState(false);
+  const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const lastScanRef = React.useRef<string | null>(null);
+  const lastScanTsRef = React.useRef<number>(0);
+  const lastToastTsRef = React.useRef<number>(0);
+  const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
+  const [scanLog, setScanLog] = useState<string[]>([]);
+  const scanningRef = React.useRef(false);
 
   // Search services with debouncing
   useEffect(() => {
@@ -200,6 +241,261 @@ export default function ReceptionCreatePrescriptionPage() {
     setSelectedServices(prev => prev.map(s => 
       s.serviceCode === serviceCode ? { ...s, doctorId } : s
     ));
+  }, []);
+
+  // Lookup appointment by code
+  const onLookupAppointment = useCallback(async () => {
+    if (!appointmentCode.trim()) {
+      toast.error('Vui lòng nhập mã lịch hẹn');
+      return;
+    }
+    setAppointmentLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(appointmentCode.trim())}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.message || 'Không tìm thấy lịch hẹn');
+      }
+      const data: AppointmentLookup = await res.json();
+      setAppointment(data);
+      // Prefill patient profile and services for convenience
+      if (data.patientProfile) {
+        setSelectedPatientProfile((prev) => prev && prev.id === data.patientProfile.id ? prev : {
+          id: data.patientProfile.id,
+          name: data.patientProfile.name,
+          profileCode: ''
+        } as unknown as PatientProfile);
+      }
+    } catch (e: any) {
+      setAppointment(null);
+      toast.error(e?.message || 'Không thể tra cứu lịch hẹn');
+    } finally {
+      setAppointmentLoading(false);
+    }
+  }, [appointmentCode]);
+
+  // Create prescription from appointment
+  const onCreateFromAppointment = useCallback(async () => {
+    if (!appointment) {
+      toast.error('Chưa có dữ liệu lịch hẹn');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(appointment.appointmentCode)}/create-prescription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.message || 'Không thể tạo phiếu từ lịch hẹn');
+      }
+      toast.success('Đã tạo phiếu chỉ định từ lịch hẹn');
+      // Reset and navigate to list tab
+      setActiveTab('prescriptions');
+    } catch (e: any) {
+      toast.error(e?.message || 'Không thể tạo phiếu từ lịch hẹn');
+    }
+  }, [appointment]);
+
+  // QR Scanner logic
+  const stopScanner = useCallback(() => {
+    setScanning(false);
+    scanningRef.current = false;
+    const stream = mediaStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+  }, []);
+
+  const handleQrText = useCallback(async (text: string) => {
+    const trimmed = (text || '').trim();
+    const upper = trimmed.toUpperCase();
+    if (!trimmed) return;
+    console.log('[QR] Raw:', text);
+    console.log('[QR] Normalized:', upper);
+    setScanHint(`Đã phát hiện: ${upper.slice(0, 24)}${upper.length > 24 ? '...' : ''}`);
+    // Ghi log nội dung QR đọc được
+    setScanLog((prev) => [`${upper}`, ...prev].slice(0, 5));
+    // PAT -> patient profile; APT -> appointment
+    try {
+      if (upper.startsWith('PAT')) {
+        // Hành vi giống gõ vào ô "Chọn hồ sơ bệnh nhân" rồi nhấn Tìm
+        try {
+          const enc = encodeURIComponent(upper);
+          const url = `${API_BASE_URL}/patient-profiles/search?name=${enc}&phone=${enc}&code=${enc}`;
+          console.log('[QR] PAT branch, will search via:', url);
+          toast.info('Đang tra cứu hồ sơ từ QR...');
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err?.message || `Search failed ${response.status}`);
+          }
+          const data = await response.json();
+          // API có thể trả về mảng trực tiếp hoặc object có property
+          const results = Array.isArray(data) 
+            ? data 
+            : (data?.patientProfiles || data?.data || data?.profiles || []);
+          console.log('[QR] Search results length:', Array.isArray(results) ? results.length : 'N/A');
+          
+          if (!Array.isArray(results) || results.length === 0) {
+            toast.error('Không tìm thấy hồ sơ bệnh nhân phù hợp');
+            setScanHint('Không tìm thấy hồ sơ');
+            return;
+          }
+          
+          // Nếu quét QR trả về đúng 1 phần tử → tự động chọn hồ sơ đó
+          if (results.length === 1) {
+            setSelectedPatientProfile(results[0] as unknown as PatientProfile);
+            toast.success('Đã chọn hồ sơ bệnh nhân từ QR');
+            setScanHint('Đã chọn hồ sơ bệnh nhân');
+          } else {
+            // Nếu có nhiều hơn 1 kết quả → chọn phần tử đầu tiên và báo có nhiều kết quả
+            setSelectedPatientProfile(results[0] as unknown as PatientProfile);
+            toast.warning(`Tìm thấy ${results.length} hồ sơ khớp, đã chọn hồ sơ đầu tiên. Vui lòng kiểm tra lại.`);
+            setScanHint(`Đã chọn hồ sơ đầu tiên (${results.length} kết quả)`);
+          }
+        } catch (e: any) {
+          console.error('[QR] Search profiles error:', e);
+          toast.error(e?.message || 'Không thể tra cứu hồ sơ bệnh nhân');
+          setScanHint('Lỗi tra cứu hồ sơ');
+        }
+      } else if (upper.startsWith('APT') || upper.startsWith('APPT')) {
+        setAppointmentCode(trimmed);
+        await onLookupAppointment();
+        toast.success('Đã nhập mã lịch hẹn từ QR');
+        setScanHint('Đã tra cứu lịch hẹn');
+      } else {
+        // Không đúng định dạng kỳ vọng, vẫn hiển thị ra cho bạn xem
+        toast.info(`Đã đọc QR: ${upper.slice(0, 64)}${upper.length > 64 ? '...' : ''}`);
+        setScanHint('Đã đọc QR (không theo định dạng PAT/APT)');
+      }
+    } finally {
+      // keep scanning for subsequent codes
+    }
+  }, [onLookupAppointment, setSelectedPatientProfile, stopScanner]);
+
+  const startPersistentScanner = useCallback(async () => {
+    setScanning(true);
+    scanningRef.current = true;
+    try {
+      // Prefer front camera; fallback to any camera
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'user' } } });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      console.log('[QR] Got media stream:', !!stream);
+      mediaStreamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) {
+        console.warn('[QR] videoRef.current is null');
+        return;
+      }
+      video.srcObject = stream;
+      await video.play();
+      console.log('[QR] Video playing, readyState:', video.readyState);
+
+      // Wait until video metadata is ready
+      if (video.readyState < 2) {
+        await new Promise<void>((resolve) => {
+          const onLoaded = () => { resolve(); };
+          video.addEventListener('loadeddata', onLoaded, { once: true });
+        });
+      }
+      console.log('[QR] Video ready, dimensions:', video.videoWidth, 'x', video.videoHeight);
+      setScanHint('Camera đã sẵn sàng. Đưa mã QR vào khung...');
+
+      // Use BarcodeDetector if available
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const BD: any = (window as any).BarcodeDetector;
+      if (BD) {
+        setScannerSupported(true);
+        console.log('[QR] BarcodeDetector available');
+        let detector: any;
+        try {
+          detector = new BD({ formats: ['qr_code'] });
+        } catch {
+          try {
+            detector = new BD();
+          } catch {
+            setScannerSupported(false);
+            console.log('[QR] BarcodeDetector init failed');
+          }
+        }
+        if (detector) {
+          console.log('[QR] Starting detection loop...');
+          let frameCount = 0;
+          const tick = async () => {
+            frameCount++;
+            if (frameCount % 60 === 0) {
+              console.log('[QR] tick running, scanning:', scanningRef.current, 'video:', !!videoRef.current);
+            }
+            if (!scanningRef.current || !videoRef.current) {
+              if (frameCount % 60 === 0) {
+                console.log('[QR] tick stopped - scanning:', scanningRef.current, 'video:', !!videoRef.current);
+              }
+              return;
+            }
+            try {
+              const detections = await detector.detect(videoRef.current);
+              if (detections && detections.length > 0) {
+                console.log('[QR] detections:', detections.length, detections);
+                const raw = (detections[0]?.rawValue ?? detections[0]?.rawValueText ?? detections[0]?.raw ?? '').toString();
+                if (raw) {
+                  const norm = raw.trim();
+                  const now = Date.now();
+                  // Debounce BEFORE calling handler to avoid spam
+                  if (lastScanRef.current === norm && now - lastScanTsRef.current < 1500) {
+                    // skip duplicate within 1.5s
+                  } else {
+                    lastScanRef.current = norm;
+                    lastScanTsRef.current = now;
+                    console.log('[QR] Found QR code:', norm);
+                    await handleQrText(norm);
+                    // optional small cooldown
+                    // await new Promise(r => setTimeout(r, 200));
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[QR] detect error:', err);
+            }
+            requestAnimationFrame(tick);
+          };
+          setScanHint('Đưa mã QR vào trong khung...');
+          requestAnimationFrame(tick);
+          return;
+        }
+      } else {
+        setScannerSupported(false);
+        console.log('[QR] BarcodeDetector not supported');
+      }
+    } catch (e: any) {
+      setScanning(false);
+      scanningRef.current = false;
+      console.error('[QR] getUserMedia error:', e);
+      toast.error(e?.message || 'Không thể truy cập camera');
+    }
+  }, [handleQrText]);
+
+  // Auto start scanner on mount, stop on unmount
+  useEffect(() => {
+    startPersistentScanner();
+    return () => {
+      stopScanner();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreatePrescription = async () => {
@@ -376,6 +672,160 @@ export default function ReceptionCreatePrescriptionPage() {
         </TabsList>
 
         <TabsContent value="create" className="space-y-6">
+
+      {/* Appointment Lookup + QR Scanner side-by-side */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Appointment Lookup */}
+        <Card className="mb-2 md:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <span className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-purple-600" />
+                Tạo phiếu chỉ định từ lịch hẹn
+              </span>
+              <div className="hidden md:flex gap-2">
+                <Button variant="outline" size="sm" onClick={onLookupAppointment} disabled={appointmentLoading}>
+                  {appointmentLoading ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Search className="h-3 w-3 mr-2" />}
+                  Tra cứu
+                </Button>
+                <Button size="sm" onClick={onCreateFromAppointment} disabled={!appointment}>
+                  <ClipboardList className="h-4 w-4 mr-2" /> Tạo phiếu
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-3">
+                <Label htmlFor="appointmentCode" className="text-sm">Mã lịch hẹn</Label>
+                <div className="relative mt-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="appointmentCode"
+                    placeholder="Nhập mã lịch hẹn (VD: APPT-20251103-ABC123)"
+                    value={appointmentCode}
+                    onChange={(e) => setAppointmentCode(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && onLookupAppointment()}
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Gợi ý: Quét mã/nhập mã từ lịch hẹn để tự động lấy thông tin.</p>
+              </div>
+              <div className="flex md:hidden gap-2 items-end">
+                <Button variant="outline" className="flex-1" onClick={onLookupAppointment} disabled={appointmentLoading}>
+                  {appointmentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                  Tra cứu
+                </Button>
+                <Button className="flex-1" onClick={onCreateFromAppointment} disabled={!appointment}>
+                  <ClipboardList className="h-4 w-4 mr-2" /> Tạo phiếu
+                </Button>
+              </div>
+            </div>
+
+            {appointment && (
+              <div className="rounded-lg border overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                  <div className="p-3 bg-gray-50 border-b md:border-b-0 md:border-r">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Mã lịch hẹn</div>
+                    <div className="font-medium text-sm">{appointment.appointmentCode}</div>
+                  </div>
+                  <div className="p-3 bg-gray-50">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Trạng thái</div>
+                    <div className="mt-1"><Badge variant="secondary" className="text-xs">{appointment.status}</Badge></div>
+                  </div>
+
+                  <div className="p-3 border-t md:border-t md:border-r">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Bệnh nhân</div>
+                    <div className="font-medium text-sm">{appointment.patientProfile?.name}</div>
+                  </div>
+                  <div className="p-3 border-t">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Bác sĩ</div>
+                    <div className="font-medium text-sm">{appointment.doctor?.auth?.name || appointment.doctor?.doctorCode || '—'}</div>
+                  </div>
+
+                  <div className="p-3 border-t md:border-r">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Chuyên khoa</div>
+                    <div className="font-medium text-sm">{appointment.specialty?.name || '—'}</div>
+                  </div>
+                  <div className="p-3 border-t">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Thời gian</div>
+                    <div className="font-medium text-sm">{appointment.date ? new Date(appointment.date).toLocaleDateString('vi-VN') : '—'} {appointment.startTime ? `• ${appointment.startTime}` : ''}</div>
+                  </div>
+                </div>
+
+                {appointment.appointmentServices && appointment.appointmentServices.length > 0 && (
+                  <div className="p-3 border-t bg-white">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Dịch vụ lịch hẹn ({appointment.appointmentServices.length})</div>
+                    <div className="flex flex-wrap gap-2">
+                      {appointment.appointmentServices.map((s, idx) => (
+                        <Badge key={`${s.serviceId}-${idx}`} variant="outline" className="text-xs">
+                          {s.service?.serviceCode || s.serviceId}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Persistent QR Scanner Panel (square with scanning line) */}
+        <Card className="mb-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-purple-600" /> Quét QR (PAT/APT)
+              </span>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {scanning ? 'Đang quét' : 'Tạm dừng'}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (scanning ? stopScanner() : startPersistentScanner())}
+                >
+                  {scanning ? 'Tạm dừng' : 'Tiếp tục'}
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {scannerSupported === false ? (
+              <div className="text-xs text-gray-600">Trình duyệt không hỗ trợ quét QR. Vui lòng nhập mã thủ công.</div>
+            ) : (
+              <div className="relative w-full max-w-xs">
+                <div className="pt-[100%]" />
+                <div className="absolute inset-0 bg-black rounded overflow-hidden">
+                  <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute inset-4 border-2 border-white/60 rounded" />
+                    {/* scanning lines */}
+                    <div className="absolute left-6 right-6 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-80" style={{ animation: 'scanDown 2s linear infinite' }} />
+                    <div className="absolute left-6 right-6 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-80" style={{ animation: 'scanUp 2.2s linear infinite' }} />
+                  </div>
+                </div>
+                <div className="text-[11px] text-gray-500 mt-2">{scanHint}</div>
+                {scanLog.length > 0 && (
+                  <div className="mt-2 p-2 rounded bg-gray-50 border text-[11px] text-gray-700 space-y-1 max-w-xs break-all">
+                    <div className="font-medium text-gray-900">Đã đọc gần đây:</div>
+                    {scanLog.map((s, i) => (
+                      <div key={i} className="truncate">{s}</div>
+                    ))}
+                  </div>
+                )}
+                <style>{`
+                  @keyframes scanDown { 0% { top: 16px; } 100% { top: calc(100% - 16px); } }
+                  @keyframes scanUp { 0% { bottom: 16px; } 100% { bottom: calc(100% - 16px); } }
+                `}</style>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      
 
       {/* Patient Selection */}
       <Card className="mb-6">
