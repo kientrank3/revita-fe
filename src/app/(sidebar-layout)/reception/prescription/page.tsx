@@ -575,7 +575,82 @@ export default function ReceptionCreatePrescriptionPage() {
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast.success('Tạo phiếu chỉ định thành công');
+        
+        // Auto generate and download PDF
+        if (result.prescriptionCode || result.data?.prescriptionCode) {
+          const prescriptionCode = result.prescriptionCode || result.data?.prescriptionCode;
+          try {
+            // Fetch full prescription data for PDF
+            const presRes = await fetch(`${API_BASE_URL}/prescriptions/${encodeURIComponent(prescriptionCode)}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            });
+            if (presRes.ok) {
+              const fullPrescription = await presRes.json();
+              const prescriptionData = fullPrescription.data || fullPrescription;
+              const { generatePrescriptionPDF } = await import('@/lib/utils/prescription-pdf');
+              await generatePrescriptionPDF(prescriptionData);
+              toast.success('Đã tải PDF phiếu chỉ định');
+              
+              // Small delay to ensure PDF download is initiated
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Reset form and reload view after PDF is downloaded
+              setSelectedPatientProfile(null);
+              setSelectedServices([]);
+              setSearchQuery('');
+              setSearchResults([]);
+              setAppointmentCode('');
+              setAppointment(null);
+              setDoctorsByService({});
+              
+              // Refresh prescriptions list if on prescriptions tab
+              if (activeTab === 'prescriptions') {
+                fetchPrescriptions();
+              } else {
+                // Switch to prescriptions tab to show the new prescription
+                setActiveTab('prescriptions');
+                // fetchPrescriptions will be called by useEffect when tab changes
+              }
+            }
+          } catch (pdfError) {
+            console.error('Error generating PDF:', pdfError);
+            toast.error('Tạo phiếu thành công nhưng không thể tạo PDF. Vui lòng in từ danh sách phiếu.');
+            
+            // Still reset form even if PDF generation failed
+            setSelectedPatientProfile(null);
+            setSelectedServices([]);
+            setSearchQuery('');
+            setSearchResults([]);
+            setAppointmentCode('');
+            setAppointment(null);
+            setDoctorsByService({});
+            
+            if (activeTab === 'prescriptions') {
+              fetchPrescriptions();
+            } else {
+              setActiveTab('prescriptions');
+            }
+          }
+        } else {
+          // Reset form even if no prescriptionCode
+          setSelectedPatientProfile(null);
+          setSelectedServices([]);
+          setSearchQuery('');
+          setSearchResults([]);
+          setAppointmentCode('');
+          setAppointment(null);
+          setDoctorsByService({});
+          
+          if (activeTab === 'prescriptions') {
+            fetchPrescriptions();
+          } else {
+            setActiveTab('prescriptions');
+          }
+        }
       } else {
         const error = await response.json();
         toast.error(error.message || 'Có lỗi xảy ra khi tạo phiếu chỉ định');

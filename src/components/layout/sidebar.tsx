@@ -15,6 +15,7 @@ import {
 	Stethoscope,
 	Users,
 	ClipboardList,
+	HandHelping,
 } from "lucide-react";
 
 import {
@@ -143,6 +144,14 @@ const getMenuItems = () => {
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["ADMIN"],
+		},
+		{
+			title: "Hỗ trợ vào khám",
+			url: "/support-serving",
+			icon: HandHelping,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["RECEPTIONIST"],
 		},
 		
 	];
