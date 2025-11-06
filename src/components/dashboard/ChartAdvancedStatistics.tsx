@@ -225,7 +225,7 @@ function ChartWorkSessionStatistics({ data }: { data: WorkSessionData | null }) 
     
     const result = {
       name: doctor.doctorName.length > 10 
-        ? doctor.doctorName.substring(0, 10) + '...' 
+        ? doctor.doctorName.substring(0, 6) + '...' 
         : doctor.doctorName,
       fullName: doctor.doctorName,
       completed: completed,

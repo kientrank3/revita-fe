@@ -443,7 +443,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                                       </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                                       {item.strength && (
                                         <div className="bg-white p-3 rounded-lg border">
                                           <span className="text-xs font-medium text-gray-500 block">Liều lượng</span>
@@ -462,12 +462,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                                           <span className="text-sm font-semibold text-gray-900">{item.route}</span>
                                         </div>
                                       )}
-                                      {item.dose && item.doseUnit && (
-                                        <div className="bg-white p-3 rounded-lg border">
-                                          <span className="text-xs font-medium text-gray-500 block">Liều dùng</span>
-                                          <span className="text-sm font-semibold text-gray-900">{item.dose} {item.doseUnit}</span>
-                                        </div>
-                                      )}
+                                      
                                       {item.frequency && (
                                         <div className="bg-white p-3 rounded-lg border">
                                           <span className="text-xs font-medium text-gray-500 block">Tần suất</span>
