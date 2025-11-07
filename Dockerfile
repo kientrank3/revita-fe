@@ -1,49 +1,80 @@
-# Sử dụng hình ảnh Node.js làm cơ sở cho quá trình build
-FROM node:20-alpine AS builder
+# === 1) Install all deps (including devDependencies for build) ===
+FROM node:20-alpine AS deps
 
-# Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Sao chép các tệp package
 COPY package.json package-lock.json ./
 
-# Cài đặt các phụ thuộc
 RUN npm ci --legacy-peer-deps --ignore-scripts
 
-# Sao chép mã nguồn
-COPY . .
+# === 2) Build Next.js app ===
+FROM node:20-alpine AS builder
 
-# Build ứng dụng Next.js
-RUN npm run build
-
-# Hình ảnh cho môi trường production
-FROM node:20-alpine AS runner
-
-# Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Thiết lập biến môi trường cho production
-ENV NODE_ENV=production
-# Thiết lập runtime cho Next.js
-ENV NEXT_RUNTIME=nodejs
-# Thiết lập timeout cho server
-ENV NEXT_SERVER_RESPONSE_TIMEOUT=180000
+COPY package.json package-lock.json ./
+COPY --from=deps /app/node_modules ./node_modules
 
-# Sao chép các tệp cần thiết từ builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/src ./src
-# Bao gồm tệp .env nếu tồn tại
-COPY --from=builder /app/.env ./.env
+COPY . .
 
-# Cài đặt chỉ các phụ thuộc cần thiết cho production
+# Build arguments từ Coolify (injected automatically)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SOCKET_URL
+ARG NEXT_PUBLIC_QUEUE_SOCKET_URL
+ARG NEXT_PUBLIC_RESEND_API_KEY
+ARG NEXT_PUBLIC_TINYMCE_API_KEY
+
+# Set environment variables for build
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+ENV NEXT_PUBLIC_QUEUE_SOCKET_URL=${NEXT_PUBLIC_QUEUE_SOCKET_URL}
+ENV NEXT_PUBLIC_RESEND_API_KEY=${NEXT_PUBLIC_RESEND_API_KEY}
+ENV NEXT_PUBLIC_TINYMCE_API_KEY=${NEXT_PUBLIC_TINYMCE_API_KEY}
+
+RUN npm run build
+
+# === 3) Production deps only ===
+FROM node:20-alpine AS prod-deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
 RUN npm ci --production --legacy-peer-deps --ignore-scripts
 
-# Mở cổng mà ứng dụng sẽ chạy
+# === 4) Runtime image ===
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_RUNTIME=nodejs
+ENV NEXT_SERVER_RESPONSE_TIMEOUT=180000
+
+# Runtime environment variables từ Coolify (injected automatically)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SOCKET_URL
+ARG NEXT_PUBLIC_QUEUE_SOCKET_URL
+ARG NEXT_PUBLIC_RESEND_API_KEY
+ARG NEXT_PUBLIC_TINYMCE_API_KEY
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+ENV NEXT_PUBLIC_QUEUE_SOCKET_URL=${NEXT_PUBLIC_QUEUE_SOCKET_URL}
+ENV NEXT_PUBLIC_RESEND_API_KEY=${NEXT_PUBLIC_RESEND_API_KEY}
+ENV NEXT_PUBLIC_TINYMCE_API_KEY=${NEXT_PUBLIC_TINYMCE_API_KEY}
+
+# Production node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
+
+# Next.js build artifacts
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+# App config files
+COPY package.json package-lock.json ./
+COPY next.config.ts ./
+
 EXPOSE 3000
 
-# Lệnh để khởi động ứng dụng Next.js
 CMD ["npm", "start"]
