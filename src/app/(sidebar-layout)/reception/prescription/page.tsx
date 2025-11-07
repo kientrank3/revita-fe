@@ -23,7 +23,9 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  QrCode
+  QrCode,
+  Camera,
+  CameraOff
 } from 'lucide-react';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { PatientProfile } from '@/lib/types/user';
@@ -32,7 +34,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { MedicalRecord } from '@/lib/types/medical-record';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, CameraOff } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -272,9 +273,10 @@ export default function ReceptionCreatePrescriptionPage() {
           profileCode: ''
         } as unknown as PatientProfile);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAppointment(null);
-      toast.error(e?.message || 'Không thể tra cứu lịch hẹn');
+      const error = e as { message?: string };
+      toast.error(error?.message || 'Không thể tra cứu lịch hẹn');
     } finally {
       setAppointmentLoading(false);
     }
@@ -301,13 +303,15 @@ export default function ReceptionCreatePrescriptionPage() {
       toast.success('Đã tạo phiếu chỉ định từ lịch hẹn');
       // Reset and navigate to list tab
       setActiveTab('prescriptions');
-    } catch (e: any) {
-      toast.error(e?.message || 'Không thể tạo phiếu từ lịch hẹn');
+    } catch (e: unknown) {
+      const error = e as { message?: string };
+      toast.error(error?.message || 'Không thể tạo phiếu từ lịch hẹn');
     }
   }, [appointment]);
 
   // QR Scanner logic
   const stopScanner = useCallback(async () => {
+    console.log('[QR] Stopping scanner...');
     setScanning(false);
     scanningRef.current = false;
     
@@ -322,15 +326,40 @@ export default function ReceptionCreatePrescriptionPage() {
       html5QrCodeRef.current = null;
     }
     
-    // Stop media stream
+    // Stop all tracks first
     const stream = mediaStreamRef.current;
     if (stream) {
-      stream.getTracks().forEach(t => t.stop());
+      stream.getTracks().forEach(t => {
+        try {
+          t.stop();
+        } catch (e) {
+          console.warn('[QR] Error stopping track:', e);
+        }
+      });
       mediaStreamRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    
+    // Clear video element srcObject to prevent lingering references
+    const video = videoRef.current;
+    if (video) {
+      try {
+        // Remove any error listeners first
+        video.onerror = null;
+        // Pause first to stop any ongoing play() promise
+        video.pause();
+        // Clear srcObject
+        video.srcObject = null;
+        // Load empty to ensure cleanup
+        video.load();
+      } catch (e: unknown) {
+        const error = e as { name?: string; message?: string };
+        // Suppress AbortError and other expected errors
+        if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+          console.warn('[QR] Error clearing video srcObject:', error);
+        }
+      }
     }
+    console.log('[QR] Scanner stopped');
   }, []);
 
   const handleQrText = useCallback(async (text: string) => {
@@ -377,7 +406,6 @@ export default function ReceptionCreatePrescriptionPage() {
             // Close scanner after successful scan
             setTimeout(() => {
               setIsQrScannerOpen(false);
-              stopScanner();
             }, 500);
           } else {
             // Nếu có nhiều hơn 1 kết quả → chọn phần tử đầu tiên và báo có nhiều kết quả
@@ -387,12 +415,12 @@ export default function ReceptionCreatePrescriptionPage() {
             // Close scanner after successful scan
             setTimeout(() => {
               setIsQrScannerOpen(false);
-              stopScanner();
             }, 500);
           }
-        } catch (e: any) {
-          console.error('[QR] Search profiles error:', e);
-          toast.error(e?.message || 'Không thể tra cứu hồ sơ bệnh nhân');
+        } catch (e: unknown) {
+          const error = e as { message?: string };
+          console.error('[QR] Search profiles error:', error);
+          toast.error(error?.message || 'Không thể tra cứu hồ sơ bệnh nhân');
           setScanHint('Lỗi tra cứu hồ sơ');
         }
       } else if (upper.startsWith('APT') || upper.startsWith('APPT')) {
@@ -403,7 +431,6 @@ export default function ReceptionCreatePrescriptionPage() {
         // Close scanner after successful scan
         setTimeout(() => {
           setIsQrScannerOpen(false);
-          stopScanner();
         }, 500);
       } else {
         // Không đúng định dạng kỳ vọng, vẫn hiển thị ra cho bạn xem
@@ -413,7 +440,7 @@ export default function ReceptionCreatePrescriptionPage() {
     } catch (e) {
       console.error('[QR] Error:', e);
     }
-  }, [onLookupAppointment, setSelectedPatientProfile, stopScanner]);
+  }, [onLookupAppointment]);
 
   const startScanner = useCallback(async () => {
     setScanning(true);
@@ -435,23 +462,151 @@ export default function ReceptionCreatePrescriptionPage() {
         }
       }
       
+      // Check if scanning was stopped while getting the stream
+      if (!scanningRef.current) {
+        console.log('[QR] Scanning stopped while getting stream, cleaning up');
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      
       console.log('[QR] Got media stream:', !!stream);
       mediaStreamRef.current = stream;
       const video = videoRef.current;
       if (!video) {
         console.warn('[QR] videoRef.current is null');
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
         return;
       }
       
-      video.srcObject = stream;
-      await video.play();
+      // Check again before assigning stream
+      if (!scanningRef.current) {
+        console.log('[QR] Scanning stopped before assigning stream, cleaning up');
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        return;
+      }
+
+      // Add error handler to suppress AbortError
+      const handleVideoError = (e: Event) => {
+        const error = e as ErrorEvent;
+        if (error.error?.name === 'AbortError' || error.message?.includes('aborted')) {
+          // Suppress AbortError - this is expected when stopping scanner
+          console.log('[QR] Video error (suppressed):', error.error?.name || error.message);
+          return;
+        }
+        console.warn('[QR] Video error:', error);
+      };
+      video.addEventListener('error', handleVideoError, { once: true });
+
+      try {
+        video.srcObject = stream;
+        
+        if (!scanningRef.current) {
+          console.log('[QR] Scanning stopped after setting srcObject, cleaning up');
+          stream.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+          video.removeEventListener('error', handleVideoError);
+          try {
+            video.srcObject = null;
+            video.pause();
+          } catch {
+            // Ignore cleanup errors
+          }
+          return;
+        }
+
+        try {
+          await video.play();
+          console.log('[QR] Video playing, readyState:', video.readyState);
+        } catch (playError: unknown) {
+          const error = playError as { name?: string; message?: string };
+          // Suppress AbortError - this is expected when stopping scanner
+          if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+            console.log('[QR] Video play aborted (suppressed)');
+            if (!scanningRef.current) {
+              return;
+            }
+          }
+          throw playError;
+        }
+      } catch (playError: unknown) {
+        const error = playError as { name?: string; message?: string };
+        console.error('[QR] Error playing video:', error);
+        video.removeEventListener('error', handleVideoError);
+        // Clean up stream if video play fails
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        const videoEl = videoRef.current;
+        if (videoEl) {
+          try {
+            videoEl.srcObject = null;
+            videoEl.pause();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        // Don't throw AbortError or NotAllowedError - these are expected
+        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+          throw playError;
+        }
+        return;
+      }
 
       // Wait until video metadata is ready
       if (video.readyState < 2) {
-        await new Promise<void>((resolve) => {
-          const onLoaded = () => { resolve(); };
+        await new Promise<void>((resolve, reject) => {
+          // Check if scanning was stopped while waiting
+          if (!scanningRef.current) {
+            reject(new Error('Scanning stopped'));
+            return;
+          }
+          const onLoaded = () => {
+            if (!scanningRef.current) {
+              reject(new Error('Scanning stopped'));
+              return;
+            }
+            resolve();
+          };
+          const onError = () => { reject(new Error('Video load error')); };
           video.addEventListener('loadeddata', onLoaded, { once: true });
+          video.addEventListener('error', onError, { once: true });
+        }).catch((err) => {
+          console.log('[QR] Error waiting for video metadata:', err);
+          // Clean up if scanning was stopped
+          if (!scanningRef.current) {
+            const stream = mediaStreamRef.current;
+            if (stream) {
+              stream.getTracks().forEach(t => t.stop());
+              mediaStreamRef.current = null;
+            }
+            const video = videoRef.current;
+            if (video) {
+              try {
+                video.onerror = null;
+                video.srcObject = null;
+                video.pause();
+              } catch (cleanupError: unknown) {
+                const error = cleanupError as { name?: string; message?: string };
+                // Suppress AbortError and other expected errors
+                if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+                  console.warn('[QR] Error cleaning up video:', error);
+                }
+              }
+            }
+            return;
+          }
+          // Only throw if scanning is still active
+          throw err;
         });
+      }
+      
+      // Final check before proceeding
+      if (!scanningRef.current || !videoRef.current) {
+        console.log('[QR] Scanning stopped after video ready, cleaning up');
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        return;
       }
       
       console.log('[QR] Video ready, dimensions:', video.videoWidth, 'x', video.videoHeight);
@@ -462,10 +617,8 @@ export default function ReceptionCreatePrescriptionPage() {
         detect(image: HTMLVideoElement): Promise<Array<{ rawValue?: string; rawValueText?: string; raw?: string }>>;
       }
       
-      const BD = (window as { BarcodeDetector?: new (options?: { formats: string[] }) => BarcodeDetectorInterface }).BarcodeDetector;
-      const isBarcodeDetectorSupported = typeof BD !== 'undefined';
-      
-      if (isBarcodeDetectorSupported) {
+      const BD = (window as { BarcodeDetector?: new (options?: { formats?: string[] }) => BarcodeDetectorInterface }).BarcodeDetector;
+      if (BD) {
         console.log('[QR] Trying BarcodeDetector...');
         setScannerSupported(true);
         let detector: BarcodeDetectorInterface | null = null;
@@ -625,6 +778,20 @@ export default function ReceptionCreatePrescriptionPage() {
 
   // Handle QR scanner dialog open/close
   useEffect(() => {
+    // Suppress unhandled AbortError from video elements
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted') || 
+          error?.message?.includes('fetching process') || error?.message?.includes('media resource')) {
+        // Suppress AbortError from video/media operations - this is expected
+        event.preventDefault();
+        console.log('[QR] Suppressed unhandled AbortError:', error?.message || error?.name);
+        return;
+      }
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
     if (isQrScannerOpen) {
       setTimeout(() => {
         startScanner();
@@ -635,6 +802,7 @@ export default function ReceptionCreatePrescriptionPage() {
     
     return () => {
       stopScanner();
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, [isQrScannerOpen, startScanner, stopScanner]);
 

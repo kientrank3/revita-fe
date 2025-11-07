@@ -34,7 +34,7 @@ class ServiceProcessingService {
     });
     console.log('🔐 JWT Token should be in Authorization header automatically');
 
-    const response = await api.put(`${this.baseUrl}/prescription-service/status`, data);
+    const response = await api.put(`/prescriptions/prescription-service/status`, data);
     console.log('🔄 Service status updated:', response.data);
     return response.data;
   }
@@ -49,7 +49,7 @@ class ServiceProcessingService {
     });
     console.log('🔐 JWT Token should be in Authorization header automatically');
 
-    const response = await api.put(`${this.baseUrl}/prescription-service/results`, data);
+    const response = await api.put(`/prescriptions/prescription-service/results`, data);
     console.log('📋 Service results updated:', response.data);
     return response.data;
   }
@@ -151,6 +151,29 @@ class ServiceProcessingService {
     totalCount: number;
   }> {
     const response = await api.get(`/prescriptions/queue`);
+    return response.data;
+  }
+
+  // 10. CALL NEXT PATIENT
+  async callNextPatient(): Promise<unknown> {
+    console.log('📞 Calling next patient');
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
+    const response = await api.post(`/prescriptions/call-next-patient`);
+    console.log('✅ Next patient called successfully:', response.data);
+    return response.data;
+  }
+
+  // 11. SKIP PATIENT
+  async skipPatient(prescriptionId: string, serviceId: string): Promise<unknown> {
+    console.log('⏭️ Skipping patient:', { prescriptionId, serviceId });
+    console.log('🔐 JWT Token should be in Authorization header automatically');
+
+    const response = await api.put(`/prescriptions/prescription-service/skip`, {
+      prescriptionId,
+      serviceId
+    });
+    console.log('✅ Patient skipped successfully:', response.data);
     return response.data;
   }
 }
