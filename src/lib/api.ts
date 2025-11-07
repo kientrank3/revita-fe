@@ -21,6 +21,19 @@ export interface PatientProfile {
   };
   healthInsurance: string;
   relationship: string;
+  profileCode?: string;
+  patientCode?: string;
+  patient?: {
+    id?: string;
+    patientCode?: string;
+    user?: {
+      id?: string;
+      phone?: string;
+      name?: string;
+      [key: string]: unknown;
+    } | null;
+    [key: string]: unknown;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

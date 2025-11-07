@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import QRCode from 'react-qr-code';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,12 @@ export function PatientProfileCard({ profile: profileProp, patientProfileId, sho
   const relationship = profile.relationship ?? '—';
   const emergency = profile.emergencyContact;
   const healthInsurance = profile.healthInsurance;
+  const codeDescriptors = [
+    { label: 'Mã hồ sơ', value: profile.profileCode },
+    { label: 'Mã bệnh nhân', value: profile.patient?.patientCode || profile.patientCode },
+  ].filter((item): item is { label: string; value: string } => Boolean(item.value && item.value.trim()));
+  const qrValue = codeDescriptors.map((item) => item.value.trim()).join('|');
+  const hasQr = Boolean(qrValue);
 
   return (
     <Card className="w-full hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
@@ -96,6 +103,23 @@ export function PatientProfileCard({ profile: profileProp, patientProfileId, sho
       </CardHeader>
 
       <CardContent className="space-y-3 flex-1 flex flex-col">
+        {hasQr && (
+          <div className="flex items-center justify-between gap-3 p-3 border border-dashed border-primary/30 rounded-lg bg-primary/5">
+            <div className="min-w-0 space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Định danh hồ sơ</p>
+              {codeDescriptors.map(({ label, value }) => (
+                <p key={`${label}-${value}`} className="text-sm font-semibold text-gray-900 truncate">
+                  <span className="text-xs font-medium text-gray-600 uppercase tracking-wide mr-1">{label}:</span>
+                  {value}
+                </p>
+              ))}
+            </div>
+            <div className="bg-white p-2 rounded-md border border-gray-200 flex-shrink-0">
+              <QRCode value={qrValue} size={64} style={{ width: '64px', height: '64px' }} />
+            </div>
+          </div>
+        )}
+
         {/* Basic Info */}
         <div className="space-y-2 flex-1">
           <div className="flex items-center space-x-2 text-sm text-gray-600">

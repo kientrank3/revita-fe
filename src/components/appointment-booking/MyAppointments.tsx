@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
+import QRCode from 'react-qr-code';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,30 @@ import {
 } from 'lucide-react';
 import { useAppointmentBookingContext } from '@/lib/contexts/AppointmentBookingContext';
 import { Appointment } from '@/lib/types/appointment-booking';
+
+const buildAppointmentQrInfo = (appointment: Appointment) => {
+  const descriptors = [
+    { label: 'Mã lịch hẹn', value: appointment.appointmentCode, prefix: 'APT' },
+    { label: 'Hồ sơ bệnh nhân', value: appointment.patientProfileId, prefix: 'PFP' },
+    { label: 'Bác sĩ', value: appointment.doctorId, prefix: 'DOC' },
+    { label: 'Dịch vụ', value: appointment.serviceId, prefix: 'SER' },
+    { label: 'Ngày khám', value: appointment.date, prefix: 'DATE' },
+    { label: 'Khung giờ', value: `${appointment.startTime}-${appointment.endTime}`, prefix: 'TIME' },
+  ].filter(({ value }) => Boolean(value && String(value).trim())) as Array<{
+    label: string;
+    value: string;
+    prefix: string;
+  }>;
+
+  const payload = descriptors
+    .map(({ prefix, value }) => `${prefix}:${String(value).trim()}`)
+    .join('|');
+
+  return {
+    payload,
+    descriptors,
+  };
+};
 
 export function MyAppointments() {
   const { user } = useAuth();
@@ -186,6 +211,11 @@ export function MyAppointments() {
           <div className="space-y-4">
             {currentAppointments.map((appointment) => (
               <Card key={appointment.appointmentId} className="hover:shadow-md transition-shadow border border-gray-200">
+                {(() => {
+                  const qrInfo = buildAppointmentQrInfo(appointment);
+                  const hasQr = Boolean(qrInfo.payload);
+                  return (
+                    <>
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -198,13 +228,25 @@ export function MyAppointments() {
                           Tạo lúc: {new Date(appointment.createdAt).toLocaleString('vi-VN')}
                         </p>
                       </div>
+                      <Badge className={getStatusColor(appointment.status)}>
+                        {getStatusText(appointment.status)}
+                      </Badge>
                     </div>
-                    <Badge className={getStatusColor(appointment.status)}>
-                      {getStatusText(appointment.status)}
-                    </Badge>
+                    
+                    <div className="flex items-center gap-3">
+                      
+                      {hasQr && (
+                        <div className="hidden sm:flex flex-col items-center gap-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2">
+                          <div className="bg-white p-1 rounded-md border border-gray-200">
+                            <QRCode value={qrInfo.payload} size={72} style={{ width: '72px', height: '72px' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
+                 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Doctor Info */}
                     <div className="flex items-center space-x-3">
@@ -253,6 +295,9 @@ export function MyAppointments() {
                     </div>
                   </div>
                 </CardContent>
+                    </>
+                  );
+                })()}
               </Card>
             ))}
           </div>

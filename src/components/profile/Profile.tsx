@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import QRCode from 'react-qr-code';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ import { authApi, userApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { Admin, Cashier, Doctor, Patient, Receptionist } from '@/lib/types/user';
 import { colors } from '@/lib/colors';
+import { buildRoleQrInfo } from '@/lib/utils/roleQr';
 
 interface UserProfileData {
   id: string;
@@ -81,6 +83,8 @@ export function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrInfo = useMemo(() => buildRoleQrInfo(profileData), [profileData]);
+  const hasQr = Boolean(qrInfo.payload);
 
   const [editForm, setEditForm] = useState<UpdateProfileForm>({
     name: '',
@@ -426,14 +430,23 @@ export function Profile() {
         </div>
 
         {/* Profile Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 ">
           {/* Basic Info Card */}
-          <Card className="lg:col-span-3 border border-gray-200 bg-white">
-            <CardHeader className="border-b border-gray-100 pb-4">
+          <Card className="lg:col-span-3 border border-gray-200 bg-white ">
+            <CardHeader className="border-b border-gray-100 flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-gray-900 text-lg">
                 <User className="h-5 w-5 text-gray-600" color={colors.primary.hex} />
                 Thông tin cơ bản
               </CardTitle>
+              {hasQr && (
+              <div className="">
+                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-primary/30 ">
+                  <div className="bg-white p-1 rounded-md border border-gray-200">
+                    <QRCode value={qrInfo.payload} size={128} style={{ width: '72px', height: '72px' }} />
+                  </div>
+                </div>
+              </div>
+            )}
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               <div className="flex flex-col items-center space-y-3">
@@ -481,7 +494,10 @@ export function Profile() {
                     {getRoleLabel(profileData.role)}
                   </Badge>
                 </div>
+                
               </div>
+
+            
 
               <Separator className="my-3" />
 
