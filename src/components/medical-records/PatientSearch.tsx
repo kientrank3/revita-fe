@@ -1,9 +1,16 @@
 'use client';
 
-import React, {  useRef, useState } from 'react';
+import React, {  useRef, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   User, 
@@ -13,11 +20,15 @@ import {
   Check,
   Loader2,
   X,
+  QrCode,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
 import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { userService } from '@/lib/services/user.service';
 import { PatientProfile, User as UserType } from '@/lib/types/user';
 import { toast } from 'sonner';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface PatientSearchProps {
   onPatientProfileSelect: (patientProfile: PatientProfile | null) => void;
@@ -39,6 +50,18 @@ export function PatientSearch({
   const [patientResults, setPatientResults] = useState<UserType[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchMode, setSearchMode] = useState<'profiles' | 'patients'>('profiles');
+  
+  // QR Scanner states
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
+  const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const lastScanRef = useRef<string | null>(null);
+  const lastScanTsRef = useRef<number>(0);
+  const scanningRef = useRef(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +141,287 @@ export function PatientSearch({
     if (onPatientSelect) onPatientSelect(null);
   };
 
+  // QR Scanner handlers
+  const stopScanner = useCallback(async () => {
+    setScanning(false);
+    scanningRef.current = false;
+    
+    // Stop html5-qrcode if running
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        await html5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn('[QR] Error stopping html5-qrcode:', e);
+      }
+      html5QrCodeRef.current = null;
+    }
+    
+    // Stop media stream
+    const stream = mediaStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const handleQrText = useCallback(async (text: string) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    
+    console.log('[QR] Raw:', text);
+    
+    // Lấy chỉ phần đầu tiên trước dấu | (mã PP)
+    const codeParts = trimmed.split('|');
+    const profileCode = codeParts[0]?.trim() || trimmed;
+    
+    console.log('[QR] Scanned code:', profileCode);
+    setScanHint(`Đã quét mã: ${profileCode.slice(0, 24)}${profileCode.length > 24 ? '...' : ''}`);
+    
+    // Điền mã QR vào ô input tìm kiếm (chỉ lấy mã PP)
+    setSearchQuery(profileCode);
+    toast.success(`Đã quét mã: ${profileCode}`);
+    
+    // Đóng scanner sau khi quét thành công
+    setTimeout(() => {
+      setIsQrScannerOpen(false);
+      stopScanner();
+    }, 500);
+  }, [stopScanner]);
+
+  const startScanner = useCallback(async () => {
+    setScanning(true);
+    scanningRef.current = true;
+    setScanHint('Đang khởi động camera...');
+    
+    try {
+      // Prefer front camera; fallback to any camera
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: { ideal: 'environment' } } // Use back camera for QR scanning
+        });
+      } catch {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch {
+          throw new Error('Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.');
+        }
+      }
+      
+      console.log('[QR] Got media stream:', !!stream);
+      mediaStreamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) {
+        console.warn('[QR] videoRef.current is null');
+        return;
+      }
+      
+      video.srcObject = stream;
+      await video.play();
+      console.log('[QR] Video playing, readyState:', video.readyState);
+
+      // Wait until video metadata is ready
+      if (video.readyState < 2) {
+        await new Promise<void>((resolve) => {
+          const onLoaded = () => { resolve(); };
+          video.addEventListener('loadeddata', onLoaded, { once: true });
+        });
+      }
+      
+      console.log('[QR] Video ready, dimensions:', video.videoWidth, 'x', video.videoHeight);
+      setScanHint('Camera đã sẵn sàng. Đưa mã QR vào khung...');
+
+      // Try BarcodeDetector first (native browser API)
+      interface BarcodeDetectorInterface {
+        detect(image: HTMLVideoElement): Promise<Array<{ rawValue?: string; rawValueText?: string; raw?: string }>>;
+      }
+      
+      // Check if BarcodeDetector is available and supported
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const BD = (window as any).BarcodeDetector;
+      const isBarcodeDetectorSupported = typeof BD !== 'undefined';
+      
+      if (isBarcodeDetectorSupported) {
+        console.log('[QR] Trying BarcodeDetector...');
+        setScannerSupported(true);
+        let detector: BarcodeDetectorInterface | null = null;
+        try {
+          detector = new BD({ formats: ['qr_code'] });
+        } catch {
+          try {
+            detector = new BD();
+          } catch (e) {
+            console.log('[QR] BarcodeDetector init failed, will use fallback:', e);
+            setScannerSupported(null); // Will try fallback
+          }
+        }
+        
+        if (detector) {
+          console.log('[QR] BarcodeDetector initialized, starting detection...');
+          const tick = async () => {
+            if (!scanningRef.current || !videoRef.current) {
+              return;
+            }
+            
+            try {
+              const detections = await detector!.detect(videoRef.current);
+              if (detections && detections.length > 0) {
+                console.log('[QR] detections:', detections.length, detections);
+                const raw = (detections[0]?.rawValue ?? detections[0]?.rawValueText ?? detections[0]?.raw ?? '').toString();
+                if (raw) {
+                  const norm = raw.trim();
+                  const now = Date.now();
+                  // Debounce to avoid spam
+                  if (lastScanRef.current === norm && now - lastScanTsRef.current < 1500) {
+                    // skip duplicate within 1.5s
+                  } else {
+                    lastScanRef.current = norm;
+                    lastScanTsRef.current = now;
+                    console.log('[QR] Found QR code:', norm);
+                    await handleQrText(norm);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[QR] detect error:', err);
+            }
+            
+            if (scanningRef.current) {
+              requestAnimationFrame(tick);
+            }
+          };
+          
+          setScanHint('Đưa mã QR vào trong khung...');
+          requestAnimationFrame(tick);
+          return; // Successfully started with BarcodeDetector
+        }
+      }
+      
+      // Fallback to html5-qrcode library
+      console.log('[QR] BarcodeDetector not available, using html5-qrcode fallback...');
+      try {
+        setScannerSupported(true);
+        setScanHint('Đang khởi động bộ quét QR...');
+        
+        // Stop the current video stream as html5-qrcode will manage its own
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        
+        const html5QrCode = new Html5Qrcode('qr-reader');
+        html5QrCodeRef.current = html5QrCode;
+        
+        const qrCodeSuccessCallback = async (decodedText: string) => {
+          const norm = decodedText.trim();
+          const now = Date.now();
+          
+          // Debounce to avoid spam
+          if (lastScanRef.current === norm && now - lastScanTsRef.current < 1500) {
+            return; // skip duplicate within 1.5s
+          }
+          
+          lastScanRef.current = norm;
+          lastScanTsRef.current = now;
+          console.log('[QR] Found QR code (html5-qrcode):', norm);
+          await handleQrText(norm);
+        };
+        
+        const qrCodeErrorCallback = (errorMessage: string) => {
+          // Ignore errors, just keep scanning
+          // Only log if it's not a common "not found" error
+          if (!errorMessage.includes('No QR code found') && !errorMessage.includes('NotFoundException')) {
+            // console.debug('[QR] Scanning...', errorMessage);
+          }
+        };
+        
+        // Start scanning
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        };
+        
+        try {
+          await html5QrCode.start(
+            { facingMode: 'environment' },
+            config,
+            qrCodeSuccessCallback,
+            qrCodeErrorCallback
+          );
+        } catch {
+          // If environment camera fails, try user-facing camera
+          try {
+            await html5QrCode.start(
+              { facingMode: 'user' },
+              config,
+              qrCodeSuccessCallback,
+              qrCodeErrorCallback
+            );
+          } catch {
+            // Last resort: try default camera
+            try {
+              const cameraId = await Html5Qrcode.getCameras().then(cameras => cameras[0]?.id);
+              if (cameraId) {
+                await html5QrCode.start(
+                  cameraId,
+                  config,
+                  qrCodeSuccessCallback,
+                  qrCodeErrorCallback
+                );
+              } else {
+                throw new Error('Không tìm thấy camera');
+              }
+            } catch (finalError) {
+              console.error('[QR] All camera options failed:', finalError);
+              throw finalError;
+            }
+          }
+        }
+        
+        setScanHint('Đưa mã QR vào trong khung...');
+        console.log('[QR] html5-qrcode started successfully');
+      } catch (html5Error) {
+        console.error('[QR] html5-qrcode failed:', html5Error);
+        setScannerSupported(false);
+        const error = html5Error instanceof Error ? html5Error : new Error('Không thể khởi động bộ quét QR');
+        toast.error(`Không thể khởi động quét QR: ${error.message}`);
+        setScanHint('Lỗi khởi động bộ quét QR');
+      }
+    } catch (e) {
+      setScanning(false);
+      scanningRef.current = false;
+      const error = e instanceof Error ? e : new Error('Không thể truy cập camera');
+      console.error('[QR] getUserMedia error:', error);
+      toast.error(error.message || 'Không thể truy cập camera');
+      setScanHint('Lỗi khởi động camera');
+    }
+  }, [handleQrText]);
+
+  // Handle QR scanner dialog open/close
+  useEffect(() => {
+    if (isQrScannerOpen) {
+      // Small delay to ensure dialog is rendered
+      setTimeout(() => {
+        startScanner();
+      }, 100);
+    } else {
+      stopScanner();
+    }
+    
+    return () => {
+      stopScanner();
+    };
+  }, [isQrScannerOpen, startScanner, stopScanner]);
+
   // Compact version for create page
   if (compact) {
     return (
@@ -174,6 +478,15 @@ export function PatientSearch({
                   <Search className="h-3 w-3" />
                 )}
                 Tìm
+              </Button>
+              <Button 
+                onClick={() => setIsQrScannerOpen(true)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+                title="Quét QR code"
+              >
+                <QrCode className="h-3 w-3" />
               </Button>
             </div>
 
@@ -253,7 +566,89 @@ export function PatientSearch({
                   </div>
       )}
 
-     
+      {/* QR Scanner Dialog */}
+      <Dialog open={isQrScannerOpen} onOpenChange={setIsQrScannerOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Quét mã QR hồ sơ bệnh nhân
+            </DialogTitle>
+            <DialogDescription>
+              Đưa mã QR của hồ sơ bệnh nhân (PP...) vào khung hình để quét tự động
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
+              {/* Video element for BarcodeDetector */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover hidden"
+                style={{ transform: 'scaleX(-1)' }} // Mirror the video
+              />
+              
+              {/* HTML5 QR Code reader container */}
+              <div id="qr-reader" className="w-full h-full"></div>
+              
+              {/* Scanning overlay for BarcodeDetector mode */}
+              {scannerSupported && html5QrCodeRef.current === null && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
+                    {/* Corner indicators */}
+                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+                  </div>
+                </div>
+              )}
+              
+              {!scanning && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="text-center text-white">
+                    <CameraOff className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Camera chưa sẵn sàng</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-gray-600">{scanHint}</p>
+              {scannerSupported === false && (
+                <p className="text-xs text-red-600 mt-2">
+                  Trình duyệt không hỗ trợ quét QR. Vui lòng sử dụng trình duyệt hiện đại hơn.
+                </p>
+              )}
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await stopScanner();
+                  setIsQrScannerOpen(false);
+                }}
+              >
+                Đóng
+              </Button>
+              {!scanning && (
+                <Button
+                  onClick={startScanner}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Khởi động lại
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -307,6 +702,15 @@ export function PatientSearch({
                   <Search className="h-4 w-4" />
                 )}
                 Tìm kiếm
+              </Button>
+              <Button 
+                onClick={() => setIsQrScannerOpen(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+                title="Quét QR code"
+              >
+                <QrCode className="h-4 w-4" />
+                QR
               </Button>
             </div>
           </div>
@@ -492,6 +896,90 @@ export function PatientSearch({
           </div>
         </div>
       )}
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={isQrScannerOpen} onOpenChange={setIsQrScannerOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Quét mã QR hồ sơ bệnh nhân
+            </DialogTitle>
+            <DialogDescription>
+              Đưa mã QR của hồ sơ bệnh nhân (PP...) vào khung hình để quét tự động
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
+              {/* Video element for BarcodeDetector */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover hidden"
+                style={{ transform: 'scaleX(-1)' }} // Mirror the video
+              />
+              
+              {/* HTML5 QR Code reader container */}
+              <div id="qr-reader" className="w-full h-full"></div>
+              
+              {/* Scanning overlay for BarcodeDetector mode */}
+              {scannerSupported && html5QrCodeRef.current === null && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
+                    {/* Corner indicators */}
+                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+                  </div>
+                </div>
+              )}
+              
+              {!scanning && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="text-center text-white">
+                    <CameraOff className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Camera chưa sẵn sàng</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-gray-600">{scanHint}</p>
+              {scannerSupported === false && (
+                <p className="text-xs text-red-600 mt-2">
+                  Trình duyệt không hỗ trợ quét QR. Vui lòng sử dụng trình duyệt hiện đại hơn.
+                </p>
+              )}
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await stopScanner();
+                  setIsQrScannerOpen(false);
+                }}
+              >
+                Đóng
+              </Button>
+              {!scanning && (
+                <Button
+                  onClick={startScanner}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Khởi động lại
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

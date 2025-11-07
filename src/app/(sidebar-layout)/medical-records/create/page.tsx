@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,9 @@ import {
   Save,
   X,
   Pill,
+  QrCode,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
 import { Template, CreateMedicalRecordDto, MedicalRecordStatus } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -26,8 +29,16 @@ import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import { PatientProfile } from '@/lib/types/user';
 import { CreatePrescriptionDialog } from '@/components/medication-prescriptions/CreatePrescriptionDialog';
-import { medicationPrescriptionApi } from '@/lib/api';
+import { medicationPrescriptionApi, appointmentBookingApi } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Html5Qrcode } from 'html5-qrcode';
 
 function CreateMedicalRecordPageContent() {
   const router = useRouter();
@@ -54,6 +65,17 @@ function CreateMedicalRecordPageContent() {
   const [createPrescriptionAfter, setCreatePrescriptionAfter] = useState(false);
   const [showCreatePrescriptionDialog, setShowCreatePrescriptionDialog] = useState(false);
   const [createdMedicalRecordId, setCreatedMedicalRecordId] = useState<string | null>(null);
+
+  // Appointment QR Scanner states
+  const [isAppointmentQrScannerOpen, setIsAppointmentQrScannerOpen] = useState(false);
+  const [scanningAppointment, setScanningAppointment] = useState(false);
+  const [appointmentScanHint, setAppointmentScanHint] = useState<string>('Đang khởi động camera...');
+  const appointmentVideoRef = useRef<HTMLVideoElement | null>(null);
+  const appointmentMediaStreamRef = useRef<MediaStream | null>(null);
+  const appointmentHtml5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const appointmentLastScanRef = useRef<string | null>(null);
+  const appointmentLastScanTsRef = useRef<number>(0);
+  const appointmentScanningRef = useRef(false);
 
   // Load templates
   useEffect(() => {
@@ -168,6 +190,322 @@ function CreateMedicalRecordPageContent() {
     }
   };
 
+  // Appointment QR Scanner handlers
+  const stopAppointmentScanner = useCallback(async () => {
+    setScanningAppointment(false);
+    appointmentScanningRef.current = false;
+    
+    // Stop html5-qrcode if running
+    if (appointmentHtml5QrCodeRef.current) {
+      try {
+        await appointmentHtml5QrCodeRef.current.stop();
+        await appointmentHtml5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn('[Appointment QR] Error stopping html5-qrcode:', e);
+      }
+      appointmentHtml5QrCodeRef.current = null;
+    }
+    
+    // Stop media stream
+    const stream = appointmentMediaStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      appointmentMediaStreamRef.current = null;
+    }
+    if (appointmentVideoRef.current) {
+      appointmentVideoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const handleAppointmentQrText = useCallback(async (text: string) => {
+    const trimmed = (text || '').trim().toUpperCase();
+    if (!trimmed) return;
+    
+    console.log('[Appointment QR] Raw:', text);
+    console.log('[Appointment QR] Scanned code:', trimmed);
+    
+    // Check if QR code starts with "APT" (Appointment code)
+    if (!trimmed.startsWith('APT')) {
+      toast.error('Mã QR không phải mã lịch hẹn (APT...)');
+      setAppointmentScanHint('Mã QR không đúng định dạng');
+      return;
+    }
+
+    try {
+      setAppointmentScanHint('Đang tra cứu lịch hẹn...');
+      toast.info('Đang tra cứu thông tin lịch hẹn...');
+      
+      // Call API to get appointment by code
+      const response = await appointmentBookingApi.getAppointmentByCode(trimmed);
+      const appointmentData = response.data;
+      
+      console.log('[Appointment QR] Appointment data:', appointmentData);
+      
+      // Fill appointment ID
+      handleInputChange('appointmentId', appointmentData.appointmentId);
+      
+      // Search and select patient profile by code
+      if (appointmentData.patientProfileCode) {
+        try {
+          const patientProfileService = (await import('@/lib/services/patient-profile.service')).patientProfileService;
+          
+          // Try direct code lookup first
+          let profile: PatientProfile | null = null;
+          try {
+            profile = await patientProfileService.getPatientProfileByCode(appointmentData.patientProfileCode);
+          } catch {
+            // If direct lookup fails, try search
+            const profileResponse = await patientProfileService.searchPatientProfiles(appointmentData.patientProfileCode);
+            if (profileResponse.patientProfiles && profileResponse.patientProfiles.length > 0) {
+              profile = profileResponse.patientProfiles[0];
+            }
+          }
+          
+          if (profile) {
+            handlePatientProfileSelect(profile);
+            toast.success('Đã tải thông tin lịch hẹn và bệnh nhân');
+          } else {
+            toast.warning(`Đã điền ID lịch hẹn, nhưng không tìm thấy hồ sơ bệnh nhân với mã: ${appointmentData.patientProfileCode}. Vui lòng tìm kiếm thủ công.`);
+          }
+        } catch (profileError) {
+          console.error('[Appointment QR] Error loading patient profile:', profileError);
+          toast.warning(`Đã điền ID lịch hẹn, nhưng không thể tải hồ sơ bệnh nhân. Mã hồ sơ: ${appointmentData.patientProfileCode}`);
+        }
+      }
+      
+      setAppointmentScanHint('Đã tải thông tin lịch hẹn');
+      
+      // Close scanner after successful scan
+      setTimeout(() => {
+        setIsAppointmentQrScannerOpen(false);
+        stopAppointmentScanner();
+      }, 500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Không thể tra cứu lịch hẹn';
+      console.error('[Appointment QR] Error:', error);
+      toast.error(errorMessage);
+      setAppointmentScanHint('Lỗi tra cứu lịch hẹn');
+    }
+  }, [stopAppointmentScanner]);
+
+  const startAppointmentScanner = useCallback(async () => {
+    setScanningAppointment(true);
+    appointmentScanningRef.current = true;
+    setAppointmentScanHint('Đang khởi động camera...');
+    
+    try {
+      // Prefer back camera; fallback to any camera
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: { ideal: 'environment' } }
+        });
+      } catch {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch {
+          throw new Error('Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.');
+        }
+      }
+      
+      console.log('[Appointment QR] Got media stream:', !!stream);
+      appointmentMediaStreamRef.current = stream;
+      const video = appointmentVideoRef.current;
+      if (!video) {
+        console.warn('[Appointment QR] videoRef.current is null');
+        return;
+      }
+      
+      video.srcObject = stream;
+      await video.play();
+
+      // Wait until video metadata is ready
+      if (video.readyState < 2) {
+        await new Promise<void>((resolve) => {
+          const onLoaded = () => { resolve(); };
+          video.addEventListener('loadeddata', onLoaded, { once: true });
+        });
+      }
+      
+      console.log('[Appointment QR] Video ready');
+      setAppointmentScanHint('Camera đã sẵn sàng. Đưa mã QR vào khung...');
+
+      // Try BarcodeDetector first
+      interface BarcodeDetectorInterface {
+        detect(image: HTMLVideoElement): Promise<Array<{ rawValue?: string; rawValueText?: string; raw?: string }>>;
+      }
+      
+      const BD = (window as { BarcodeDetector?: new (options?: { formats: string[] }) => BarcodeDetectorInterface }).BarcodeDetector;
+      const isBarcodeDetectorSupported = typeof BD !== 'undefined';
+      
+      if (isBarcodeDetectorSupported) {
+        console.log('[Appointment QR] Trying BarcodeDetector...');
+        let detector: BarcodeDetectorInterface | null = null;
+        try {
+          detector = new BD({ formats: ['qr_code'] });
+        } catch {
+          try {
+            detector = new BD();
+          } catch (e) {
+            console.log('[Appointment QR] BarcodeDetector init failed, will use fallback:', e);
+          }
+        }
+        
+        if (detector) {
+          console.log('[Appointment QR] BarcodeDetector initialized');
+          const tick = async () => {
+            if (!appointmentScanningRef.current || !appointmentVideoRef.current) {
+              return;
+            }
+            
+            try {
+              const detections = await detector!.detect(appointmentVideoRef.current);
+              if (detections && detections.length > 0) {
+                const raw = (detections[0]?.rawValue ?? detections[0]?.rawValueText ?? detections[0]?.raw ?? '').toString();
+                if (raw) {
+                  const norm = raw.trim();
+                  const now = Date.now();
+                  // Debounce
+                  if (appointmentLastScanRef.current === norm && now - appointmentLastScanTsRef.current < 1500) {
+                    // skip duplicate
+                  } else {
+                    appointmentLastScanRef.current = norm;
+                    appointmentLastScanTsRef.current = now;
+                    console.log('[Appointment QR] Found QR code:', norm);
+                    await handleAppointmentQrText(norm);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[Appointment QR] detect error:', err);
+            }
+            
+            if (appointmentScanningRef.current) {
+              requestAnimationFrame(tick);
+            }
+          };
+          
+          setAppointmentScanHint('Đưa mã QR vào trong khung...');
+          requestAnimationFrame(tick);
+          return;
+        }
+      }
+      
+      // Fallback to html5-qrcode
+      console.log('[Appointment QR] Using html5-qrcode fallback...');
+      try {
+        setAppointmentScanHint('Đang khởi động bộ quét QR...');
+        
+        // Stop the current video stream
+        if (appointmentMediaStreamRef.current) {
+          appointmentMediaStreamRef.current.getTracks().forEach(t => t.stop());
+          appointmentMediaStreamRef.current = null;
+        }
+        if (appointmentVideoRef.current) {
+          appointmentVideoRef.current.srcObject = null;
+        }
+        
+        const html5QrCode = new Html5Qrcode('appointment-qr-reader');
+        appointmentHtml5QrCodeRef.current = html5QrCode;
+        
+        const qrCodeSuccessCallback = async (decodedText: string) => {
+          const norm = decodedText.trim();
+          const now = Date.now();
+          
+          // Debounce
+          if (appointmentLastScanRef.current === norm && now - appointmentLastScanTsRef.current < 1500) {
+            return;
+          }
+          
+          appointmentLastScanRef.current = norm;
+          appointmentLastScanTsRef.current = now;
+          console.log('[Appointment QR] Found QR code (html5-qrcode):', norm);
+          await handleAppointmentQrText(norm);
+        };
+        
+        const qrCodeErrorCallback = (errorMessage: string) => {
+          // Ignore common "not found" errors
+          if (!errorMessage.includes('No QR code found') && !errorMessage.includes('NotFoundException')) {
+            // Keep scanning
+          }
+        };
+        
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        };
+        
+        try {
+          await html5QrCode.start(
+            { facingMode: 'environment' },
+            config,
+            qrCodeSuccessCallback,
+            qrCodeErrorCallback
+          );
+        } catch {
+          try {
+            await html5QrCode.start(
+              { facingMode: 'user' },
+              config,
+              qrCodeSuccessCallback,
+              qrCodeErrorCallback
+            );
+          } catch {
+            try {
+              const cameras = await Html5Qrcode.getCameras();
+              const cameraId = cameras[0]?.id;
+              if (cameraId) {
+                await html5QrCode.start(
+                  cameraId,
+                  config,
+                  qrCodeSuccessCallback,
+                  qrCodeErrorCallback
+                );
+              } else {
+                throw new Error('Không tìm thấy camera');
+              }
+            } catch (finalError) {
+              console.error('[Appointment QR] All camera options failed:', finalError);
+              throw finalError;
+            }
+          }
+        }
+        
+        setAppointmentScanHint('Đưa mã QR vào trong khung...');
+        console.log('[Appointment QR] html5-qrcode started successfully');
+      } catch (html5Error) {
+        console.error('[Appointment QR] html5-qrcode failed:', html5Error);
+        const error = html5Error instanceof Error ? html5Error : new Error('Không thể khởi động bộ quét QR');
+        toast.error(`Không thể khởi động quét QR: ${error.message}`);
+        setAppointmentScanHint('Lỗi khởi động bộ quét QR');
+      }
+    } catch (e) {
+      setScanningAppointment(false);
+      appointmentScanningRef.current = false;
+      const error = e instanceof Error ? e : new Error('Không thể truy cập camera');
+      console.error('[Appointment QR] getUserMedia error:', error);
+      toast.error(error.message || 'Không thể truy cập camera');
+      setAppointmentScanHint('Lỗi khởi động camera');
+    }
+  }, [handleAppointmentQrText]);
+
+  // Handle QR scanner dialog open/close
+  useEffect(() => {
+    if (isAppointmentQrScannerOpen) {
+      setTimeout(() => {
+        startAppointmentScanner();
+      }, 100);
+    } else {
+      stopAppointmentScanner();
+    }
+    
+    return () => {
+      stopAppointmentScanner();
+    };
+  }, [isAppointmentQrScannerOpen, startAppointmentScanner, stopAppointmentScanner]);
+
   return (
     <div className="container bg-white mx-auto px-8 py-6 space-y-6">
       {/* Header */}
@@ -214,13 +552,24 @@ function CreateMedicalRecordPageContent() {
               
               <div className="space-y-2">
                 <Label htmlFor="appointmentId" className="text-sm font-medium">ID Lịch hẹn</Label>
-                <Input
-                  id="appointmentId"
-                  value={formData.appointmentId}
-                  onChange={(e) => handleInputChange('appointmentId', e.target.value)}
-                  placeholder="Nhập ID lịch hẹn (tùy chọn)"
-                  className="text-sm"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="appointmentId"
+                    value={formData.appointmentId}
+                    onChange={(e) => handleInputChange('appointmentId', e.target.value)}
+                    placeholder="Nhập ID lịch hẹn (tùy chọn)"
+                    className="text-sm flex-1"
+                  />
+                  <Button 
+                    onClick={() => setIsAppointmentQrScannerOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    title="Quét QR code lịch hẹn"
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Prescription Creation Option */}
@@ -438,6 +787,85 @@ function CreateMedicalRecordPageContent() {
         preselectedPatientProfile={selectedPatientProfile}
         preselectedMedicalRecordId={createdMedicalRecordId || undefined}
       />
+
+      {/* Appointment QR Scanner Dialog */}
+      <Dialog open={isAppointmentQrScannerOpen} onOpenChange={setIsAppointmentQrScannerOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Quét mã QR lịch hẹn
+            </DialogTitle>
+            <DialogDescription>
+              Đưa mã QR của lịch hẹn (APT...) vào khung hình để quét tự động
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
+              {/* Video element for BarcodeDetector */}
+              <video
+                ref={appointmentVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover hidden"
+                style={{ transform: 'scaleX(-1)' }}
+              />
+              
+              {/* HTML5 QR Code reader container */}
+              <div id="appointment-qr-reader" className="w-full h-full"></div>
+              
+              {/* Scanning overlay for BarcodeDetector mode */}
+              {scanningAppointment && appointmentHtml5QrCodeRef.current === null && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
+                    {/* Corner indicators */}
+                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+                  </div>
+                </div>
+              )}
+              
+              {!scanningAppointment && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="text-center text-white">
+                    <CameraOff className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Camera chưa sẵn sàng</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-gray-600">{appointmentScanHint}</p>
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await stopAppointmentScanner();
+                  setIsAppointmentQrScannerOpen(false);
+                }}
+              >
+                Đóng
+              </Button>
+              {!scanningAppointment && (
+                <Button
+                  onClick={startAppointmentScanner}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Khởi động lại
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
