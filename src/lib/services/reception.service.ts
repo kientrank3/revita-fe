@@ -14,6 +14,46 @@ import {
   MarkServedResponse,
 } from '../types/reception';
 
+// Types for prescription queue endpoints
+interface PendingServiceItem {
+  serviceId: string;
+  serviceName: string;
+}
+
+export interface PendingServicesResponse {
+  prescriptionId: string;
+  prescriptionCode: string;
+  services: PendingServiceItem[];
+  status: string;
+  totalCount: number;
+}
+
+export interface AssignNextServiceRequest {
+  prescriptionCode: string;
+}
+
+export interface AssignNextServiceResponse {
+  assignedService: {
+    prescriptionId: string;
+    serviceId: string;
+    status: string;
+    doctorId?: string | null;
+    technicianId?: string | null;
+    workSessionId: string;
+  };
+  chosenSession: {
+    id: string;
+    doctorId?: string | null;
+    technicianId?: string | null;
+    startTime: string;
+    endTime: string;
+  };
+  queuePreview?: {
+    patients: unknown[];
+    totalCount: number;
+  };
+}
+
 class ReceptionService {
   private countersBase = '/receptionists/counters';
   private assignBase = '/counter-assignment';
@@ -97,6 +137,16 @@ class ReceptionService {
       success: d.success ?? d.ok ?? false,
       message: d.message,
     };
+  }
+
+  async getPendingServices(prescriptionCode: string): Promise<PendingServicesResponse> {
+    const res = await api.get(`/prescriptions/pending-services/${encodeURIComponent(prescriptionCode)}`);
+    return res.data as PendingServicesResponse;
+  }
+
+  async assignNextService(payload: AssignNextServiceRequest): Promise<AssignNextServiceResponse> {
+    const res = await api.post('/prescriptions/assign-next-service', payload);
+    return res.data as AssignNextServiceResponse;
   }
 }
 

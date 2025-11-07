@@ -155,8 +155,33 @@ export default function CreatePrescriptionPage() {
       });
 
       if (response.ok) {
-        // const result = await response.json();
+        const result = await response.json();
         toast.success('Tạo phiếu chỉ định thành công');
+        
+        // Auto generate and download PDF
+        if (result.prescriptionCode || result.data?.prescriptionCode) {
+          const prescriptionCode = result.prescriptionCode || result.data?.prescriptionCode;
+          try {
+            // Fetch full prescription data for PDF
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+            const presRes = await fetch(`${API_BASE_URL}/prescriptions/${encodeURIComponent(prescriptionCode)}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            });
+            if (presRes.ok) {
+              const fullPrescription = await presRes.json();
+              const prescriptionData = fullPrescription.data || fullPrescription;
+              const { generatePrescriptionPDF } = await import('@/lib/utils/prescription-pdf');
+              await generatePrescriptionPDF(prescriptionData);
+              toast.success('Đã tải PDF phiếu chỉ định');
+            }
+          } catch (pdfError) {
+            console.error('Error generating PDF:', pdfError);
+            toast.error('Tạo phiếu thành công nhưng không thể tạo PDF. Vui lòng in từ danh sách phiếu.');
+          }
+        }
+        
         router.push(`/medical-records/${recordId}`);
       } else {
         const error = await response.json();
