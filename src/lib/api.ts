@@ -594,6 +594,10 @@ export const appointmentBookingApi = {
   // Get doctor appointments (requires doctor auth token)
   getDoctorAppointments: () =>
     api.get('/appointment-booking/doctor/appointments'),
+
+  // Get appointment by code
+  getAppointmentByCode: (code: string) =>
+    api.get(`/appointment-booking/appointments/code/${encodeURIComponent(code)}`),
 };
 
 // AI Chatbot API
