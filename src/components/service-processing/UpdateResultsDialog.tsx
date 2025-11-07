@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
+import { fileStorageService } from '@/lib/services/file-storage.service';
 import { PrescriptionService } from '@/lib/types/service-processing';
+import { Upload, FileText, X, Image, File, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface UpdateResultsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   service: PrescriptionService;
+  patientProfileId?: string; // Add patientProfileId prop
   onUpdate: () => void;
 }
 
@@ -26,26 +29,24 @@ export function UpdateResultsDialog({
   open,
   onOpenChange,
   service,
+  patientProfileId,
   onUpdate
 }: UpdateResultsDialogProps) {
   const [results, setResults] = useState<string[]>(service.results || []);
   const [note, setNote] = useState(service.note || '');
   const [updating, setUpdating] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
-  const handleAddResult = () => {
-    setResults([...results, '']);
-  };
+  // Reset form when service changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setResults(service.results || []);
+      setNote(service.note || '');
+    }
+  }, [open, service]);
 
   const handleRemoveResult = (index: number) => {
     setResults(results.filter((_, i) => i !== index));
-  };
-
-  const handleResultChange = (index: number, value: string) => {
-    const newResults = [...results];
-    newResults[index] = value;
-    setResults(newResults);
   };
 
   const handleFileUpload = async (files: File[]) => {
@@ -53,12 +54,32 @@ export function UpdateResultsDialog({
 
     setUploadingFiles(true);
     try {
-      const uploadResponse = await serviceProcessingService.uploadResultFiles(files);
+      // Use patientProfileId from prop, fallback to service data
+      const serviceWithExtras = service as PrescriptionService & {
+        prescription?: { patientProfile?: { id?: string } };
+        patientProfileId?: string;
+      };
+      const folderId = patientProfileId || 
+                       serviceWithExtras.prescription?.patientProfile?.id || 
+                       serviceWithExtras.patientProfileId || 
+                       'unknown';
+      
+      console.log('Uploading files to bucket "results" with folder:', folderId);
+      
+      // Upload files using file-storage.service
+      const uploadResponse = await fileStorageService.uploadMultiple(
+        files,
+        'results',
+        folderId // folder is patientProfileId
+      );
+      
       console.log('Files uploaded:', uploadResponse);
 
+      // Extract URLs from upload response
+      const uploadedUrls = uploadResponse.map(file => file.url);
+      
       // Add uploaded URLs to results
-      setResults(prev => [...prev, ...uploadResponse.urls]);
-      setUploadedFiles([]);
+      setResults(prev => [...prev, ...uploadedUrls]);
       toast.success(`Đã upload ${files.length} file thành công`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -72,7 +93,6 @@ export function UpdateResultsDialog({
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
-      setUploadedFiles(files);
       handleFileUpload(files);
     }
   };
@@ -82,7 +102,7 @@ export function UpdateResultsDialog({
     const filteredResults = results.filter(result => result.trim() !== '');
 
     if (filteredResults.length === 0) {
-      toast.error('Vui lòng nhập ít nhất một kết quả');
+      toast.error('Vui lòng upload ít nhất một file kết quả');
       return;
     }
 
@@ -96,7 +116,7 @@ export function UpdateResultsDialog({
         currentStatus: service.status
       });
 
-      // Step 1: Upload/Update results
+      // Update results (status remains WAITING_RESULT, don't auto-complete)
       await serviceProcessingService.updateServiceResults({
         prescriptionId: service.prescriptionId,
         serviceId: service.serviceId,
@@ -104,17 +124,7 @@ export function UpdateResultsDialog({
         note: note.trim() || undefined,
       });
 
-      console.log('✅ Results uploaded successfully');
-
-      // Step 2: Update status to COMPLETED (the final status after results are uploaded)
-      await serviceProcessingService.updateServiceStatus({
-        prescriptionId: service.prescriptionId,
-        serviceId: service.serviceId,
-        status: 'COMPLETED',
-        note: 'Hoàn thành và cập nhật kết quả',
-      });
-
-      console.log('✅ Status updated to COMPLETED');
+      console.log('✅ Results updated successfully');
 
       toast.success('Cập nhật kết quả thành công');
       onOpenChange(false);
@@ -132,45 +142,59 @@ export function UpdateResultsDialog({
     // Reset form when closing
     setResults(service.results || []);
     setNote(service.note || '');
-    setUploadedFiles([]);
     onOpenChange(false);
+  };
+
+  const getFileIcon = (url: string) => {
+    const extension = url.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+      // eslint-disable-next-line jsx-a11y/alt-text
+      return <Image className="h-4 w-4 text-blue-500" />;
+    }
+    return <File className="h-4 w-4 text-gray-500" />;
+  };
+
+  const getFileName = (url: string) => {
+    return url.split('/').pop() || 'File';
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Cập nhật kết quả - {service.service.name}
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <FileText className="h-5 w-5 text-blue-600" />
+            Cập nhật kết quả
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6 py-4">
           {/* Service Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-600">Dịch vụ</div>
-                <div className="font-medium">{service.service.name}</div>
-                <div className="text-sm text-gray-500">{service.service.serviceCode}</div>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-100">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-white rounded-lg shadow-sm">
+                <FileText className="h-6 w-6 text-blue-600" />
               </div>
-              <div>
-                <div className="text-sm text-gray-600">Thời gian dự kiến</div>
-                <div className="font-medium">{service.service.timePerPatient} phút</div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg text-gray-900 mb-1">{service.service.name}</h3>
+                {service.service.serviceCode && (
+                  <p className="text-sm text-gray-600 mb-2">Mã dịch vụ: {service.service.serviceCode}</p>
+                )}
+                {service.service.description && (
+                  <p className="text-sm text-gray-700">{service.service.description}</p>
+                )}
               </div>
             </div>
-            {service.service.description && (
-              <div className="mt-2">
-                <div className="text-sm text-gray-600">Mô tả</div>
-                <div className="text-sm">{service.service.description}</div>
-              </div>
-            )}
           </div>
 
-          {/* File Upload */}
-          <div>
-            <Label htmlFor="files">Upload files kết quả (tùy chọn)</Label>
-            <div className="mt-2">
+          {/* File Upload Section */}
+          <div className="space-y-3">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Upload files kết quả
+            </Label>
+            
+            <div className="relative">
               <input
                 type="file"
                 id="files"
@@ -182,78 +206,116 @@ export function UpdateResultsDialog({
               />
               <label
                 htmlFor="files"
-                className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer ${
-                  uploadingFiles ? 'opacity-50 cursor-not-allowed' : ''
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                  uploadingFiles
+                    ? 'border-gray-300 bg-gray-50 opacity-50 cursor-not-allowed'
+                    : 'border-blue-300 bg-blue-50 hover:bg-blue-100 hover:border-blue-400'
                 }`}
               >
-                {uploadingFiles ? 'Đang upload...' : 'Chọn files'}
+                {uploadingFiles ? (
+                  <>
+                    <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-2" />
+                    <p className="text-sm text-gray-600 font-medium">Đang upload...</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-10 w-10 text-blue-600 mb-2" />
+                    <p className="text-sm font-medium text-gray-700 mb-1">
+                      <span className="text-blue-600">Click để chọn files</span> hoặc kéo thả vào đây
+                    </p>
+                    <p className="text-xs text-gray-500">Hỗ trợ: JPG, PNG, PDF, DOC, DOCX</p>
+                  </>
+                )}
               </label>
-              {uploadedFiles.length > 0 && (
-                <div className="mt-2 text-sm text-gray-600">
-                  Đã chọn {uploadedFiles.length} file(s)
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Results */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label htmlFor="results">Kết quả (*)</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddResult}
-              >
-                Thêm kết quả
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {results.map((result, index) => (
-                <div key={index} className="flex gap-2">
-                  <Textarea
-                    placeholder={`Kết quả ${index + 1}`}
-                    value={result}
-                    onChange={(e) => handleResultChange(index, e.target.value)}
-                    className="flex-1"
-                    rows={2}
-                  />
-                  {results.length > 1 && (
+          {/* Uploaded Files Display */}
+          {results.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                Files đã upload ({results.length})
+              </Label>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {results.map((url, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all group"
+                  >
+                    <div className="flex-shrink-0">
+                      {getFileIcon(url)}
+                    </div>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 min-w-0 text-sm text-blue-600 hover:text-blue-800 hover:underline truncate font-medium"
+                      title={url}
+                    >
+                      {getFileName(url)}
+                    </a>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveResult(index)}
-                      className="px-3"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      ×
+                      <X className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Note */}
-          <div>
-            <Label htmlFor="note">Ghi chú (tùy chọn)</Label>
+          {/* Note Section */}
+          <div className="space-y-2">
+            <Label htmlFor="note" className="text-base font-semibold">
+              Ghi chú (tùy chọn)
+            </Label>
             <Textarea
               id="note"
-              placeholder="Ghi chú về quá trình thực hiện hoặc kết quả..."
+              placeholder="Nhập ghi chú về quá trình thực hiện hoặc kết quả..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              rows={3}
+              rows={4}
+              className="resize-none"
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={updating || uploadingFiles}>
+        <DialogFooter className="gap-2 pt-4 border-t">
+          <Button 
+            variant="outline" 
+            onClick={handleClose} 
+            disabled={updating || uploadingFiles}
+            className="min-w-[100px]"
+          >
             Hủy
           </Button>
-          <Button onClick={handleSubmit} disabled={updating || uploadingFiles}>
-            {updating ? 'Đang cập nhật...' : uploadingFiles ? 'Đang upload...' : 'Cập nhật kết quả'}
+          <Button 
+            onClick={handleSubmit} 
+            disabled={updating || uploadingFiles || results.length === 0}
+            className="min-w-[150px] bg-blue-600 hover:bg-blue-700"
+          >
+            {updating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Đang cập nhật...
+              </>
+            ) : uploadingFiles ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Đang upload...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Cập nhật kết quả
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

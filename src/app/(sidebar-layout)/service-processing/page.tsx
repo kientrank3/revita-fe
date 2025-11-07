@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   ScanLine,
@@ -20,7 +21,9 @@ import {
   Play,
   FileCheck,
   Stethoscope,
-  Users
+  Users,
+  PhoneCall,
+  SkipForward
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
@@ -47,6 +50,10 @@ export default function ServiceProcessingPage() {
   const [updatingService, setUpdatingService] = useState<string | null>(null);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<PrescriptionService | null>(null);
+  const [selectedPatientForResults, setSelectedPatientForResults] = useState<{
+    patientProfileId: string;
+    services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
+  } | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
@@ -62,6 +69,8 @@ export default function ServiceProcessingPage() {
     }>;
     totalCount: number;
   } | null>(null);
+  const [callingNext, setCallingNext] = useState(false);
+  const [skippingPatient, setSkippingPatient] = useState<string | null>(null);
 
   // Load work session and my services on mount
   useEffect(() => {
@@ -85,43 +94,248 @@ export default function ServiceProcessingPage() {
 
   // Socket connection and event listeners
   useEffect(() => {
+    console.log('Socket connection and event listeners');
     if (!user?.id) return;
 
-    // Connect to socket
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001');
+    // Only connect if Socket.IO URL is configured
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (!socketUrl) {
+      console.log('[Socket] NEXT_PUBLIC_SOCKET_URL not configured, skipping socket connection');
+      return;
+    }
+
+    console.log('🔄 [Socket] Đang bắt đầu kết nối...');
+    console.log('📍 [Socket] URL:', socketUrl);
+    console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
+    console.log('⏳ [Socket] Trạng thái: Đang kết nối...');
+
+    // Connect to socket with error handling
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      timeout: 5000,
+    });
     setSocket(newSocket);
 
-    // Join doctor room
-    newSocket.emit('join_doctor', { doctorId: user.id });
+    // Helper function to extract data from wrapper (if exists)
+    const extractEventData = (payload: any) => {
+      // Backend may send { type, data, timestamp } or just data directly
+      if (payload && typeof payload === 'object' && 'data' in payload && 'type' in payload) {
+        return payload.data;
+      }
+      return payload;
+    };
 
-    // Event listeners
-    newSocket.on('NEW_PRESCRIPTION_PATIENT', (data) => {
-      console.log('Bệnh nhân mới:', data);
+    // Register event listeners BEFORE connecting to ensure they're ready
+    // 1. new_prescription_patient: Có bệnh nhân mới với prescription
+    newSocket.on('new_prescription_patient', (payload) => {
+      const data = extractEventData(payload);
+      console.log('[DOCTOR SOCKET] ✅ RECEIVED new_prescription_patient - Full payload:', payload);
+      console.log('[DOCTOR SOCKET] new_prescription_patient - Extracted data:', data);
+      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[DOCTOR SOCKET] Services:', data.services?.length || data.serviceIds?.length || 0, 'services');
+      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      
+      toast.info(`🔔 Có bệnh nhân mới: ${data.patientName} (${data.prescriptionCode})`);
       // Reload queue when new patient arrives
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
     });
 
-    newSocket.on('PATIENT_CALLED', (data) => {
-      console.log('Bệnh nhân được gọi:', data);
-      // Reload queue when patient is called
+    // 2. patient_action: Bệnh nhân được gọi hoặc bỏ qua
+    newSocket.on('patient_action', (payload) => {
+      const data = extractEventData(payload);
+      console.log('[DOCTOR SOCKET] ✅ RECEIVED patient_action - Full payload:', payload);
+      console.log('[DOCTOR SOCKET] patient_action - Extracted data:', data);
+      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[DOCTOR SOCKET] Action:', data.action);
+      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[DOCTOR SOCKET] Current Patient:', data.currentPatient);
+      console.log('[DOCTOR SOCKET] Next Patient:', data.nextPatient);
+      console.log('[DOCTOR SOCKET] Preparing Patient:', data.preparingPatient);
+      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      
+      if (data.action === 'CALLED') {
+        toast.info(`📢 Bệnh nhân đã được gọi: ${data.patientName}`);
+      } else if (data.action === 'SKIPPED') {
+        toast.warning(`⏭️ Bệnh nhân đã bị bỏ qua: ${data.patientName}`);
+      }
+      
+      // Reload queue when patient action occurs
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
     });
 
-    newSocket.on('PATIENT_SKIPPED', (data) => {
-      console.log('Bệnh nhân bị skip:', data);
-      // Reload queue when patient is skipped
+    // 3. patient_status_changed: Trạng thái bệnh nhân thay đổi
+    // Try both lowercase and uppercase event names
+    const handlePatientStatusChanged = (payload: any) => {
+      console.log('[DOCTOR SOCKET] 🎯 LISTENER TRIGGERED: patient_status_changed');
+      console.log('[DOCTOR SOCKET] Raw payload type:', typeof payload);
+      console.log('[DOCTOR SOCKET] Raw payload:', payload);
+      
+      const data = extractEventData(payload);
+      console.log('[DOCTOR SOCKET] ✅ RECEIVED patient_status_changed - Full payload:', payload);
+      console.log('[DOCTOR SOCKET] patient_status_changed - Extracted data:', data);
+      
+      if (!data || !data.patientName) {
+        console.error('[DOCTOR SOCKET] ⚠️ WARNING: Invalid data structure!', data);
+        return;
+      }
+      
+      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[DOCTOR SOCKET] Status change:', data.oldStatus, '→', data.newStatus);
+      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      
+      // Reload queue when patient status changes (no toast to avoid spam)
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    };
+
+    newSocket.on('patient_status_changed', handlePatientStatusChanged);
+    // Also try uppercase version in case backend sends it that way
+    newSocket.on('PATIENT_STATUS_CHANGED', handlePatientStatusChanged);
+
+    console.log('✅ [Socket] Event listeners đã được đăng ký: new_prescription_patient, patient_action, patient_status_changed');
+
+    // Debug: Add a catch-all listener to see ALL incoming events
+    // This will help us debug if events are being received but not handled
+    (newSocket as any).onAny((eventName: string, ...args: any[]) => {
+      console.log('🔍 [Socket DEBUG] ════════════════════════════════════');
+      console.log('🔍 [Socket DEBUG] Received ANY event:', eventName);
+      console.log('🔍 [Socket DEBUG] Args:', args);
+      console.log('🔍 [Socket DEBUG] Args length:', args.length);
+      if (args.length > 0) {
+        try {
+          console.log('🔍 [Socket DEBUG] First arg:', JSON.stringify(args[0], null, 2));
+        } catch (e) {
+          console.log('🔍 [Socket DEBUG] First arg (cannot stringify):', args[0]);
+        }
+      }
+      console.log('🔍 [Socket DEBUG] ════════════════════════════════════');
     });
 
-    newSocket.on('PATIENT_STATUS_CHANGED', (data) => {
-      console.log('Trạng thái thay đổi:', data);
-      // Reload queue when patient status changes
-      serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+    // Also try listening to common variations of the event name
+    const tryListenToEvent = (eventName: string) => {
+      newSocket.on(eventName, (data: any) => {
+        console.log(`🔍 [Socket DEBUG] ✅ Received event with name: ${eventName}`, data);
+      });
+    };
+
+    // Try all possible event name variations
+    tryListenToEvent('patient_status_changed');
+    tryListenToEvent('PATIENT_STATUS_CHANGED');
+    tryListenToEvent('patient-status-changed');
+    tryListenToEvent('PATIENT-STATUS-CHANGED');
+    tryListenToEvent('patientStatusChanged');
+    tryListenToEvent('PatientStatusChanged');
+
+    // Log connection state changes
+    newSocket.on('connecting', () => {
+      console.log('🔄 [Socket] Đang kết nối... (connecting event)');
+    });
+
+    // Handle connection errors gracefully
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ [Socket] LỖI kết nối:', error.message);
+      console.error('📍 [Socket] URL thất bại:', socketUrl);
+      console.error('❌ [Socket] Trạng thái: Kết nối thất bại');
+      // Don't show error toast, just log it
+    });
+
+    newSocket.on('connect', () => {
+      // Verify connection is actually established
+      if (!newSocket.connected) {
+        console.error('⚠️ [Socket] WARNING: connect event fired but socket.connected is false!');
+        return;
+      }
+
+      const socketId = newSocket.id;
+      if (!socketId) {
+        console.error('⚠️ [Socket] WARNING: connect event fired but socket.id is missing!');
+        return;
+      }
+
+      const transport = newSocket.io.engine.transport.name;
+      // Extract namespace from URL (everything after the base URL)
+      const namespace = socketUrl.includes('/') && socketUrl.split('/').length > 3 
+        ? '/' + socketUrl.split('/').slice(3).join('/')
+        : '/';
+      
+      console.log('✅ [Socket] Đã kết nối thành công!');
+      console.log('✅ [Socket] socket.connected =', newSocket.connected);
+      console.log('📍 [Socket] URL:', socketUrl);
+      console.log('🆔 [Socket] Socket ID:', socketId);
+      console.log('🚀 [Socket] Transport:', transport);
+      console.log('📡 [Socket] Namespace:', namespace);
+      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
+      console.log('🏥 [Socket] Room: doctor_room (doctorId: ' + user.id + ')');
+      console.log('✅ [Socket] Trạng thái: Đã kết nối và sẵn sàng');
+      
+      toast.success('Đã kết nối Socket.IO - Đang lắng nghe cập nhật realtime');
+      // Join doctor room only after successful connection
+      newSocket.emit('join_doctor', { doctorId: user.id });
+      console.log('📤 [Socket] Emitted join_doctor with doctorId:', user.id);
+      // Show notification that we're listening (don't wait for server confirmation)
+      toast.info('Đã tham gia phòng bác sĩ - Sẵn sàng nhận thông báo');
+    });
+
+    // Listen for successful room join confirmation (if server sends it)
+    newSocket.on('joined_doctor', (data) => {
+      console.log('✅ [Socket] Server xác nhận đã tham gia phòng bác sĩ');
+      console.log('📥 [Socket] Server response:', data);
+      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
+      console.log('🔍 [Socket DEBUG] Expected room: doctor:' + user.id);
+      console.log('🔍 [Socket DEBUG] Socket ID:', newSocket.id);
+      console.log('🔍 [Socket DEBUG] Socket connected:', newSocket.connected);
+      
+      // After joining room, verify we can receive events
+      // Try emitting a test event to see if room join worked
+      console.log('🔍 [Socket DEBUG] Room join confirmed. Waiting for events...');
+      console.log('🔍 [Socket DEBUG] All registered listeners:', (newSocket as any)._callbacks || 'N/A');
+      
+      // Server confirmed join - this is optional, we already showed notification on connect
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ [Socket] Đã ngắt kết nối');
+      console.log('📍 [Socket] URL:', socketUrl);
+      console.log('📛 [Socket] Lý do:', reason);
+      if (reason === 'io server disconnect') {
+        // Server disconnected, show notification
+        toast.warning('Mất kết nối Socket.IO - Đang thử kết nối lại...');
+      }
+    });
+
+    // Handle reconnection success
+    newSocket.on('reconnect', (attemptNumber) => {
+      const socketId = newSocket.id;
+      const transport = newSocket.io.engine.transport.name;
+      // Extract namespace from URL (everything after the base URL)
+      const namespace = socketUrl.includes('/') && socketUrl.split('/').length > 3 
+        ? '/' + socketUrl.split('/').slice(3).join('/')
+        : '/';
+      
+      console.log('🔄 [Socket] Đã kết nối lại thành công!');
+      console.log('📍 [Socket] URL:', socketUrl);
+      console.log('🆔 [Socket] Socket ID:', socketId);
+      console.log('🚀 [Socket] Transport:', transport);
+      console.log('📡 [Socket] Namespace:', namespace);
+      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
+      console.log('🔢 [Socket] Reconnected after', attemptNumber, 'attempts');
+      
+      toast.success('Đã kết nối lại Socket.IO - Đang lắng nghe cập nhật');
+      // Rejoin doctor room after reconnection
+      newSocket.emit('join_doctor', { doctorId: user.id });
+      console.log('📤 [Socket] Re-emitted join_doctor with doctorId:', user.id);
     });
 
     // Cleanup on unmount
     return () => {
-      newSocket.disconnect();
+      if (newSocket.connected) {
+        newSocket.disconnect();
+      }
+      setSocket(null);
     };
   }, [user?.id]);
 
@@ -202,6 +416,39 @@ export default function ServiceProcessingPage() {
     }
   };
 
+  const handleCallNextPatient = async () => {
+    setCallingNext(true);
+    try {
+      await serviceProcessingService.callNextPatient();
+      toast.success('Đã gọi bệnh nhân tiếp theo');
+      // Reload queue after calling
+      const q = await serviceProcessingService.getWaitingQueue();
+      setQueue(q);
+    } catch (error: any) {
+      console.error('Error calling next patient:', error);
+      toast.error(error.response?.data?.message || 'Không thể gọi bệnh nhân tiếp theo');
+    } finally {
+      setCallingNext(false);
+    }
+  };
+
+  const handleSkipPatient = async (prescriptionId: string, serviceId: string) => {
+    const skipKey = `${prescriptionId}-${serviceId}`;
+    setSkippingPatient(skipKey);
+    try {
+      await serviceProcessingService.skipPatient(prescriptionId, serviceId);
+      toast.success('Đã bỏ qua bệnh nhân');
+      // Reload queue after skipping
+      const q = await serviceProcessingService.getWaitingQueue();
+      setQueue(q);
+    } catch (error: any) {
+      console.error('Error skipping patient:', error);
+      toast.error(error.response?.data?.message || 'Không thể bỏ qua bệnh nhân');
+    } finally {
+      setSkippingPatient(null);
+    }
+  };
+
   const handleScanPrescription = async () => {
     if (!prescriptionCode.trim()) {
       toast.error('Vui lòng nhập mã phiếu chỉ định');
@@ -254,6 +501,14 @@ export default function ServiceProcessingPage() {
 
       // Refresh my services list
       await loadMyServices();
+
+      // Reload queue to reflect status changes
+      try {
+        const q = await serviceProcessingService.getWaitingQueue();
+        setQueue(q);
+      } catch (e) {
+        console.error('Error reloading queue:', e);
+      }
 
       toast.success(response.message || 'Cập nhật trạng thái thành công');
     } catch (error: any) {
@@ -500,15 +755,67 @@ export default function ServiceProcessingPage() {
     setResultsDialogOpen(true);
   };
 
+  // Handle opening results dialog from queue patient
+  const handleOpenResultsDialogFromQueue = async (
+    patientProfileId: string,
+    prescriptionId: string,
+    serviceId: string,
+    serviceName: string
+  ) => {
+    // Create a minimal service object for the dialog
+    const serviceForDialog: PrescriptionService = {
+      prescriptionId,
+      serviceId,
+      service: {
+        id: serviceId,
+        name: serviceName,
+        serviceCode: '',
+        description: '',
+        price: 0,
+        timePerPatient: 0
+      },
+      status: 'WAITING_RESULT',
+      order: 1,
+      results: [],
+      note: null,
+      startedAt: null,
+      completedAt: null
+    };
+    setSelectedService(serviceForDialog);
+    setSelectedPatientForResults({
+      patientProfileId,
+      services: [{
+        prescriptionId,
+        serviceId,
+        serviceName,
+        order: 1,
+        status: 'WAITING_RESULT'
+      }]
+    });
+    setResultsDialogOpen(true);
+  };
+
   const handleResultsUpdate = async () => {
     try {
       console.log('📝 Updating service results...');
-    // Refresh data after results update
-    if (prescription) {
+      // Refresh data after results update
+      if (prescription) {
         const response = await serviceProcessingService.scanPrescription(prescription.prescriptionCode);
         setPrescription(response.prescription);
       }
       await loadMyServices();
+      
+      // Reload queue to reflect status changes
+      try {
+        const q = await serviceProcessingService.getWaitingQueue();
+        setQueue(q);
+      } catch (e) {
+        console.error('Error reloading queue:', e);
+      }
+      
+      // Reset selected patient for results
+      setSelectedPatientForResults(null);
+      
       console.log('✅ Service results updated successfully');
     } catch (error: any) {
       console.error('❌ Error refreshing data after results update:', error);
@@ -1071,10 +1378,32 @@ export default function ServiceProcessingPage() {
       {/* Waiting Queue (by patient) */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="h-5 w-5 text-blue-600" />
-            Hàng chờ hôm nay {queue ? `(${queue.totalCount})` : ''}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5 text-blue-600" />
+              Hàng chờ hôm nay {queue ? `(${queue.totalCount})` : ''}
+            </CardTitle>
+            {queue && queue.patients.length > 0 && (
+              <Button
+                onClick={handleCallNextPatient}
+                disabled={callingNext}
+                className="flex items-center gap-2"
+                size="sm"
+              >
+                {callingNext ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang gọi...
+                  </>
+                ) : (
+                  <>
+                    <PhoneCall className="h-4 w-4" />
+                    Gọi bệnh nhân tiếp theo
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {!queue || queue.patients.length === 0 ? (
@@ -1082,12 +1411,36 @@ export default function ServiceProcessingPage() {
               <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p className="text-sm">Không có bệnh nhân trong hàng chờ</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {queue.patients
-                .slice()
-                .sort((a, b) => a.queueOrder - b.queueOrder)
-                .map((p) => (
+          ) : (() => {
+            // Separate patients into two groups
+            const normalPatients = queue.patients.filter(p => 
+              p.overallStatus !== 'WAITING_RESULT' && 
+              !p.services.some(s => s.status === 'WAITING_RESULT')
+            );
+            const waitingResultPatients = queue.patients.filter(p => 
+              p.overallStatus === 'WAITING_RESULT' || 
+              p.services.some(s => s.status === 'WAITING_RESULT')
+            );
+
+            // Sort normal patients: SERVING first, then PREPARING, SKIPPED, RETURNING, WAITING
+            const statusOrder: Record<string, number> = {
+              'SERVING': 1,
+              'PREPARING': 2,
+              'SKIPPED': 3,
+              'RETURNING': 4,
+              'WAITING': 5
+            };
+            normalPatients.sort((a, b) => {
+              const orderA = statusOrder[a.overallStatus] || 999;
+              const orderB = statusOrder[b.overallStatus] || 999;
+              if (orderA !== orderB) return orderA - orderB;
+              return a.queueOrder - b.queueOrder;
+            });
+
+            // Sort waiting result patients by queue order
+            waitingResultPatients.sort((a, b) => a.queueOrder - b.queueOrder);
+
+            const renderPatientCard = (p: typeof queue.patients[0]) => (
                 <div key={p.patientProfileId} className="p-3 border rounded-md">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1099,9 +1452,38 @@ export default function ServiceProcessingPage() {
                         <div className="text-xs text-gray-500">{p.prescriptionCode}</div>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {p.overallStatus}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {p.overallStatus}
+                      </Badge>
+                      {/* Skip button - only show for non-WAITING_RESULT patients */}
+                      {p.overallStatus !== 'WAITING_RESULT' && 
+                       !p.services.some(s => s.status === 'WAITING_RESULT') &&
+                       p.services.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const firstService = p.services[0];
+                            handleSkipPatient(firstService.prescriptionId, firstService.serviceId);
+                          }}
+                          disabled={skippingPatient === `${p.services[0].prescriptionId}-${p.services[0].serviceId}`}
+                          className="flex items-center gap-1 h-7 text-xs"
+                        >
+                          {skippingPatient === `${p.services[0].prescriptionId}-${p.services[0].serviceId}` ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              <SkipForward className="h-3 w-3" />
+                              Bỏ qua
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-2 text-xs text-gray-600">
                     {p.services
@@ -1110,10 +1492,205 @@ export default function ServiceProcessingPage() {
                       .map(s => `${s.order ? `#${s.order} ` : ''}${s.serviceName} (${s.status})`) 
                       .join(' • ')}
                   </div>
+                  
+                  {/* Action buttons for SERVING patients */}
+                  {p.overallStatus === 'SERVING' && p.services.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2">
+                      {p.services
+                        .filter(s => s.status === 'SERVING')
+                        .map((service) => {
+                          const serviceKey = `${service.prescriptionId}-${service.serviceId}`;
+                          const isUpdating = updatingService === serviceKey;
+                          
+                          return (
+                            <div key={serviceKey} className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  handleUpdateServiceStatus(
+                                    service.prescriptionId,
+                                    service.serviceId,
+                                    'WAITING_RESULT',
+                                    'Chờ kết quả'
+                                  );
+                                }}
+                                disabled={isUpdating}
+                                className="flex items-center gap-1 h-7 text-xs"
+                              >
+                                {isUpdating ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+                                    Đang xử lý...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="h-3 w-3" />
+                                    Chờ kết quả
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  handleUpdateServiceStatus(
+                                    service.prescriptionId,
+                                    service.serviceId,
+                                    'COMPLETED',
+                                    'Hoàn thành dịch vụ'
+                                  );
+                                }}
+                                disabled={isUpdating}
+                                className="flex items-center gap-1 h-7 text-xs bg-green-600 hover:bg-green-700"
+                              >
+                                {isUpdating ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                    Đang xử lý...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="h-3 w-3" />
+                                    Hoàn thành
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Action buttons for WAITING_RESULT patients */}
+                  {(p.overallStatus === 'WAITING_RESULT' || p.services.some(s => s.status === 'WAITING_RESULT')) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      {(() => {
+                        const waitingResultServices = p.services.filter(s => s.status === 'WAITING_RESULT');
+                        
+                        // If only one service, show button directly
+                        if (waitingResultServices.length === 1) {
+                          const service = waitingResultServices[0];
+                          return (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                handleOpenResultsDialogFromQueue(
+                                  p.patientProfileId,
+                                  service.prescriptionId,
+                                  service.serviceId,
+                                  service.serviceName
+                                );
+                              }}
+                              className="flex items-center gap-1 h-7 text-xs w-full"
+                            >
+                              <FileCheck className="h-3 w-3" />
+                              Cập nhật kết quả
+                            </Button>
+                          );
+                        }
+                        
+                        // If multiple services, show dropdown + button
+                        return (
+                          <div className="space-y-2">
+                            <Select
+                              value={selectedPatientForResults?.patientProfileId === p.patientProfileId 
+                                ? `${selectedPatientForResults.services[0]?.prescriptionId}-${selectedPatientForResults.services[0]?.serviceId}`
+                                : undefined
+                              }
+                              onValueChange={(value) => {
+                                const [prescriptionId, serviceId] = value.split('-');
+                                const service = waitingResultServices.find(
+                                  s => s.prescriptionId === prescriptionId && s.serviceId === serviceId
+                                );
+                                if (service) {
+                                  setSelectedPatientForResults({
+                                    patientProfileId: p.patientProfileId,
+                                    services: [service]
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Chọn dịch vụ cần cập nhật kết quả" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {waitingResultServices.map((service) => (
+                                  <SelectItem 
+                                    key={`${service.prescriptionId}-${service.serviceId}`}
+                                    value={`${service.prescriptionId}-${service.serviceId}`}
+                                  >
+                                    {service.order ? `#${service.order} ` : ''}{service.serviceName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const selected = selectedPatientForResults?.patientProfileId === p.patientProfileId
+                                  ? selectedPatientForResults.services[0]
+                                  : null;
+                                if (selected) {
+                                  handleOpenResultsDialogFromQueue(
+                                    p.patientProfileId,
+                                    selected.prescriptionId,
+                                    selected.serviceId,
+                                    selected.serviceName
+                                  );
+                                } else {
+                                  toast.error('Vui lòng chọn dịch vụ cần cập nhật kết quả');
+                                }
+                              }}
+                              disabled={selectedPatientForResults?.patientProfileId !== p.patientProfileId}
+                              className="flex items-center gap-1 h-7 text-xs w-full"
+                            >
+                              <FileCheck className="h-3 w-3" />
+                              Cập nhật kết quả
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+            );
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Column 1: Normal patients (SERVING, PREPARING, SKIPPED, RETURNING, WAITING) */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="default" className="text-xs">Hàng chờ thường</Badge>
+                    <span className="text-xs text-gray-500">({normalPatients.length})</span>
+                  </div>
+                  {normalPatients.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400 text-sm">
+                      Không có bệnh nhân
+                    </div>
+                  ) : (
+                    normalPatients.map(renderPatientCard)
+                  )}
+                </div>
+
+                {/* Column 2: Waiting result patients */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-xs bg-cyan-100 text-cyan-800">Chờ kết quả</Badge>
+                    <span className="text-xs text-gray-500">({waitingResultPatients.length})</span>
+                  </div>
+                  {waitingResultPatients.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400 text-sm">
+                      Không có bệnh nhân chờ kết quả
+                    </div>
+                  ) : (
+                    waitingResultPatients.map(renderPatientCard)
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 
@@ -1123,6 +1700,9 @@ export default function ServiceProcessingPage() {
           open={resultsDialogOpen}
           onOpenChange={setResultsDialogOpen}
           service={selectedService}
+          patientProfileId={selectedPatientForResults?.patientProfileId || 
+                           (selectedService as any).prescription?.patientProfile?.id ||
+                           (selectedService as any).patientProfileId}
           onUpdate={handleResultsUpdate}
         />
       )}

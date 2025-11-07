@@ -29,6 +29,10 @@ export default function ReceptionPatientProfilesPage() {
     gender: '',
     address: '',
     occupation: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactRelationship: '',
+    relationship: '',
   });
 
   useEffect(() => {
@@ -41,6 +45,10 @@ export default function ReceptionPatientProfilesPage() {
         gender: (selectedPatientProfile.gender as string) || '',
         address: selectedPatientProfile.address || '',
         occupation: selectedPatientProfile.occupation || '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelationship: '',
+        relationship: '',
       }));
     }
   }, [selectedPatientProfile]);
@@ -95,7 +103,17 @@ export default function ReceptionPatientProfilesPage() {
   }
 
   const resetCreateForm = () => {
-    setCreateForm({ name: '', dateOfBirth: '', gender: '', address: '', occupation: '' });
+    setCreateForm({ 
+      name: '', 
+      dateOfBirth: '', 
+      gender: '', 
+      address: '', 
+      occupation: '',
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      emergencyContactRelationship: '',
+      relationship: '',
+    });
   };
 
   const handleCreate = async () => {
@@ -124,6 +142,12 @@ export default function ReceptionPatientProfilesPage() {
         gender: createForm.gender as 'male' | 'female' | 'other',
         address: createForm.address.trim(),
         occupation: createForm.occupation.trim(),
+        emergencyContact: {
+          name: createForm.emergencyContactName.trim() || 'N/A',
+          phone: createForm.emergencyContactPhone.trim() || 'N/A',
+          relationship: createForm.emergencyContactRelationship.trim() || 'N/A',
+        },
+        relationship: createForm.relationship.trim() || 'N/A',
       };
       await patientProfileService.create(payload);
       toast.success('Tạo hồ sơ thành công');
