@@ -20,6 +20,8 @@ COPY tsconfig.json ./
 COPY postcss.config.mjs ./
 COPY next.config.ts ./
 COPY eslint.config.mjs ./
+COPY tsconfig.json ./
+COPY components.json ./
 
 # Install all dependencies (including devDependencies) for build
 RUN npm ci --legacy-peer-deps
