@@ -198,11 +198,27 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
     });
   }, [workSessions]);
 
+  // Helper function to create UTC Date from date/time strings
+  // User input is treated as UTC time directly (no timezone conversion)
+  // When user selects 08:00, we send 08:00 UTC, backend stores 08:00 UTC, and displays 08:00 UTC
+  const createUTCDateTime = (dateStr: string, timeStr: string): Date => {
+    // Parse date and time components
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Create UTC date string directly (treat user input as UTC time)
+    // This ensures: send 08:00 → store 08:00 → display 08:00 (no conversion)
+    const utcDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00.000Z`;
+    
+    return new Date(utcDateStr);
+  };
+
   // Create new work session
   const handleCreateWorkSession = useCallback(async (formData: WorkSessionFormData) => {
-    const sessionDate = new Date(formData.date);
-    const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
-    const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+    // Create UTC dates directly from user input (no timezone conversion)
+    // User selects 08:00 → we send 08:00 UTC → backend stores 08:00 UTC → displays 08:00 UTC
+    const startDateTime = createUTCDateTime(formData.date, formData.startTime);
+    const endDateTime = createUTCDateTime(formData.date, formData.endTime);
 
     // Validate time conflicts
     const validation = validateTimeConflicts(
@@ -246,12 +262,28 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
       const currentStart = new Date(session.startTime);
       const currentEnd = new Date(session.endTime);
       
-      const date = updateData.date || currentStart.toISOString().split('T')[0];
-      const startTime = updateData.startTime || currentStart.toTimeString().slice(0, 5);
-      const endTime = updateData.endTime || currentEnd.toTimeString().slice(0, 5);
+      // Get UTC date and time from session (matching what's stored in backend)
+      const getUTCDateStr = (date: Date): string => {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      };
+      
+      // Get UTC time from session
+      const getUTCTimeStr = (date: Date): string => {
+        const h = String(date.getUTCHours()).padStart(2, '0');
+        const m = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+      };
+      
+      const date = updateData.date || getUTCDateStr(currentStart);
+      const startTime = updateData.startTime || getUTCTimeStr(currentStart);
+      const endTime = updateData.endTime || getUTCTimeStr(currentEnd);
 
-      const startDateTime = new Date(`${date}T${startTime}`);
-      const endDateTime = new Date(`${date}T${endTime}`);
+      // Use the same UTC conversion function as create
+      const startDateTime = createUTCDateTime(date, startTime);
+      const endDateTime = createUTCDateTime(date, endTime);
 
       // Validate time conflicts (excluding current session)
       const validation = validateTimeConflicts(

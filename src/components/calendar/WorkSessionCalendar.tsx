@@ -430,7 +430,9 @@ export function WorkSessionCalendar({
               }}
               allDayText=""
               noEventsText="Không có lịch làm việc"
-              timeZone="local"
+              timeZone="UTC"
+              displayEventTime={true}
+              displayEventEnd={true}
               slotLabelFormat={{
                 hour: '2-digit',  
                 minute: '2-digit',
@@ -472,14 +474,15 @@ export function WorkSessionCalendar({
                 const textColor = eventInfo.textColor || '#111827';
 
                 // Month: show start-end; Week/Day: use eventInfo.timeText
-                const formatHM = (d?: Date | null) =>
-                  d
-                    ? d.toLocaleTimeString(undefined, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                      })
-                    : '';
+                // Format UTC time directly (no timezone conversion)
+                // FullCalendar with timeZone="UTC" displays UTC time, so we format UTC time directly
+                const formatHM = (d?: Date | null) => {
+                  if (!d) return '';
+                  // Get UTC hours and minutes directly (no conversion)
+                  const hours = String(d.getUTCHours()).padStart(2, '0');
+                  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+                  return `${hours}:${minutes}`;
+                };
                 const startHM = formatHM(eventInfo.event.start);
                 const endHM = formatHM(eventInfo.event.end);
 

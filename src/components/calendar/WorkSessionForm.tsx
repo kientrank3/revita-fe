@@ -56,20 +56,45 @@ export function WorkSessionForm({
   // Initialize form data
   useEffect(() => {
     if (editingSession) {
+      // Parse UTC time from API (no timezone conversion)
+      // API returns UTC time string like "2025-11-08T13:00:00.000Z"
+      // Extract UTC date and time directly
       const start = new Date(editingSession.startTime);
       const end = new Date(editingSession.endTime);
       
+      // Get UTC date and time (not local time)
+      const startUTC = {
+        year: start.getUTCFullYear(),
+        month: start.getUTCMonth() + 1,
+        day: start.getUTCDate(),
+        hours: start.getUTCHours(),
+        minutes: start.getUTCMinutes(),
+      };
+      
+      const endUTC = {
+        hours: end.getUTCHours(),
+        minutes: end.getUTCMinutes(),
+      };
+      
       setFormData({
-        // Use local date to avoid timezone shifting the selected day
-        date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,
-        startTime: start.toTimeString().slice(0, 5),
-        endTime: end.toTimeString().slice(0, 5),
+        // Use UTC date and time to match what's stored in backend
+        date: `${startUTC.year}-${String(startUTC.month).padStart(2, '0')}-${String(startUTC.day).padStart(2, '0')}`,
+        startTime: `${String(startUTC.hours).padStart(2, '0')}:${String(startUTC.minutes).padStart(2, '0')}`,
+        endTime: `${String(endUTC.hours).padStart(2, '0')}:${String(endUTC.minutes).padStart(2, '0')}`,
         serviceIds: editingSession.services.map(s => s.id),
       });
     } else if (selectedDate) {
+      // For new sessions, normalize the selected date to UTC
+      // FullCalendar with timeZone="UTC" returns UTC dates, so we need to use UTC methods
+      // Extract UTC date components to ensure consistency
+      const utcDate = {
+        year: selectedDate.getUTCFullYear(),
+        month: selectedDate.getUTCMonth() + 1,
+        day: selectedDate.getUTCDate(),
+      };
+      
       setFormData({
-        // Use local date to avoid timezone shifting the selected day
-        date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
+        date: `${utcDate.year}-${String(utcDate.month).padStart(2, '0')}-${String(utcDate.day).padStart(2, '0')}`,
         startTime: '08:00',
         endTime: '12:00',
         serviceIds: [],

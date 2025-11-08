@@ -81,7 +81,16 @@ export default function CalendarPage() {
   // Handle date selection for creating new session
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDateSelect = (date: Date, allDay: boolean) => {
-    setSelectedDate(date);
+    // Normalize the date to UTC midnight to ensure consistency
+    // FullCalendar with timeZone="UTC" may return dates with time components
+    // We want just the date part (year, month, day) without time
+    const normalizedDate = new Date(Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    setSelectedDate(normalizedDate);
     setEditingSession(null);
     setShowForm(true);
   };
