@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Calendar, Clock, Save, X, AlertTriangle, CheckCircle, Search, Loader2 } from 'lucide-react';
-import { WorkSessionFormData, WorkSession } from '@/lib/types/work-session';
+import { WorkSessionFormData, WorkSession, Service } from '@/lib/types/work-session';
 import { useServices } from '@/lib/hooks/useServices';
 
 interface WorkSessionFormProps {
@@ -43,13 +43,16 @@ export function WorkSessionForm({
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<Service[]>([]);
+  const [hasBackendResults, setHasBackendResults] = useState(false);
   
   // Use services hook to fetch services from API
   const { 
     services, 
+    allServices,
     loading: servicesLoading, 
     error: servicesError, 
-    total: totalServices,
     searchServices 
   } = useServices();
 
@@ -182,23 +185,68 @@ export function WorkSessionForm({
     setSearchQuery(query);
   };
 
-  // Debounce backend search
+  // Search services with debouncing (similar to reception prescription page)
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      void searchServices(searchQuery);
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, searchServices]);
+    const trimmed = searchQuery.trim();
+    
+    if (!trimmed) {
+      // No search query - reset and show all services
+      setSearchResults([]);
+      setHasBackendResults(false);
+      // Use allServices when search is cleared (don't call API)
+      return;
+    }
 
-  const selectedServices = (services || []).filter(s => formData.serviceIds.includes(s.id));
-  const availableServices = (services || []).filter(s => !formData.serviceIds.includes(s.id));
+    // Reset backend results flag when query changes
+    setHasBackendResults(false);
+
+    // Show instant client-side results first (for immediate feedback, no lag)
+    const clientFiltered = (allServices || []).filter(service => {
+      const lowerQuery = trimmed.toLowerCase();
+      const nameMatch = service.name.toLowerCase().includes(lowerQuery);
+      const codeMatch = service.serviceCode?.toLowerCase().includes(lowerQuery);
+      const descMatch = service.description?.toLowerCase().includes(lowerQuery);
+      return nameMatch || codeMatch || descMatch;
+    });
+    setSearchResults(clientFiltered);
+
+    // Then perform backend search for comprehensive results (same as reception page)
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        await searchServices(searchQuery);
+        // Backend search updates the main 'services' list with complete results
+        setHasBackendResults(true);
+        // Clear client-side results to force using backend results
+        setSearchResults([]);
+      } catch (err) {
+        console.error('Backend search error:', err);
+        setHasBackendResults(false);
+        // Keep client-side results on error
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // Same debounce as reception page
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, allServices, searchServices]);
+
+  // Determine which services to display
+  // When searching: Use backend results (services) if available, otherwise client-side results (searchResults)
+  // When not searching: Use allServices (to avoid showing stale search results)
+  const displayServices = searchQuery.trim() 
+    ? (hasBackendResults ? services : searchResults.length > 0 ? searchResults : services)
+    : (allServices.length > 0 ? allServices : services); // No search - prefer allServices to avoid stale results
+
+  const selectedServices = displayServices.filter(s => formData.serviceIds.includes(s.id));
+  const availableServices = displayServices.filter(s => !formData.serviceIds.includes(s.id));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
-        <DialogHeader className="pb-4 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-0 flex-shrink-0">
+        <DialogHeader className="pb-4 border-b bg-linear-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-0 shrink-0">
           <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 rounded-full bg-gradient-to-r bg-primary text-white">
+            <div className="p-2 rounded-full bg-linear-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
@@ -218,7 +266,7 @@ export function WorkSessionForm({
         <div className="flex-1  p-6 pt-4 overflow-y-auto">
           <form onSubmit={handleSubmit} className="h-full flex flex-col ">
             {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 shrink-0">
             <div className="space-y-2">
               <Label htmlFor="date">Ngày làm việc</Label>
               <Input
@@ -273,7 +321,7 @@ export function WorkSessionForm({
 
             {/* Session Duration Info */}
             {formData.startTime && formData.endTime && !errors.endTime && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex-shrink-0">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 shrink-0">
                 <div className="flex items-center gap-2 text-blue-600">
                   <Clock className="h-4 w-4" />
                   <span className="font-medium">Thời lượng ca làm việc:</span>
@@ -293,7 +341,7 @@ export function WorkSessionForm({
 
             {/* Service Selection */}
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="mb-4 flex-shrink-0">
+              <div className="mb-4 shrink-0">
                 <Label className="text-base font-medium">Dịch vụ thực hiện</Label>
                 <p className="text-sm text-muted-foreground">
                   Chọn các dịch vụ sẽ thực hiện trong ca làm việc này
@@ -313,23 +361,23 @@ export function WorkSessionForm({
               </div>
 
               {/* Search Services */}
-              <div className="relative mb-4 flex-shrink-0">
+              <div className="relative mb-4 shrink-0">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-400" />
                 </div>
-                <Input
+                  <Input
                   type="text"
                   placeholder="Tìm kiếm dịch vụ..."
                   value={searchQuery}
                   onChange={handleSearchChange}
                   className="pl-10"
-                  disabled={servicesLoading}
+                  disabled={servicesLoading && !searchQuery.trim()}
                 />
               </div>
 
               {/* Selected Services - Compact Display */}
               {selectedServices.length > 0 && (
-                <div className="mb-4 flex-shrink-0">
+                <div className="mb-4 shrink-0">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -363,15 +411,20 @@ export function WorkSessionForm({
               {/* Available Services - Scrollable List */}
               <div className="flex-1 h-52">
                 <div className="h-full border border-gray-200 rounded-lg flex flex-col">
-                  <div className="flex-shrink-0 p-3 bg-gray-50 border-b">
-                    <h3 className="text-sm font-medium">
-                      Dịch vụ có sẵn 
-                      {!servicesLoading && ` (${availableServices.length}${searchQuery ? ` / ${totalServices}` : ''})`}
-                    </h3>
+                  <div className="shrink-0 bg-white">
+                    <div className="flex items-center justify-between">
+                    
+                      {isSearching && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Đang tìm kiếm...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex-1 overflow-y-auto">
-                    {servicesLoading ? (
+                    {servicesLoading && !searchQuery.trim() ? (
                       <div className="flex items-center justify-center py-8">
                         <div className="flex items-center gap-2 text-gray-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -437,7 +490,7 @@ export function WorkSessionForm({
             </div>
 
             {/* Footer Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0">
+            <div className="flex justify-end gap-3 pt-4 border-t mt-4 shrink-0">
               <Button type="button" variant="outline" onClick={onClose}>
                 Hủy
               </Button>

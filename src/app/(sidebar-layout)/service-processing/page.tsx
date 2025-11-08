@@ -1456,7 +1456,7 @@ export default function ServiceProcessingPage() {
             Quản lý phiên làm việc
           </Button>
           {sessionsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-[28rem] max-h-96 overflow-auto bg-white border rounded-md shadow-lg z-20">
+            <div className="absolute right-0 top-full mt-2 w-md max-h-96 overflow-auto bg-white border rounded-md shadow-lg z-20">
               <div className="px-4 py-2 border-b text-sm font-medium">Phiên hôm nay</div>
               {todaySessions.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-gray-500">Không có phiên làm việc nào hôm nay</div>
