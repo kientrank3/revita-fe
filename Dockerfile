@@ -18,6 +18,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy config files first
 COPY postcss.config.mjs ./
 COPY next.config.ts ./
+COPY tsconfig.json ./
+COPY components.json ./
 
 # Copy all source files
 COPY . .
