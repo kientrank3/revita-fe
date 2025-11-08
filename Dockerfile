@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm ci --legacy-peer-deps --ignore-scripts
+RUN npm ci --legacy-peer-deps
 
 # === 2) Build Next.js app ===
 FROM node:20-alpine AS builder
@@ -15,6 +15,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
 
+# Copy config files first
+COPY postcss.config.mjs ./
+COPY next.config.ts ./
+
+# Copy all source files
 COPY . .
 
 # Build arguments từ Coolify (injected automatically)
