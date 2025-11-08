@@ -70,6 +70,7 @@ function CreateMedicalRecordPageContent() {
   const [isAppointmentQrScannerOpen, setIsAppointmentQrScannerOpen] = useState(false);
   const [scanningAppointment, setScanningAppointment] = useState(false);
   const [appointmentScanHint, setAppointmentScanHint] = useState<string>('Đang khởi động camera...');
+  const [usingHtml5Qrcode, setUsingHtml5Qrcode] = useState(false);
   const appointmentVideoRef = useRef<HTMLVideoElement | null>(null);
   const appointmentMediaStreamRef = useRef<MediaStream | null>(null);
   const appointmentHtml5QrCodeRef = useRef<Html5Qrcode | null>(null);
@@ -194,6 +195,7 @@ function CreateMedicalRecordPageContent() {
   const stopAppointmentScanner = useCallback(async () => {
     setScanningAppointment(false);
     appointmentScanningRef.current = false;
+    setUsingHtml5Qrcode(false);
     
     // Stop html5-qrcode if running
     if (appointmentHtml5QrCodeRef.current) {
@@ -340,6 +342,7 @@ function CreateMedicalRecordPageContent() {
       
       if (isBarcodeDetectorSupported) {
         console.log('[Appointment QR] Trying BarcodeDetector...');
+        setUsingHtml5Qrcode(false);
         let detector: BarcodeDetectorInterface | null = null;
         try {
           detector = new BD({ formats: ['qr_code'] });
@@ -394,6 +397,7 @@ function CreateMedicalRecordPageContent() {
       // Fallback to html5-qrcode
       console.log('[Appointment QR] Using html5-qrcode fallback...');
       try {
+        setUsingHtml5Qrcode(true);
         setAppointmentScanHint('Đang khởi động bộ quét QR...');
         
         // Stop the current video stream
@@ -809,7 +813,7 @@ function CreateMedicalRecordPageContent() {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover hidden"
+                className={`w-full h-full object-cover ${usingHtml5Qrcode ? 'hidden' : ''}`}
                 style={{ transform: 'scaleX(-1)' }}
               />
               
@@ -817,7 +821,7 @@ function CreateMedicalRecordPageContent() {
               <div id="appointment-qr-reader" className="w-full h-full"></div>
               
               {/* Scanning overlay for BarcodeDetector mode */}
-              {scanningAppointment && appointmentHtml5QrCodeRef.current === null && (
+              {scanningAppointment && !usingHtml5Qrcode && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
                     {/* Corner indicators */}

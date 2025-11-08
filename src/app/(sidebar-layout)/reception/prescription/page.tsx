@@ -145,6 +145,7 @@ export default function ReceptionCreatePrescriptionPage() {
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
+  const [usingHtml5Qrcode, setUsingHtml5Qrcode] = useState(false);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const html5QrCodeRef = React.useRef<Html5Qrcode | null>(null);
@@ -313,6 +314,7 @@ export default function ReceptionCreatePrescriptionPage() {
     console.log('[QR] Stopping scanner...');
     setScanning(false);
     scanningRef.current = false;
+    setUsingHtml5Qrcode(false);
     
     // Stop html5-qrcode if running
     if (html5QrCodeRef.current) {
@@ -678,6 +680,7 @@ export default function ReceptionCreatePrescriptionPage() {
       if (BD) {
         console.log('[QR] Trying BarcodeDetector...');
         setScannerSupported(true);
+        setUsingHtml5Qrcode(false);
         let detector: BarcodeDetectorInterface | null = null;
         try {
           detector = new BD({ formats: ['qr_code'] });
@@ -735,6 +738,7 @@ export default function ReceptionCreatePrescriptionPage() {
       console.log('[QR] Using html5-qrcode fallback...');
       try {
         setScannerSupported(true);
+        setUsingHtml5Qrcode(true);
         setScanHint('Đang khởi động bộ quét QR...');
         
         // Stop the current video stream
@@ -1598,7 +1602,7 @@ export default function ReceptionCreatePrescriptionPage() {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover hidden"
+                className={`w-full h-full object-cover ${usingHtml5Qrcode ? 'hidden' : ''}`}
                 style={{ transform: 'scaleX(-1)' }}
               />
               
@@ -1606,7 +1610,7 @@ export default function ReceptionCreatePrescriptionPage() {
               <div id="qr-reader" className="w-full h-full"></div>
               
               {/* Scanning overlay for BarcodeDetector mode */}
-              {scanning && html5QrCodeRef.current === null && (
+              {scanning && !usingHtml5Qrcode && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
                     {/* Corner indicators */}

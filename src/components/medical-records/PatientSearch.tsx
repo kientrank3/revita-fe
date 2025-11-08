@@ -56,6 +56,7 @@ export function PatientSearch({
   const [scanning, setScanning] = useState(false);
   const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
   const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
+  const [usingHtml5Qrcode, setUsingHtml5Qrcode] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
@@ -145,6 +146,7 @@ export function PatientSearch({
   const stopScanner = useCallback(async () => {
     setScanning(false);
     scanningRef.current = false;
+    setUsingHtml5Qrcode(false);
     
     // Stop html5-qrcode if running
     if (html5QrCodeRef.current) {
@@ -333,6 +335,7 @@ export function PatientSearch({
       if (isBarcodeDetectorSupported) {
         console.log('[QR] Trying BarcodeDetector...');
         setScannerSupported(true);
+        setUsingHtml5Qrcode(false);
         let detector: BarcodeDetectorInterface | null = null;
         try {
           detector = new BD({ formats: ['qr_code'] });
@@ -390,6 +393,7 @@ export function PatientSearch({
       console.log('[QR] BarcodeDetector not available, using html5-qrcode fallback...');
       try {
         setScannerSupported(true);
+        setUsingHtml5Qrcode(true);
         setScanHint('Đang khởi động bộ quét QR...');
         
         // Stop the current video stream as html5-qrcode will manage its own
@@ -679,7 +683,7 @@ export function PatientSearch({
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover hidden"
+                className={`w-full h-full object-cover ${usingHtml5Qrcode ? 'hidden' : ''}`}
                 style={{ transform: 'scaleX(-1)' }} // Mirror the video
               />
               
@@ -687,7 +691,7 @@ export function PatientSearch({
               <div id="qr-reader" className="w-full h-full"></div>
               
               {/* Scanning overlay for BarcodeDetector mode */}
-              {scannerSupported && html5QrCodeRef.current === null && (
+              {scanning && !usingHtml5Qrcode && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
                     {/* Corner indicators */}
@@ -1017,7 +1021,7 @@ export function PatientSearch({
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover hidden"
+                className={`w-full h-full object-cover ${usingHtml5Qrcode ? 'hidden' : ''}`}
                 style={{ transform: 'scaleX(-1)' }} // Mirror the video
               />
               
@@ -1025,7 +1029,7 @@ export function PatientSearch({
               <div id="qr-reader" className="w-full h-full"></div>
               
               {/* Scanning overlay for BarcodeDetector mode */}
-              {scannerSupported && html5QrCodeRef.current === null && (
+              {scanning && !usingHtml5Qrcode && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
                     {/* Corner indicators */}
