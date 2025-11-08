@@ -12,14 +12,19 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Copy package files first
 COPY package.json package-lock.json ./
-COPY --from=deps /app/node_modules ./node_modules
 
-# Copy config files first
+# Copy all config files needed for build first
+COPY tsconfig.json ./
 COPY postcss.config.mjs ./
 COPY next.config.ts ./
+COPY eslint.config.mjs ./
 
-# Copy all source files
+# Install all dependencies (including devDependencies) for build
+RUN npm ci --legacy-peer-deps
+
+# Copy all source files (after dependencies are installed)
 COPY . .
 
 # Build arguments từ Coolify (injected automatically)
@@ -62,7 +67,7 @@ ARG NEXT_PUBLIC_SOCKET_URL
 ARG NEXT_PUBLIC_QUEUE_SOCKET_URL
 ARG NEXT_PUBLIC_RESEND_API_KEY
 ARG NEXT_PUBLIC_TINYMCE_API_KEY
-
+ 
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
 ENV NEXT_PUBLIC_QUEUE_SOCKET_URL=${NEXT_PUBLIC_QUEUE_SOCKET_URL}
