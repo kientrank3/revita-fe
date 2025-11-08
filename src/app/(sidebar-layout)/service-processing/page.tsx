@@ -44,6 +44,19 @@ import {
 } from '@/lib/types/service-processing';
 import { UpdateResultsDialog } from '@/components/service-processing/UpdateResultsDialog';
 
+// Helper function to format UTC time directly (no timezone conversion)
+// This ensures consistent display: send 08:00 UTC → store 08:00 UTC → display 08:00
+const formatUTCTime = (date: Date | string, includeSeconds = false): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const hours = String(d.getUTCHours()).padStart(2, '0');
+  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+  if (includeSeconds) {
+    const seconds = String(d.getUTCSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  }
+  return `${hours}:${minutes}`;
+};
+
 export default function ServiceProcessingPage() {
   const { user } = useAuth();
   const [prescriptionCode, setPrescriptionCode] = useState('');
@@ -1458,9 +1471,9 @@ export default function ServiceProcessingPage() {
                         </Badge>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {new Date(ws.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {formatUTCTime(ws.startTime)}
                         {' - '}
-                        {new Date(ws.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {formatUTCTime(ws.endTime)}
                       </div>
                       {ws.status === 'APPROVED' && isOverdue(ws) && (
                         <div className="text-xs text-red-600 mt-1">Phiên làm việc đã quá hạn</div>
@@ -1524,8 +1537,7 @@ export default function ServiceProcessingPage() {
               <div>
                 <div className="text-sm text-gray-600">Thời gian</div>
                 <div className="font-medium">
-                  {new Date(workSession.startTime).toLocaleTimeString('vi-VN')} -
-                  {new Date(workSession.endTime).toLocaleTimeString('vi-VN')}
+                  {formatUTCTime(workSession.startTime)} - {formatUTCTime(workSession.endTime)}
                 </div>
               </div>
             </div>
