@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -424,13 +423,71 @@ export default function ReceptionCreatePrescriptionPage() {
           setScanHint('Lỗi tra cứu hồ sơ');
         }
       } else if (upper.startsWith('APT') || upper.startsWith('APPT')) {
-        setAppointmentCode(trimmed);
-        await onLookupAppointment();
-        toast.success('Đã nhập mã lịch hẹn từ QR');
-        setScanHint('Đã tra cứu lịch hẹn');
-        // Close scanner after successful scan
+        // Parse mã appointment code từ format: APT:APT-1762571870169|DOC:...|DATE:...|TIME:...
+        let appointmentCode = trimmed;
+        
+        // Kiểm tra nếu có format APT:APT-xxx hoặc APPT:APPT-xxx
+        if (trimmed.includes(':')) {
+          const parts = trimmed.split('|');
+          // Lấy phần đầu tiên (APT:APT-xxx)
+          const firstPart = parts[0] || '';
+          if (firstPart.includes(':')) {
+            // Tách theo dấu : để lấy mã appointment code
+            const codeParts = firstPart.split(':');
+            if (codeParts.length >= 2) {
+              appointmentCode = codeParts[1].trim();
+            }
+          }
+        } else {
+          // Nếu không có format đặc biệt, lấy phần đầu trước dấu |
+          const codeParts = trimmed.split('|');
+          appointmentCode = codeParts[0]?.trim() || trimmed;
+        }
+        
+        console.log('[QR] Parsed appointment code:', appointmentCode);
+        
+        // Điền mã vào input và tự động tra cứu
+        setAppointmentCode(appointmentCode);
+        setScanHint('Đã quét mã lịch hẹn, đang tra cứu...');
+        toast.success(`Đã quét mã lịch hẹn: ${appointmentCode}`);
+        
+        // Đóng scanner sau khi quét thành công
         setTimeout(() => {
           setIsQrScannerOpen(false);
+          stopScanner();
+          
+          // Tự động tra cứu sau khi đóng scanner
+          setTimeout(async () => {
+            try {
+              setAppointmentLoading(true);
+              const res = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(appointmentCode)}`, {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                }
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.message || 'Không tìm thấy lịch hẹn');
+              }
+              const data: AppointmentLookup = await res.json();
+              setAppointment(data);
+              // Prefill patient profile and services for convenience
+              if (data.patientProfile) {
+                setSelectedPatientProfile((prev) => prev && prev.id === data.patientProfile.id ? prev : {
+                  id: data.patientProfile.id,
+                  name: data.patientProfile.name,
+                  profileCode: ''
+                } as unknown as PatientProfile);
+              }
+              toast.success('Đã tải thông tin lịch hẹn');
+            } catch (e: unknown) {
+              setAppointment(null);
+              const error = e as { message?: string };
+              toast.error(error?.message || 'Không thể tra cứu lịch hẹn');
+            } finally {
+              setAppointmentLoading(false);
+            }
+          }, 200); // Small delay to ensure scanner is fully closed
         }, 500);
       } else {
         // Không đúng định dạng kỳ vọng, vẫn hiển thị ra cho bạn xem
@@ -440,7 +497,7 @@ export default function ReceptionCreatePrescriptionPage() {
     } catch (e) {
       console.error('[QR] Error:', e);
     }
-  }, [onLookupAppointment]);
+  }, [stopScanner]);
 
   const startScanner = useCallback(async () => {
     setScanning(true);
@@ -1086,7 +1143,13 @@ export default function ReceptionCreatePrescriptionPage() {
                     id="appointmentCode"
                     placeholder="Nhập mã lịch hẹn (VD: APPT-20251103-ABC123)"
                     value={appointmentCode}
-                    onChange={(e) => setAppointmentCode(e.target.value)}
+                    onChange={(e) => {
+                      setAppointmentCode(e.target.value);
+                      // Ẩn appointment khi input trống
+                      if (!e.target.value.trim()) {
+                        setAppointment(null);
+                      }
+                    }}
                     onKeyDown={(e) => e.key === 'Enter' && onLookupAppointment()}
                     className="pl-9"
                   />

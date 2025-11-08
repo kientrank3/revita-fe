@@ -778,10 +778,10 @@ export default function ReceptionPage() {
   // const waitingCount = snapshot?.queue.length ?? 0;
 
   return (
-    <div className="min-h-screen space-y-6 bg-gray-50 px-8 py-6">
+    <div className="min-h-screen space-y-6 bg-white px-8 py-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">Quản lý hàng chờ tiếp nhận</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Quản lý hàng chờ tiếp nhận</h1>
           <p className="mt-1 text-gray-600">
             Theo dõi trạng thái quầy và thao tác với bệnh nhân theo chuẩn API hàng chờ mới
           </p>

@@ -54,7 +54,7 @@ function CreateMedicalRecordPageContent() {
     patientProfileId: patientProfileId || '',
     templateId: '',
     doctorId: user?.id ,
-    appointmentId: '',
+    appointmentCode: '',
     status: MedicalRecordStatus.DRAFT,
     content: {},
   });
@@ -145,8 +145,8 @@ function CreateMedicalRecordPageContent() {
       setIsCreating(true);
 
       const payload: any = { ...formData };
-      if (!payload.appointmentId || String(payload.appointmentId).trim() === '') {
-        delete payload.appointmentId;
+      if (!payload.appointmentCode || String(payload.appointmentCode).trim() === '') {
+        delete payload.appointmentCode;
       }
       const createdRecord = await medicalRecordService.create(payload as CreateMedicalRecordDto);
       toast.success('Tạo bệnh án thành công');
@@ -241,8 +241,8 @@ function CreateMedicalRecordPageContent() {
       
       console.log('[Appointment QR] Appointment data:', appointmentData);
       
-      // Fill appointment ID
-      handleInputChange('appointmentId', appointmentData.appointmentId);
+      // Fill appointment code
+      handleInputChange('appointmentCode', appointmentData.appointmentCode);
       
       // Search and select patient profile by code
       if (appointmentData.patientProfileCode) {
@@ -265,11 +265,11 @@ function CreateMedicalRecordPageContent() {
             handlePatientProfileSelect(profile);
             toast.success('Đã tải thông tin lịch hẹn và bệnh nhân');
           } else {
-            toast.warning(`Đã điền ID lịch hẹn, nhưng không tìm thấy hồ sơ bệnh nhân với mã: ${appointmentData.patientProfileCode}. Vui lòng tìm kiếm thủ công.`);
+            toast.warning(`Đã điền mã lịch hẹn, nhưng không tìm thấy hồ sơ bệnh nhân với mã: ${appointmentData.patientProfileCode}. Vui lòng tìm kiếm thủ công.`);
           }
         } catch (profileError) {
           console.error('[Appointment QR] Error loading patient profile:', profileError);
-          toast.warning(`Đã điền ID lịch hẹn, nhưng không thể tải hồ sơ bệnh nhân. Mã hồ sơ: ${appointmentData.patientProfileCode}`);
+          toast.warning(`Đã điền mã lịch hẹn, nhưng không thể tải hồ sơ bệnh nhân. Mã hồ sơ: ${appointmentData.patientProfileCode}`);
         }
       }
       
@@ -551,13 +551,13 @@ function CreateMedicalRecordPageContent() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="appointmentId" className="text-sm font-medium">ID Lịch hẹn</Label>
+                <Label htmlFor="appointmentCode" className="text-sm font-medium">Mã lịch hẹn</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="appointmentId"
-                    value={formData.appointmentId}
-                    onChange={(e) => handleInputChange('appointmentId', e.target.value)}
-                    placeholder="Nhập ID lịch hẹn (tùy chọn)"
+                    id="appointmentCode"
+                    value={formData.appointmentCode}
+                    onChange={(e) => handleInputChange('appointmentCode', e.target.value)}
+                    placeholder="Nhập mã lịch hẹn (tùy chọn)"
                     className="text-sm flex-1"
                   />
                   <Button 
@@ -680,7 +680,7 @@ function CreateMedicalRecordPageContent() {
                   template={selectedTemplate}
                   patientProfileId={selectedPatientProfile?.id || formData.patientProfileId || ''}
                   doctorId={user?.id}
-                  appointmentId={formData.appointmentId}
+                  appointmentCode={formData.appointmentCode}
                   onSubmit={async (data) => {
                     try {
                       setIsCreating(true);
@@ -691,7 +691,7 @@ function CreateMedicalRecordPageContent() {
                             patientProfileId: selectedPatientProfile?.id || formData.patientProfileId || '',
                             templateId: selectedTemplate.templateCode,
                             doctorId: user?.id,
-                            appointmentId: formData.appointmentId || undefined,
+                            appointmentCode: formData.appointmentCode || undefined,
                             status: 'DRAFT',
                             content: data,
                           };

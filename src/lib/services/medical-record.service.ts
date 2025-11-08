@@ -65,7 +65,7 @@ class MedicalRecordService {
       formData.append('patientProfileId', data.patientProfileId);
       formData.append('templateId', data.templateId);
       if (data.doctorId) formData.append('doctorId', data.doctorId);
-      if (data.appointmentId) formData.append('appointmentId', data.appointmentId);
+      if (data.appointmentCode) formData.append('appointmentCode', data.appointmentCode);
       if (data.status) formData.append('status', data.status);
       formData.append('content', JSON.stringify(data.content));
       

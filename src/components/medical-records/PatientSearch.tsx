@@ -113,15 +113,15 @@ export function PatientSearch({
     }
   };
 
-  const handleProfileSelect = (profile: PatientProfile) => {
+  const handleProfileSelect = useCallback((profile: PatientProfile) => {
     onPatientProfileSelect(profile);
-  };
+  }, [onPatientProfileSelect]);
 
-  const handlePatientSelect = (patient: UserType) => {
+  const handlePatientSelect = useCallback((patient: UserType) => {
     if (onPatientSelect) {
       onPatientSelect(patient);
     }
-  };
+  }, [onPatientSelect]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
@@ -174,14 +174,31 @@ export function PatientSearch({
     
     console.log('[QR] Raw:', text);
     
-    // Lấy chỉ phần đầu tiên trước dấu | (mã PP)
-    const codeParts = trimmed.split('|');
-    const profileCode = codeParts[0]?.trim() || trimmed;
+    // Parse mã profile code từ format: PAT:PAT-xxx|... hoặc PAT-xxx|...
+    let profileCode = trimmed;
     
-    console.log('[QR] Scanned code:', profileCode);
+    // Kiểm tra nếu có format PAT:PAT-xxx hoặc PAT:PP-xxx
+    if (trimmed.includes(':')) {
+      const parts = trimmed.split('|');
+      // Lấy phần đầu tiên (PAT:PAT-xxx)
+      const firstPart = parts[0] || '';
+      if (firstPart.includes(':')) {
+        // Tách theo dấu : để lấy mã profile code
+        const codeParts = firstPart.split(':');
+        if (codeParts.length >= 2) {
+          profileCode = codeParts[1].trim();
+        }
+      }
+    } else {
+      // Nếu không có format đặc biệt, lấy phần đầu trước dấu |
+      const codeParts = trimmed.split('|');
+      profileCode = codeParts[0]?.trim() || trimmed;
+    }
+    
+    console.log('[QR] Parsed profile code:', profileCode);
     setScanHint(`Đã quét mã: ${profileCode.slice(0, 24)}${profileCode.length > 24 ? '...' : ''}`);
     
-    // Điền mã QR vào ô input tìm kiếm (chỉ lấy mã PP)
+    // Điền mã QR vào ô input tìm kiếm
     setSearchQuery(profileCode);
     toast.success(`Đã quét mã: ${profileCode}`);
     
@@ -189,8 +206,76 @@ export function PatientSearch({
     setTimeout(() => {
       setIsQrScannerOpen(false);
       stopScanner();
+      
+      // Tự động thực hiện tìm kiếm sau khi đóng scanner
+      setTimeout(async () => {
+        if (profileCode.trim()) {
+          try {
+            setIsSearching(true);
+            
+            if (searchMode === 'profiles') {
+              // Search PatientProfiles
+              try {
+                await patientProfileService.testConnection();
+              } catch (testError) {
+                console.error('Test connection failed:', testError);
+                toast.error('Không thể kết nối đến API. Vui lòng kiểm tra kết nối mạng.');
+                return;
+              }
+              
+              const response = await patientProfileService.searchPatientProfiles(profileCode.trim());
+              console.log('Search response:', response);
+              
+              setSearchResults(response.patientProfiles);
+              setPatientResults([]);
+              
+              if (response.patientProfiles.length === 0) {
+                toast.info('Không tìm thấy hồ sơ bệnh nhân nào');
+              } else {
+                // Tự động chọn kết quả đầu tiên
+                const firstResult = response.patientProfiles[0];
+                if (firstResult) {
+                  handleProfileSelect(firstResult);
+                  if (response.patientProfiles.length === 1) {
+                    toast.success('Đã chọn hồ sơ bệnh nhân từ QR');
+                  } else {
+                    toast.warning(`Tìm thấy ${response.patientProfiles.length} hồ sơ, đã chọn hồ sơ đầu tiên`);
+                  }
+                }
+              }
+            } else {
+              // Search Patients (Users with role 'PATIENT')
+              const response = await userService.searchUsers(profileCode.trim());
+              const patients = response.users.filter((user: UserType) => user.role === 'PATIENT');
+              
+              setPatientResults(patients);
+              setSearchResults([]);
+              
+              if (patients.length === 0) {
+                toast.info('Không tìm thấy bệnh nhân nào');
+              } else {
+                // Tự động chọn kết quả đầu tiên
+                const firstResult = patients[0];
+                if (firstResult && onPatientSelect) {
+                  handlePatientSelect(firstResult);
+                  if (patients.length === 1) {
+                    toast.success('Đã chọn bệnh nhân từ QR');
+                  } else {
+                    toast.warning(`Tìm thấy ${patients.length} bệnh nhân, đã chọn bệnh nhân đầu tiên`);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error searching:', error);
+            toast.error('Có lỗi xảy ra khi tìm kiếm');
+          } finally {
+            setIsSearching(false);
+          }
+        }
+      }, 200); // Small delay to ensure scanner is fully closed
     }, 500);
-  }, [stopScanner]);
+  }, [stopScanner, searchMode, handleProfileSelect, handlePatientSelect, onPatientSelect]);
 
   const startScanner = useCallback(async () => {
     setScanning(true);
@@ -461,7 +546,14 @@ export function PatientSearch({
             <div className="flex gap-2 items-center">
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  // Ẩn result khi input trống
+                  if (!e.target.value.trim()) {
+                    setSearchResults([]);
+                    setPatientResults([]);
+                  }
+                }}
                 placeholder="Tìm kiếm bệnh nhân..."
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="text-sm h-10"
@@ -491,7 +583,7 @@ export function PatientSearch({
             </div>
 
             {/* Dropdown Results */}
-            {(searchResults.length > 0 || patientResults.length > 0) && (
+            {(searchResults.length > 0 || patientResults.length > 0) && searchQuery.trim() && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 <div className="p-3">
                   {/* Patient Profile Results */}
@@ -684,7 +776,14 @@ export function PatientSearch({
             <div className="flex gap-2">
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  // Ẩn result khi input trống
+                  if (!e.target.value.trim()) {
+                    setSearchResults([]);
+                    setPatientResults([]);
+                  }
+                }}
                 placeholder={searchMode === 'profiles' ? 
                   "Nhập tên, số điện thoại hoặc mã hồ sơ..." : 
                   "Nhập tên, số điện thoại hoặc mã bệnh nhân..."}
@@ -718,7 +817,7 @@ export function PatientSearch({
       </div>
 
       {/* Search Results */}
-      {(searchResults.length > 0 || patientResults.length > 0) && (
+      {(searchResults.length > 0 || patientResults.length > 0) && searchQuery.trim() && (
         <div className="border rounded-lg p-4">
           <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
             <User className="h-4 w-4" />

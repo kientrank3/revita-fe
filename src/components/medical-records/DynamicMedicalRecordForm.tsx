@@ -34,7 +34,8 @@ interface DynamicMedicalRecordFormProps {
   template: Template;
   patientProfileId: string;
   doctorId?: string;
-  appointmentId?: string;
+  appointmentId?: string; // Keep for backward compatibility, but will be mapped to appointmentCode
+  appointmentCode?: string;
   onSubmit: (data: CreateMedicalRecordDto | Record<string, any>) => Promise<void>;
   onCancel: () => void;
   initialData?: Record<string, any>;
@@ -47,6 +48,7 @@ export function DynamicMedicalRecordForm({
   patientProfileId,
   doctorId,
   appointmentId,
+  appointmentCode,
   onSubmit,
   onCancel,
   initialData = {},
@@ -786,7 +788,7 @@ export function DynamicMedicalRecordForm({
           patientProfileId,
           templateId: template.id,
           doctorId,
-          appointmentId,
+          appointmentCode: appointmentCode || appointmentId, // Use appointmentCode if provided, fallback to appointmentId for backward compatibility
           status: MedicalRecordStatus.DRAFT,
           content: formData,
           files: supportsFileUpload && files.length > 0 ? files : undefined,

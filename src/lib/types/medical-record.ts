@@ -48,7 +48,7 @@ export interface CreateMedicalRecordDto {
   patientProfileId: string;
   templateId: string;
   doctorId?: string;
-  appointmentId?: string;
+  appointmentCode?: string;
   status?: MedicalRecordStatus;
   content: Record<string, any>;
   files?: File[];

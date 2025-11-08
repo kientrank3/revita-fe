@@ -162,7 +162,7 @@ export default function ReceptionPatientProfilesPage() {
   };
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
+    <div className=" px-8 py-6 space-y-6 bg-white">
       <div className="mb-2 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý hồ sơ bệnh nhân</h1>
