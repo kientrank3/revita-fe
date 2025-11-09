@@ -1424,62 +1424,50 @@ export default function InvoicesPage() {
         }
         if (targetCashier && targetCashier !== cashierId) return;
 
-        // Call new API to get invoice details
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-        
-        const response = await fetch(`${API_BASE_URL}/invoice-payments/invoice-by-id/${invoiceId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-          credentials: 'include',
-        });
+        // Call new API to get invoice details using cashierApi
+        try {
+          const { data: invoiceResponse } = await cashierApi.getInvoiceById(invoiceId);
+          console.log('Invoice details received:', invoiceResponse);
 
-        if (!response.ok) {
-          console.error('Failed to fetch invoice details:', response.status, response.statusText);
-          return;
-        }
+          if (invoiceResponse?.success && invoiceResponse?.data) {
+            const invoiceData = invoiceResponse.data;
+            
+            // Transform the data to match expected format
+            const transformedData = {
+              invoiceCode: invoiceData.invoiceCode,
+              totalAmount: invoiceData.totalAmount,
+              paymentStatus: invoiceData.paymentStatus,
+              paymentMethod: invoiceData.paymentMethod,
+              patientInfo: {
+                name: invoiceData.patientProfile?.name,
+                dateOfBirth: invoiceData.patientProfile?.dateOfBirth,
+                gender: invoiceData.patientProfile?.gender,
+              },
+              prescriptionInfo: {
+                prescriptionCode: invoiceData.invoiceDetails?.[0]?.prescription?.prescriptionCode,
+                status: invoiceData.invoiceDetails?.[0]?.prescription?.status,
+                doctorName: invoiceData.invoiceDetails?.[0]?.prescription?.doctor?.auth?.name,
+              },
+              invoiceDetails: invoiceData.invoiceDetails?.map((detail: any) => ({
+                serviceCode: detail.service?.serviceCode,
+                serviceName: detail.service?.name,
+                price: detail.service?.price,
+              })) || [],
+              routingAssignments: [], // This might need to be populated from another API
+              transaction: invoiceData.paymentTransactions?.[0] || null,
+            };
 
-        const invoiceResponse = await response.json();
-        console.log('Invoice details received:', invoiceResponse);
+            // Auto download PDF immediately with correct payment data
+            setTimeout(() => {
+              exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
+            }, 500);
 
-        if (invoiceResponse?.success && invoiceResponse?.data) {
-          const invoiceData = invoiceResponse.data;
-          
-          // Transform the data to match expected format
-          const transformedData = {
-            invoiceCode: invoiceData.invoiceCode,
-            totalAmount: invoiceData.totalAmount,
-            paymentStatus: invoiceData.paymentStatus,
-            paymentMethod: invoiceData.paymentMethod,
-            patientInfo: {
-              name: invoiceData.patientProfile?.name,
-              dateOfBirth: invoiceData.patientProfile?.dateOfBirth,
-              gender: invoiceData.patientProfile?.gender,
-            },
-            prescriptionInfo: {
-              prescriptionCode: invoiceData.invoiceDetails?.[0]?.prescription?.prescriptionCode,
-              status: invoiceData.invoiceDetails?.[0]?.prescription?.status,
-              doctorName: invoiceData.invoiceDetails?.[0]?.prescription?.doctor?.auth?.name,
-            },
-            invoiceDetails: invoiceData.invoiceDetails?.map((detail: any) => ({
-              serviceCode: detail.service?.serviceCode,
-              serviceName: detail.service?.name,
-              price: detail.service?.price,
-            })) || [],
-            routingAssignments: [], // This might need to be populated from another API
-            transaction: invoiceData.paymentTransactions?.[0] || null,
-          };
-
-          // Auto download PDF immediately with correct payment data
-          setTimeout(() => {
-            exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
-          }, 500);
-
-          // Show success message
-          toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+            // Show success message
+            toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+          }
+        } catch (error) {
+          console.error('Error fetching invoice details:', error);
+          // Don't show error toast as this is a background operation
         }
       } catch (error) {
         console.error('Error processing payment success:', error);

@@ -334,6 +334,10 @@ export const cashierApi = {
   // Confirm payment for an invoice
   confirmPayment: (data: { invoiceCode: string; cashierId: string; transactionId?: string }) =>
     api.post('/invoice-payments/confirm', data),
+
+  // Get invoice by ID
+  getInvoiceById: (invoiceId: string) =>
+    api.get(`/invoice-payments/invoice-by-id/${encodeURIComponent(invoiceId)}`),
 };
 
 // Patient Profile API
