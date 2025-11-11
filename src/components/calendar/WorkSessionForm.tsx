@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { Calendar, Clock, Save, X, AlertTriangle, CheckCircle, Search, Loader2 } from 'lucide-react';
 import { WorkSessionFormData, WorkSession, Service } from '@/lib/types/work-session';
-import { useServices } from '@/lib/hooks/useServices';
+import { useServices, ServiceWithLocation } from '@/lib/hooks/useServices';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface WorkSessionFormProps {
   isOpen: boolean;
@@ -47,16 +48,68 @@ export function WorkSessionForm({
   const [searchResults, setSearchResults] = useState<Service[]>([]);
   const [hasBackendResults, setHasBackendResults] = useState(false);
   
+  // Get user role and doctor code
+  const { user, isLoading: authLoading } = useAuth();
+  const isDoctor = user?.role === 'DOCTOR';
+  const isAdmin = user?.role === 'ADMIN';
+  const doctorCode = user?.doctor?.doctorCode;
+  
+  // State for doctor services and location-filtered services
+  const [doctorServices, setDoctorServices] = useState<ServiceWithLocation[]>([]);
+  const [locationFilteredServices, setLocationFilteredServices] = useState<ServiceWithLocation[]>([]);
+  const [isLoadingDoctorServices, setIsLoadingDoctorServices] = useState(false);
+  const [isLoadingLocationServices, setIsLoadingLocationServices] = useState(false);
+  const [locationFilterActive, setLocationFilterActive] = useState(false);
+  
   // Use services hook to fetch services from API
   const { 
     services, 
     allServices,
     loading: servicesLoading, 
     error: servicesError, 
-    searchServices 
+    searchServices,
+    getServicesByDoctorCode,
+    getServicesByLocation
   } = useServices();
 
-  // Initialize form data
+  // Fetch doctor services when form opens and user is a doctor
+  useEffect(() => {
+    // Wait for auth to finish loading before fetching doctor services
+    if (authLoading) {
+      return;
+    }
+
+    if (isOpen && isDoctor) {
+      if (!doctorCode) {
+        console.error('Doctor code not found for doctor user. User data may not be fully loaded yet.');
+        setDoctorServices([]);
+        return;
+      }
+      const fetchDoctorServices = async () => {
+        try {
+          setIsLoadingDoctorServices(true);
+          const result = await getServicesByDoctorCode(doctorCode);
+          setDoctorServices(result.services);
+          // Reset location filter when fetching new doctor services
+          setLocationFilteredServices([]);
+          setLocationFilterActive(false);
+        } catch (err) {
+          console.error('Error fetching doctor services:', err);
+          setDoctorServices([]);
+        } finally {
+          setIsLoadingDoctorServices(false);
+        }
+      };
+      fetchDoctorServices();
+    } else if (isOpen && isAdmin) {
+      // Reset doctor services for admin
+      setDoctorServices([]);
+      setLocationFilteredServices([]);
+      setLocationFilterActive(false);
+    }
+  }, [isOpen, isDoctor, isAdmin, doctorCode, authLoading, getServicesByDoctorCode]);
+
+  // Initialize form data and apply location filter for editing sessions (doctors)
   useEffect(() => {
     if (editingSession) {
       // Parse UTC time from API (no timezone conversion)
@@ -79,13 +132,15 @@ export function WorkSessionForm({
         minutes: end.getUTCMinutes(),
       };
       
+      const sessionServiceIds = editingSession.services.map(s => s.id);
       setFormData({
         // Use UTC date and time to match what's stored in backend
         date: `${startUTC.year}-${String(startUTC.month).padStart(2, '0')}-${String(startUTC.day).padStart(2, '0')}`,
         startTime: `${String(startUTC.hours).padStart(2, '0')}:${String(startUTC.minutes).padStart(2, '0')}`,
         endTime: `${String(endUTC.hours).padStart(2, '0')}:${String(endUTC.minutes).padStart(2, '0')}`,
-        serviceIds: editingSession.services.map(s => s.id),
+        serviceIds: sessionServiceIds,
       });
+
     } else if (selectedDate) {
       // For new sessions, normalize the selected date to UTC
       // FullCalendar with timeZone="UTC" returns UTC dates, so we need to use UTC methods
@@ -105,6 +160,29 @@ export function WorkSessionForm({
     }
   }, [editingSession, selectedDate, isOpen]);
 
+  // Apply location filter when editing session and doctor services are loaded
+  useEffect(() => {
+    if (editingSession && isDoctor && formData.serviceIds.length > 0 && doctorServices.length > 0 && !locationFilterActive) {
+      const applyLocationFilter = async () => {
+        try {
+          setIsLoadingLocationServices(true);
+          const result = await getServicesByLocation(formData.serviceIds);
+          // Filter to only include services that belong to this doctor
+          const doctorServiceIds = new Set(doctorServices.map(s => s.id));
+          const filteredServices = result.services.filter(s => doctorServiceIds.has(s.id));
+          setLocationFilteredServices(filteredServices);
+          setLocationFilterActive(true);
+        } catch (err) {
+          console.error('Error applying location filter for editing session:', err);
+          setLocationFilterActive(false);
+        } finally {
+          setIsLoadingLocationServices(false);
+        }
+      };
+      applyLocationFilter();
+    }
+  }, [editingSession, isDoctor, formData.serviceIds, doctorServices, locationFilterActive, getServicesByLocation]);
+
   // Reset form when dialog closes
   useEffect(() => {
     if (!isOpen) {
@@ -115,6 +193,13 @@ export function WorkSessionForm({
         serviceIds: [],
       });
       setErrors({});
+      setSearchQuery('');
+      setSearchResults([]);
+      setHasBackendResults(false);
+      // Reset doctor services and location filter
+      setDoctorServices([]);
+      setLocationFilteredServices([]);
+      setLocationFilterActive(false);
     }
   }, [isOpen]);
 
@@ -171,13 +256,59 @@ export function WorkSessionForm({
     }
   };
 
-  const handleServiceToggle = (serviceId: string, checked: boolean) => {
+  const handleServiceToggle = async (serviceId: string, checked: boolean) => {
+    const newServiceIds = checked
+      ? [...formData.serviceIds, serviceId]
+      : formData.serviceIds.filter(id => id !== serviceId);
+
     setFormData(prev => ({
       ...prev,
-      serviceIds: checked
-        ? [...prev.serviceIds, serviceId]
-        : prev.serviceIds.filter(id => id !== serviceId),
+      serviceIds: newServiceIds,
     }));
+
+    // For doctors: Apply location filtering when a service is selected
+    if (isDoctor && checked && doctorServices.length > 0) {
+      try {
+        setIsLoadingLocationServices(true);
+        // Use all selected services (including the newly selected one) to filter by location
+        const result = await getServicesByLocation(newServiceIds);
+        // Filter to only include services that belong to this doctor
+        const doctorServiceIds = new Set(doctorServices.map(s => s.id));
+        const filteredServices = result.services.filter(s => doctorServiceIds.has(s.id));
+        setLocationFilteredServices(filteredServices);
+        setLocationFilterActive(true);
+      } catch (err) {
+        console.error('Error fetching services by location:', err);
+        // On error, don't apply location filter
+        setLocationFilterActive(false);
+      } finally {
+        setIsLoadingLocationServices(false);
+      }
+    } else if (isDoctor && newServiceIds.length === 0) {
+      // When all services are deselected, reset location filter
+      setLocationFilteredServices([]);
+      setLocationFilterActive(false);
+    } else if (isDoctor && newServiceIds.length > 0 && locationFilterActive && !checked) {
+      // When a service is deselected and location filter is active,
+      // re-apply location filter with remaining selected services
+      try {
+        setIsLoadingLocationServices(true);
+        const result = await getServicesByLocation(newServiceIds);
+        // Filter to only include services that belong to this doctor
+        const doctorServiceIds = new Set(doctorServices.map(s => s.id));
+        const filteredServices = result.services.filter(s => doctorServiceIds.has(s.id));
+        setLocationFilteredServices(filteredServices);
+        // If no services match after filtering, disable location filter
+        if (filteredServices.length === 0) {
+          setLocationFilterActive(false);
+        }
+      } catch (err) {
+        console.error('Error updating services by location:', err);
+        setLocationFilterActive(false);
+      } finally {
+        setIsLoadingLocationServices(false);
+      }
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,15 +324,19 @@ export function WorkSessionForm({
       // No search query - reset and show all services
       setSearchResults([]);
       setHasBackendResults(false);
-      // Use allServices when search is cleared (don't call API)
       return;
     }
 
     // Reset backend results flag when query changes
     setHasBackendResults(false);
 
+    // Determine base services list based on role
+    const baseServices = isDoctor && doctorServices.length > 0 
+      ? doctorServices 
+      : (isAdmin ? allServices : []);
+
     // Show instant client-side results first (for immediate feedback, no lag)
-    const clientFiltered = (allServices || []).filter(service => {
+    const clientFiltered = (baseServices || []).filter(service => {
       const lowerQuery = trimmed.toLowerCase();
       const nameMatch = service.name.toLowerCase().includes(lowerQuery);
       const codeMatch = service.serviceCode?.toLowerCase().includes(lowerQuery);
@@ -210,33 +345,62 @@ export function WorkSessionForm({
     });
     setSearchResults(clientFiltered);
 
-    // Then perform backend search for comprehensive results (same as reception page)
-    const timeoutId = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        await searchServices(searchQuery);
-        // Backend search updates the main 'services' list with complete results
-        setHasBackendResults(true);
-        // Clear client-side results to force using backend results
-        setSearchResults([]);
-      } catch (err) {
-        console.error('Backend search error:', err);
-        setHasBackendResults(false);
-        // Keep client-side results on error
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300); // Same debounce as reception page
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, allServices, searchServices]);
+    // For admin: perform backend search for comprehensive results
+    // For doctor: only search within doctor services (client-side only)
+    if (isAdmin) {
+      const timeoutId = setTimeout(async () => {
+        setIsSearching(true);
+        try {
+          await searchServices(searchQuery);
+          // Backend search updates the main 'services' list with complete results
+          setHasBackendResults(true);
+          // Clear client-side results to force using backend results
+          setSearchResults([]);
+        } catch (err) {
+          console.error('Backend search error:', err);
+          setHasBackendResults(false);
+          // Keep client-side results on error
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300); // Same debounce as reception page
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, allServices, doctorServices, isDoctor, isAdmin, searchServices]);
 
-  // Determine which services to display
-  // When searching: Use backend results (services) if available, otherwise client-side results (searchResults)
-  // When not searching: Use allServices (to avoid showing stale search results)
-  const displayServices = searchQuery.trim() 
-    ? (hasBackendResults ? services : searchResults.length > 0 ? searchResults : services)
-    : (allServices.length > 0 ? allServices : services); // No search - prefer allServices to avoid stale results
+  // Determine which services to display based on role and location filtering
+  let displayServices: Service[] = [];
+  
+  if (isDoctor) {
+    // For doctors: Use doctor services as base
+    if (searchQuery.trim()) {
+      // When searching: Use search results (which are already filtered from doctorServices)
+      displayServices = searchResults.length > 0 ? searchResults : doctorServices;
+    } else {
+      // When not searching: Use doctor services
+      displayServices = doctorServices;
+    }
+    
+    // Apply location filter if active and services are selected
+    // This filter applies to both search results and non-search results
+    if (locationFilterActive && locationFilteredServices.length > 0 && formData.serviceIds.length > 0) {
+      // Only show services that are in locationFilteredServices
+      // locationFilteredServices already contains only services that belong to the doctor
+      const locationFilteredIds = new Set(locationFilteredServices.map(s => s.id));
+      displayServices = displayServices.filter(s => locationFilteredIds.has(s.id));
+    }
+  } else if (isAdmin) {
+    // For admins: Use all services (original behavior)
+    if (searchQuery.trim()) {
+      displayServices = hasBackendResults ? services : searchResults.length > 0 ? searchResults : services;
+    } else {
+      displayServices = allServices.length > 0 ? allServices : services;
+    }
+  } else {
+    // Fallback: Use all services
+    displayServices = allServices.length > 0 ? allServices : services;
+  }
 
   const selectedServices = displayServices.filter(s => formData.serviceIds.includes(s.id));
   const availableServices = displayServices.filter(s => !formData.serviceIds.includes(s.id));
@@ -371,9 +535,23 @@ export function WorkSessionForm({
                   value={searchQuery}
                   onChange={handleSearchChange}
                   className="pl-10"
-                  disabled={servicesLoading && !searchQuery.trim()}
+                  disabled={(servicesLoading || isLoadingDoctorServices) && !searchQuery.trim()}
                 />
               </div>
+
+              {/* Location Filter Indicator (for doctors) */}
+              {isDoctor && locationFilterActive && formData.serviceIds.length > 0 && (
+                <div className="mb-4 shrink-0">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-blue-700">
+                        Chỉ hiển thị các dịch vụ có cùng vị trí làm việc với dịch vụ đã chọn
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Selected Services - Compact Display */}
               {selectedServices.length > 0 && (
@@ -424,11 +602,17 @@ export function WorkSessionForm({
                   </div>
                   
                   <div className="flex-1 overflow-y-auto">
-                    {servicesLoading && !searchQuery.trim() ? (
+                    {(servicesLoading || isLoadingDoctorServices || isLoadingLocationServices) && !searchQuery.trim() ? (
                       <div className="flex items-center justify-center py-8">
                         <div className="flex items-center gap-2 text-gray-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Đang tải dịch vụ...</span>
+                          <span className="text-sm">
+                            {isLoadingDoctorServices 
+                              ? 'Đang tải dịch vụ theo bác sĩ...' 
+                              : isLoadingLocationServices
+                              ? 'Đang lọc dịch vụ theo vị trí...'
+                              : 'Đang tải dịch vụ...'}
+                          </span>
                         </div>
                       </div>
                     ) : servicesError ? (
@@ -443,7 +627,13 @@ export function WorkSessionForm({
                         <div className="flex flex-col items-center gap-2">
                           <Search className="h-8 w-8 text-gray-300" />
                           <span className="text-sm">
-                            {searchQuery ? 'Không tìm thấy dịch vụ phù hợp' : 'Không có dịch vụ nào'}
+                            {searchQuery 
+                              ? 'Không tìm thấy dịch vụ phù hợp' 
+                              : isDoctor && locationFilterActive
+                              ? 'Không có dịch vụ nào có cùng vị trí làm việc'
+                              : isDoctor && doctorServices.length === 0
+                              ? 'Không có dịch vụ nào cho bác sĩ này'
+                              : 'Không có dịch vụ nào'}
                           </span>
                         </div>
                       </div>

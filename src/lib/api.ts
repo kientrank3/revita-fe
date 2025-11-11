@@ -431,6 +431,16 @@ export const serviceApi = {
   // Hoàn thành dịch vụ (chuyển sang WAITING_RESULT)
   completeService: (prescriptionServiceId: string) =>
     api.post(`/services/prescription-service/${prescriptionServiceId}/complete`),
+  
+  // Lấy danh sách dịch vụ theo mã bác sĩ
+  getByDoctorCode: (doctorCode: string, params?: { limit?: number; offset?: number }) =>
+    api.get(`/services/doctors/${encodeURIComponent(doctorCode)}/services`, { params }),
+  
+  // Lấy danh sách dịch vụ theo vị trí (booth/clinicRoom)
+  getByLocation: (params: { serviceIds: string[] }) => {
+    const serviceIdsParam = params.serviceIds.join(',');
+    return api.get('/services/by-location', { params: { serviceIds: serviceIdsParam } });
+  },
 };
 
 // Work Session Management API

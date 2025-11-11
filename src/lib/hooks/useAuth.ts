@@ -85,17 +85,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Get auth context from middleware
       const authContext = await authMiddleware.getAuthContext();
       
-      if (authContext.isAuthenticated && authContext.user) {
+      if (authContext.isAuthenticated) {
         const existingToken = safeLocalStorage.getItem('auth_token');
-        setState({
-          user: authContext.user,
-          token: existingToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-        authMiddleware.setCurrentUser(authContext.user);
+        
         if (existingToken) {
+          // Set authorization header
           api.defaults.headers.common.Authorization = `Bearer ${existingToken}`;
+          
+          // Always fetch full user data from /me endpoint to ensure we have complete info
+          // (including doctor/receptionist/admin details like doctorCode)
+          try {
+            const meResponse = await authApi.getMe();
+            const fullUserData = meResponse.data as AuthUser;
+            
+            // Update stored user data with complete information
+            safeLocalStorage.setItem('auth_user', JSON.stringify(fullUserData));
+            
+            // Update state with complete user data
+            setState({
+              user: fullUserData,
+              token: existingToken,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            
+            // Update middleware cache with complete user data
+            authMiddleware.setCurrentUser(fullUserData);
+          } catch (meError: any) {
+            console.error('Error fetching user data from /me:', meError);
+            
+            // If /me returns 401 (Unauthorized), token is invalid/expired
+            // Clear auth and require user to login again
+            if (meError?.response?.status === 401) {
+              console.log('Token expired or invalid, clearing auth state');
+              // Clear all auth data
+              safeLocalStorage.removeItem('auth_token');
+              safeLocalStorage.removeItem('auth_user');
+              safeLocalStorage.removeItem('refresh_token');
+              delete api.defaults.headers.common.Authorization;
+              authMiddleware.logout();
+              
+              setState({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+            } else {
+              // For other errors, fallback to cached user data if available
+              // This handles network errors or temporary API issues
+              if (authContext.user) {
+                console.warn('Using cached user data due to /me error');
+                setState({
+                  user: authContext.user,
+                  token: existingToken,
+                  isAuthenticated: true,
+                  isLoading: false,
+                });
+                authMiddleware.setCurrentUser(authContext.user);
+              } else {
+                // If no cached user and /me fails, clear auth
+                setState({
+                  user: null,
+                  token: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                });
+              }
+            }
+          }
+        } else {
+          // No token, clear auth state
+          setState({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
         }
       } else {
         setState({
@@ -135,28 +201,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ensure axios instance sends Authorization header immediately (including this tab/session)
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-      // Ensure we have user object; fetch if not provided
-      let user = (data as { user?: AuthUser }).user as AuthUser | undefined;
-      if (!user) {
-        try {
-          const me = await authApi.getMe();
-          user = me.data as unknown as AuthUser;
-        } catch (e) {
-          console.error('Failed to fetch current user after login:', e);
-        }
+      // Always fetch full user data from /me endpoint to ensure we have complete info
+      // (including doctor/receptionist/admin details like doctorCode)
+      let user: AuthUser | null = null;
+      try {
+        const meResponse = await authApi.getMe();
+        user = meResponse.data as AuthUser;
+      } catch (meError) {
+        console.error('Failed to fetch current user from /me after login:', meError);
+        // Fallback to user from login response if /me fails
+        user = (data as { user?: AuthUser }).user as AuthUser | undefined || null;
       }
 
       if (user) {
+        // Store complete user data with all role-specific information
         safeLocalStorage.setItem('auth_user', JSON.stringify(user));
-        // Update middleware cache
+        // Update middleware cache with complete user data
         authMiddleware.setCurrentUser(user);
+      } else {
+        throw new Error('Unable to fetch user data after login');
       }
 
-      // Update state
+      // Update state with complete user data
       setState({
-        user: user ?? null,
+        user,
         token,
-        isAuthenticated: !!user,
+        isAuthenticated: true,
         isLoading: false,
       });
 
@@ -204,17 +274,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update stored tokens
       safeLocalStorage.setItem('auth_token', authData.token);
       safeLocalStorage.setItem('refresh_token', authData.refreshToken);
-      safeLocalStorage.setItem('auth_user', JSON.stringify(authData.user));
+      
+      // Set authorization header with new token
+      api.defaults.headers.common.Authorization = `Bearer ${authData.token}`;
 
-      // Update state
+      // Always fetch full user data from /me endpoint to ensure we have complete info
+      // (including doctor/receptionist/admin details like doctorCode)
+      let fullUserData: AuthUser;
+      try {
+        const meResponse = await authApi.getMe();
+        fullUserData = meResponse.data as AuthUser;
+      } catch (meError) {
+        console.error('Failed to fetch user data from /me after token refresh:', meError);
+        // Fallback to user from refresh token response if /me fails
+        fullUserData = authData.user;
+      }
+
+      // Update stored user data with complete information
+      safeLocalStorage.setItem('auth_user', JSON.stringify(fullUserData));
+
+      // Update state with complete user data
       setState(prev => ({
         ...prev,
-        user: authData.user,
+        user: fullUserData,
         token: authData.token,
       }));
 
-      // Update middleware
-      authMiddleware.setCurrentUser(authData.user);
+      // Update middleware with complete user data
+      authMiddleware.setCurrentUser(fullUserData);
 
       return true;
     } catch (error) {
