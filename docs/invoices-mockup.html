@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup - Thanh toán dịch vụ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+        .header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .card { background: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; }
+        .card-title { font-weight: bold; margin-bottom: 10px; }
+        .input { width: 100%; padding: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
+        .btn { padding: 8px 16px; background: #0066cc; color: white; border: none; cursor: pointer; }
+        .btn-secondary { background: #666; }
+        .btn-success { background: #28a745; }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #333; }
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+        .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #000; }
+        .badge-secondary { background: #6c757d; color: white; }
+        .service-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .revenue-box { background: #d4edda; padding: 10px; border-radius: 4px; border: 1px solid #c3e6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Thanh toán dịch vụ</h1>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div style="font-size: 12px; color: #666;">14:30:25</div>
+                <div class="revenue-box">
+                    <span style="font-size: 12px;">Doanh thu hôm nay:</span>
+                    <strong style="margin-left: 5px; color: #155724;">2,500,000 đ</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tra cứu phiếu chỉ định -->
+        <div class="card">
+            <div class="card-title">Tra cứu phiếu chỉ định</div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" class="input" placeholder="Mã phiếu chỉ định" style="flex: 1;">
+                <button class="btn btn-outline">Tra cứu</button>
+                <button class="btn btn-outline">Quét QR</button>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid">
+            <!-- Left Column -->
+            <div>
+                <!-- Thông tin phiếu chỉ định -->
+                <div class="card">
+                    <div class="card-title">Thông tin phiếu chỉ định</div>
+                    <div style="font-size: 12px;">
+                        <div style="margin-bottom: 5px;">
+                            <span class="badge badge-secondary">Mã: PRE-20241103-001</span>
+                        </div>
+                        <div>Bác sĩ: DOC-001</div>
+                    </div>
+                </div>
+
+                <!-- Chọn dịch vụ thanh toán -->
+                <div class="card">
+                    <div class="card-title">Chọn dịch vụ thanh toán</div>
+                    <div>
+                        <!-- Service 1 -->
+                        <div class="service-item">
+                            <div>
+                                <div style="font-weight: bold; margin-bottom: 3px;">Khám tổng quát</div>
+                                <div style="font-size: 11px; color: #666;">SVC-001 • Thứ tự: 1</div>
+                                <span class="badge badge-success" style="margin-top: 5px; display: inline-block;">Chưa bắt đầu</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="font-weight: bold;">500,000 đ</div>
+                                <button class="btn" style="padding: 5px 15px; font-size: 12px;">Chọn</button>
+                            </div>
+                        </div>
+
+                        <!-- Service 2 -->
+                        <div class="service-item">
+                            <div>
+                                <div style="font-weight: bold; margin-bottom: 3px;">Xét nghiệm máu</div>
+                                <div style="font-size: 11px; color: #666;">SVC-002 • Thứ tự: 2</div>
+                                <span class="badge badge-warning" style="margin-top: 5px; display: inline-block;">Đang chờ</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="font-weight: bold;">300,000 đ</div>
+                                <button class="btn" style="padding: 5px 15px; font-size: 12px;">Chọn</button>
+                            </div>
+                        </div>
+
+                        <!-- Service 3 (Selected) -->
+                        <div class="service-item" style="background: #e7f3ff;">
+                            <div>
+                                <div style="font-weight: bold; margin-bottom: 3px;">Siêu âm bụng</div>
+                                <div style="font-size: 11px; color: #666;">SVC-003 • Thứ tự: 3</div>
+                                <span class="badge badge-success" style="margin-top: 5px; display: inline-block;">Chưa bắt đầu</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="font-weight: bold;">800,000 đ</div>
+                                <button class="btn btn-secondary" style="padding: 5px 15px; font-size: 12px;">Bỏ chọn</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thanh toán -->
+                <div class="card">
+                    <div class="card-title">Thanh toán</div>
+                    <div style="font-size: 12px; margin-bottom: 10px;">Số dịch vụ đã chọn: 1</div>
+                    <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-bottom: 10px;"></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span>Tổng tiền:</span>
+                        <strong style="font-size: 16px;">800,000 đ</strong>
+                    </div>
+
+                    <div style="border-top: 1px solid #ddd; padding-top: 15px;">
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Tiền khách đưa</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" class="input" placeholder="Nhập số tiền..." style="flex: 1;">
+                                <button class="btn btn-outline" style="padding: 8px 15px;">Đủ</button>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+1,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+2,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+5,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+10,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+20,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+50,000</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">+100,000</button>
+                        </div>
+
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Phương thức thanh toán</label>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="btn btn-success" style="padding: 8px 15px; font-size: 12px;">💵 Tiền mặt</button>
+                                <button class="btn btn-outline" style="padding: 8px 15px; font-size: 12px;">🏦 Chuyển khoản</button>
+                            </div>
+                        </div>
+
+                        <div style="background: #d4edda; padding: 10px; border-radius: 4px; border: 1px solid #c3e6cb; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                <span>Tiền thối lại:</span>
+                                <strong style="color: #155724; font-size: 14px;">200,000 đ</strong>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success" style="width: 100%; padding: 12px;">Thanh toán</button>
+                    </div>
+                </div>
+
+                <!-- Chi tiết xem trước -->
+                <div class="card">
+                    <div class="card-title">Chi tiết xem trước</div>
+                    <div style="font-size: 12px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Siêu âm bụng</span>
+                            <span>800,000 đ</span>
+                        </div>
+                        <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;"></div>
+                        <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                            <span>Tổng</span>
+                            <span>800,000 đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hóa đơn -->
+                <div class="card">
+                    <div class="card-title">Hóa đơn</div>
+                    <div style="font-size: 12px;">
+                        <div style="margin-bottom: 5px;">Mã hóa đơn: <strong>INV-20241103-001</strong></div>
+                        <div style="margin-bottom: 5px;">Tổng tiền: <strong>800,000 đ</strong></div>
+                        <div style="margin-bottom: 5px;">
+                            Trạng thái: <span class="badge badge-success">PAID</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">Phương thức: Tiền mặt</div>
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">In hóa đơn</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">In phiếu hướng dẫn</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">Tải PDF hóa đơn</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">Tải PDF phiếu hướng dẫn</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div>
+                <!-- Lịch sử giao dịch -->
+                <div class="card">
+                    <div class="card-title">Lịch sử giao dịch hôm nay <span class="badge badge-secondary">3</span></div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <!-- Transaction 1 -->
+                        <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <div>
+                                    <div style="font-weight: bold; font-size: 12px;">Nguyễn Văn A</div>
+                                    <div style="font-size: 11px; color: #666;">INV-001 • 10:30</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: #28a745; font-size: 12px;">500,000 đ</div>
+                                    <div style="font-size: 11px; color: #666;">03/11/2024</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction 2 -->
+                        <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <div>
+                                    <div style="font-weight: bold; font-size: 12px;">Trần Thị B</div>
+                                    <div style="font-size: 11px; color: #666;">INV-002 • 11:15</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: #28a745; font-size: 12px;">1,200,000 đ</div>
+                                    <div style="font-size: 11px; color: #666;">03/11/2024</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction 3 -->
+                        <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <div>
+                                    <div style="font-weight: bold; font-size: 12px;">Lê Văn C</div>
+                                    <div style="font-size: 11px; color: #666;">INV-003 • 13:45</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: #28a745; font-size: 12px;">800,000 đ</div>
+                                    <div style="font-size: 11px; color: #666;">03/11/2024</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px;">
+                            <span style="font-weight: bold;">Tổng doanh thu hôm nay:</span>
+                            <strong style="color: #28a745; font-size: 14px;">2,500,000 đ</strong>
+                        </div>
+                        <button class="btn btn-outline" style="width: 100%; padding: 8px; font-size: 12px;">Xóa lịch sử</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
