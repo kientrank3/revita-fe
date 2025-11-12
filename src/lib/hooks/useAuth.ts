@@ -111,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             // Update middleware cache with complete user data
             authMiddleware.setCurrentUser(fullUserData);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } catch (meError: any) {
             console.error('Error fetching user data from /me:', meError);
             
