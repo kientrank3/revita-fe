@@ -247,9 +247,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } catch (error) {
       console.error('Error calling logout API:', error);
+      // Continue with logout even if API call fails
     } finally {
-      // Clear local storage and state
+      // Always clear local storage items, regardless of API call success/failure
+      safeLocalStorage.removeItem('auth_token');
+      safeLocalStorage.removeItem('auth_user');
+      safeLocalStorage.removeItem('refresh_token');
+      
+      // Clear middleware cache
       authMiddleware.logout();
+      
+      // Clear state
       setState({
         user: null,
         token: null,
@@ -257,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       });
       setError(null);
+      
       // Remove default Authorization header
       delete api.defaults.headers.common.Authorization;
     }
