@@ -16,6 +16,8 @@ import {
 	Users,
 	ClipboardList,
 	HandHelping,
+	ConciergeBell,
+	Contact,
 } from "lucide-react";
 
 import {
@@ -74,12 +76,12 @@ const getMenuItems = () => {
 			roles: [ "DOCTOR" ],
 		},
 		{
-			title: "Quản lý người dùng",
-			url: "/users",
-			icon: Users,
+			title: "Hồ sơ bệnh nhân",
+			url: "/reception/patients",
+			icon: Contact,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "RECEPTIONIST"],
+			roles: ["RECEPTIONIST"],
 		},
 		{
 			title: "Thanh toán dịch vụ",
@@ -100,18 +102,18 @@ const getMenuItems = () => {
 		{
 			title: "Màn hình tiếp nhận",
 			url: "/reception",
-			icon: Users,
+			icon: ConciergeBell,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["RECEPTIONIST"],
 		},
 		{
-			title: "Hồ sơ bệnh nhân",
-			url: "/reception/patients",
+			title: "Quản lý người dùng",
+			url: "/users",
 			icon: Users,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["RECEPTIONIST"],
+			roles: ["ADMIN", "RECEPTIONIST"],
 		},
 		{
 			title: "Quản lý dịch vụ",

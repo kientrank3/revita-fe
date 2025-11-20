@@ -17,6 +17,7 @@ import { Calendar, Clock, Save, X, AlertTriangle, CheckCircle, Search, Loader2 }
 import { WorkSessionFormData, WorkSession, Service } from '@/lib/types/work-session';
 import { useServices, ServiceWithLocation } from '@/lib/hooks/useServices';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { colors } from '@/lib/colors';
 
 interface WorkSessionFormProps {
   isOpen: boolean;
@@ -241,6 +242,87 @@ export function WorkSessionForm({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Validate end time in real-time
+  const validateEndTime = (endTime: string, startTime: string, date: string): string | null => {
+    if (!endTime || !startTime || !date) {
+      return null;
+    }
+
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    
+    if (end <= start) {
+      return 'Thời gian kết thúc phải sau thời gian bắt đầu';
+    }
+
+    // Check if session is too short (minimum 30 minutes)
+    const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+    if (duration < 30) {
+      return 'Ca làm việc tối thiểu 30 phút';
+    }
+
+    return null;
+  };
+
+  // Calculate minimum end time (start time + 30 minutes)
+  const getMinEndTime = (): string | undefined => {
+    if (!formData.startTime || !formData.date) {
+      return undefined;
+    }
+
+    const start = new Date(`${formData.date}T${formData.startTime}`);
+    const minEnd = new Date(start.getTime() + 30 * 60 * 1000); // Add 30 minutes
+    
+    const hours = String(minEnd.getHours()).padStart(2, '0');
+    const minutes = String(minEnd.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEndTime = e.target.value;
+    setFormData(prev => ({ ...prev, endTime: newEndTime }));
+
+    // Validate in real-time
+    if (newEndTime && formData.startTime && formData.date) {
+      const error = validateEndTime(newEndTime, formData.startTime, formData.date);
+      if (error) {
+        setErrors(prev => ({ ...prev, endTime: error }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.endTime;
+          return newErrors;
+        });
+      }
+    } else {
+      // Clear error if fields are empty
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.endTime;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartTime = e.target.value;
+    setFormData(prev => ({ ...prev, startTime: newStartTime }));
+
+    // Re-validate end time if it exists
+    if (formData.endTime && newStartTime && formData.date) {
+      const error = validateEndTime(formData.endTime, newStartTime, formData.date);
+      if (error) {
+        setErrors(prev => ({ ...prev, endTime: error }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.endTime;
+          return newErrors;
+        });
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -407,8 +489,8 @@ export function WorkSessionForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
-        <DialogHeader className="pb-4 border-b bg-linear-to-r from-blue-50 to-purple-50 -m-6 p-6 mb-0 shrink-0">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
+        <DialogHeader className="pb-4 border-b  -m-6 p-6 mb-0 shrink-0">
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 rounded-full bg-linear-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
@@ -454,7 +536,7 @@ export function WorkSessionForm({
                 id="startTime"
                 type="time"
                 value={formData.startTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                onChange={handleStartTimeChange}
                 className={errors.startTime ? 'border-red-500' : ''}
               />
               {errors.startTime && (
@@ -471,11 +553,12 @@ export function WorkSessionForm({
                 id="endTime"
                 type="time"
                 value={formData.endTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                onChange={handleEndTimeChange}
+                min={getMinEndTime()}
                 className={errors.endTime ? 'border-red-500' : ''}
               />
               {errors.endTime && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
+                <p className="text-[9px] text-red-500 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   {errors.endTime}
                 </p>
@@ -485,11 +568,11 @@ export function WorkSessionForm({
 
             {/* Session Duration Info */}
             {formData.startTime && formData.endTime && !errors.endTime && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 shrink-0">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <Clock className="h-4 w-4" />
-                  <span className="font-medium">Thời lượng ca làm việc:</span>
-                  <span>
+              <div className=" border border-primary rounded-lg p-3 mb-4 shrink-0">
+                <div className="flex items-center gap-2 text-gray">
+                  <Clock className="h-4 w-4" color={colors.primary.hex}/>
+                  <span className="text-sm">Thời lượng ca làm việc:</span>
+                  <span className="text-primary text-sm">
                     {(() => {
                       const start = new Date(`${formData.date}T${formData.startTime}`);
                       const end = new Date(`${formData.date}T${formData.endTime}`);
