@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup - Đặt lịch khám bệnh</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        .card { background: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; }
+        .card-title { font-weight: bold; margin-bottom: 10px; }
+        .btn { padding: 8px 16px; background: #0066cc; color: white; border: none; cursor: pointer; }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #333; }
+        .input { width: 100%; padding: 8px; border: 1px solid #ddd; margin-bottom: 10px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+        .badge-outline { background: #f3f4f6; color: #666; }
+        
+        /* Progress Steps */
+        .progress-steps { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; margin-bottom: 15px; }
+        .step { display: flex; flex-direction: column; align-items: center; }
+        .step-circle { width: 30px; height: 30px; border-radius: 50%; background: #ddd; color: #666; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-bottom: 5px; }
+        .step-circle.active { background: #0066cc; color: white; }
+        .step-label { font-size: 10px; color: #666; text-align: center; }
+        .step-connector { flex: 1; height: 2px; background: #ddd; margin: 0 10px; margin-top: -15px; }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #ddd; }
+        .tab { padding: 10px 20px; background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab.active { border-bottom-color: #0066cc; color: #0066cc; font-weight: bold; }
+        
+        /* Grid */
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .item-card { border: 1px solid #ddd; padding: 15px; cursor: pointer; }
+        .item-card:hover { border-color: #0066cc; }
+        .item-card.selected { background: #e7f3ff; border-color: #0066cc; }
+        .step-divider { margin: 30px 0; border-top: 2px dashed #ddd; padding-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Đặt lịch khám bệnh</h1>
+            <p style="color: #666; margin-top: 5px;">Chọn chuyên khoa, bác sĩ và thời gian phù hợp với bạn</p>
+        </div>
+
+        <!-- Booking Flow Selection -->
+        <div class="card">
+            <div class="card-title">Chọn cách đặt lịch</div>
+            <div class="tabs">
+                <button class="tab active">📅 Theo ngày</button>
+                <button class="tab">👤 Theo bác sĩ</button>
+            </div>
+            <div style="background: #e7f3ff; padding: 10px; border-radius: 4px; font-size: 12px; color: #1e40af;">
+                Quy trình: Chọn chuyên khoa → Chọn ngày → Chọn bác sĩ → Chọn dịch vụ → Chọn giờ
+            </div>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="card">
+            <div class="progress-steps">
+                <div class="step">
+                    <div class="step-circle active">1</div>
+                    <div class="step-label">Chuyên khoa</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Chọn bác sĩ</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Chọn ngày</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Chọn dịch vụ</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-circle">5</div>
+                    <div class="step-label">Chọn giờ</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-circle">6</div>
+                    <div class="step-label">Xác nhận</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Step -->
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">1</span>
+                Chuyên khoa
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Chọn chuyên khoa bạn muốn khám</p>
+            
+            <!-- Search -->
+            <input type="text" class="input" placeholder="Tìm kiếm chuyên khoa..." style="margin-bottom: 15px;">
+            
+            <!-- Specialty Grid -->
+            <div class="grid">
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Nội khoa</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-001</div>
+                    <button class="btn btn-outline" style="width: 100%; padding: 5px; font-size: 12px;">Chọn</button>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Ngoại khoa</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-002</div>
+                    <button class="btn btn-outline" style="width: 100%; padding: 5px; font-size: 12px;">Chọn</button>
+                </div>
+                <div class="item-card selected">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Nhi khoa</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-003</div>
+                    <button class="btn" style="width: 100%; padding: 5px; font-size: 12px;">Đã chọn</button>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Sản phụ khoa</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-004</div>
+                    <button class="btn btn-outline" style="width: 100%; padding: 5px; font-size: 12px;">Chọn</button>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Tim mạch</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-005</div>
+                    <button class="btn btn-outline" style="width: 100%; padding: 5px; font-size: 12px;">Chọn</button>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Da liễu</div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 10px;">SP-006</div>
+                    <button class="btn btn-outline" style="width: 100%; padding: 5px; font-size: 12px;">Chọn</button>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div style="display: flex; justify-content: center; gap: 5px; margin-top: 15px;">
+                <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">Trước</button>
+                <button class="btn" style="padding: 5px 10px; font-size: 11px;">1</button>
+                <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">2</button>
+                <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;">Sau</button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+            <button class="btn btn-outline" disabled>← Quay lại</button>
+            <button class="btn btn-outline">Bắt đầu lại</button>
+        </div>
+
+        <!-- Selected Info Summary -->
+        <div class="card" style="margin-top: 15px;">
+            <div class="card-title">✓ Thông tin đã chọn</div>
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; font-size: 12px;">
+                <div style="background: #e7f3ff; padding: 10px; text-align: center; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Chuyên khoa</div>
+                    <div style="color: #666;">Nhi khoa</div>
+                </div>
+                <div style="background: #f0fdf4; padding: 10px; text-align: center; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Bác sĩ</div>
+                    <div style="color: #666;">-</div>
+                </div>
+                <div style="background: #faf5ff; padding: 10px; text-align: center; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Ngày</div>
+                    <div style="color: #666;">-</div>
+                </div>
+                <div style="background: #fff7ed; padding: 10px; text-align: center; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Dịch vụ</div>
+                    <div style="color: #666;">-</div>
+                </div>
+                <div style="background: #fef2f2; padding: 10px; text-align: center; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Giờ</div>
+                    <div style="color: #666;">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Select Date -->
+        <div class="step-divider"></div>
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">2</span>
+                Chọn ngày
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Chọn ngày khám</p>
+            
+            <div class="grid-7">
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T2</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">11</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T3</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">12</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card selected">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T4</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">13</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T5</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">14</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T6</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">15</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">T7</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">16</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px;">CN</div>
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">17</div>
+                    <div style="font-size: 10px; color: #666;">Tháng 11</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Select Doctor -->
+        <div class="step-divider"></div>
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">3</span>
+                Chọn bác sĩ
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Chọn bác sĩ phù hợp</p>
+            
+            <div class="grid-2">
+                <div class="item-card">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666;">NV</div>
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 3px;">BS. Nguyễn Văn A</div>
+                            <div style="font-size: 11px; color: #666;">Tiến sĩ Y khoa</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="item-card selected">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666;">TB</div>
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 3px;">BS. Trần Thị B</div>
+                            <div style="font-size: 11px; color: #666;">Thạc sĩ Y khoa</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="item-card">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666;">LC</div>
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 3px;">BS. Lê Văn C</div>
+                            <div style="font-size: 11px; color: #666;">Bác sĩ Chuyên khoa</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="item-card">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666;">PD</div>
+                        <div>
+                            <div style="font-weight: bold; margin-bottom: 3px;">BS. Phạm Thị D</div>
+                            <div style="font-size: 11px; color: #666;">Bác sĩ Chuyên khoa</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Select Service -->
+        <div class="step-divider"></div>
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">4</span>
+                Chọn dịch vụ
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Chọn dịch vụ khám</p>
+            
+            <div class="grid-2">
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Khám tổng quát</div>
+                    <div style="color: #0066cc; font-weight: bold;">500,000 đ</div>
+                </div>
+                <div class="item-card selected">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Khám chuyên khoa</div>
+                    <div style="color: #0066cc; font-weight: bold;">800,000 đ</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Tư vấn sức khỏe</div>
+                    <div style="color: #0066cc; font-weight: bold;">300,000 đ</div>
+                </div>
+                <div class="item-card">
+                    <div style="font-weight: bold; margin-bottom: 5px;">Khám định kỳ</div>
+                    <div style="color: #0066cc; font-weight: bold;">600,000 đ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Select Time -->
+        <div class="step-divider"></div>
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">5</span>
+                Chọn giờ
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Chọn giờ khám</p>
+            
+            <div class="grid-4">
+                <div class="item-card" style="background: #f3f4f6; opacity: 0.6;">
+                    <div style="text-align: center; font-size: 12px; color: #999;">07:00 - 07:30</div>
+                </div>
+                <div class="item-card">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">08:00 - 08:30</div>
+                </div>
+                <div class="item-card selected">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">09:00 - 09:30</div>
+                </div>
+                <div class="item-card">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">10:00 - 10:30</div>
+                </div>
+                <div class="item-card">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">11:00 - 11:30</div>
+                </div>
+                <div class="item-card" style="background: #f3f4f6; opacity: 0.6;">
+                    <div style="text-align: center; font-size: 12px; color: #999;">13:00 - 13:30</div>
+                </div>
+                <div class="item-card">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">14:00 - 14:30</div>
+                </div>
+                <div class="item-card">
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">15:00 - 15:30</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 6: Confirm -->
+        <div class="step-divider"></div>
+        <div class="card">
+            <div class="card-title">
+                <span style="background: #e7f3ff; padding: 5px 10px; border-radius: 50%; margin-right: 10px;">6</span>
+                Xác nhận
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Xác nhận thông tin đặt lịch</p>
+            
+            <div style="background: #f9fafb; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                    <span style="color: #666; font-size: 13px;">Chuyên khoa:</span>
+                    <span style="font-weight: bold; font-size: 13px;">Nhi khoa</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                    <span style="color: #666; font-size: 13px;">Bác sĩ:</span>
+                    <span style="font-weight: bold; font-size: 13px;">BS. Trần Thị B</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                    <span style="color: #666; font-size: 13px;">Ngày khám:</span>
+                    <span style="font-weight: bold; font-size: 13px;">13/11/2024</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                    <span style="color: #666; font-size: 13px;">Dịch vụ:</span>
+                    <span style="font-weight: bold; font-size: 13px;">Khám chuyên khoa</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd;">
+                    <span style="color: #666; font-size: 13px;">Giờ khám:</span>
+                    <span style="font-weight: bold; font-size: 13px;">09:00 - 09:30</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                    <span style="color: #666; font-size: 13px;">Giá dịch vụ:</span>
+                    <span style="font-weight: bold; font-size: 15px; color: #0066cc;">800,000 đ</span>
+                </div>
+            </div>
+            
+            <button class="btn" style="width: 100%; padding: 12px; background: #28a745; font-size: 14px; font-weight: bold;">Xác nhận đặt lịch</button>
+        </div>
+    </div>
+</body>
+</html>
