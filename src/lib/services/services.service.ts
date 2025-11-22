@@ -5,6 +5,16 @@ export type ServiceCategory = {
   id: string
   code: string
   name: string
+  description?: string | null
+}
+
+export type ServiceCategoryDetail = {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  services: Service[]
+  packages: Package[]
 }
 
 export type Specialty = {
@@ -263,14 +273,14 @@ export const serviceCategoriesService = {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories/${id}`)
   },
 
-  async createCategory(data: { name: string; description?: string }): Promise<DetailResponse<ServiceCategory>> {
+  async createCategory(data: { code: string; name: string; description?: string }): Promise<DetailResponse<ServiceCategory>> {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories`, {
       method: "POST",
       body: JSON.stringify(data),
     })
   },
 
-  async updateCategory(id: string, data: { name?: string; description?: string | null }): Promise<DetailResponse<ServiceCategory>> {
+  async updateCategory(id: string, data: { code?: string; name?: string; description?: string | null }): Promise<DetailResponse<ServiceCategory>> {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -279,6 +289,22 @@ export const serviceCategoriesService = {
 
   async deleteCategory(id: string): Promise<{ success: boolean; message: string }> {
     return apiFetch<{ success: boolean; message: string }>(`/service-categories/${id}`, {
+      method: "DELETE",
+    })
+  },
+
+  async getCategoryDetail(id: string): Promise<DetailResponse<ServiceCategoryDetail>> {
+    return apiFetch<DetailResponse<ServiceCategoryDetail>>(`/service-categories/${id}`)
+  },
+
+  async addServiceToCategory(categoryId: string, serviceId: string): Promise<DetailResponse<Service>> {
+    return apiFetch<DetailResponse<Service>>(`/service-categories/${categoryId}/services/${serviceId}`, {
+      method: "POST",
+    })
+  },
+
+  async removeServiceFromCategory(categoryId: string, serviceId: string): Promise<DetailResponse<Service>> {
+    return apiFetch<DetailResponse<Service>>(`/service-categories/${categoryId}/services/${serviceId}`, {
       method: "DELETE",
     })
   },
