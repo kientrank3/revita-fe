@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -418,6 +419,46 @@ const assignCounterApi = async (counterId: string, notes?: string): Promise<{ su
   };
 };
 
+const openCounterApi = async (counterId: string, notes?: string, isVip?: boolean): Promise<{ success: boolean; message?: string }> => {
+  const url = `${API_BASE_URL}/receptionists/counters/open`;
+  const body = {
+    counterId,
+    notes: notes || undefined,
+    isVip: isVip ?? false,
+  };
+
+  // Get auth token from localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    credentials: 'include' as RequestCredentials,
+    body: JSON.stringify(body),
+  };
+
+  const response = await fetch(url, options);
+
+  const data: unknown = await response.json().catch(() => ({}));
+
+  const successFlag =
+    (typeof data === 'object' && data !== null && 'success' in data && (data as any).success) ||
+    response.ok;
+
+  if (!successFlag) {
+    const message = isPlainObject(data) && typeof data.message === 'string' ? data.message : null;
+    throw new Error(message || 'Không thể mở quầy');
+  }
+
+  return {
+    success: true,
+    message: isPlainObject(data) && typeof data.message === 'string' ? data.message : 'Đã mở quầy thành công',
+  };
+};
+
 const checkoutCounterApi = async (counterId: string): Promise<{ success: boolean; message?: string }> => {
   const url = `${API_BASE_URL}/counter-assignment/checkout`;
   const body = {
@@ -499,6 +540,7 @@ export default function ReceptionPage() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [assignNotes, setAssignNotes] = useState('');
+  const [isVip, setIsVip] = useState(false);
   const [showCounterModal, setShowCounterModal] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
@@ -651,20 +693,21 @@ export default function ReceptionPage() {
     setLoadingAssign(true);
 
     try {
-      const result = await assignCounterApi(selectedCounterId, assignNotes);
-      toast.success(result.message || 'Đã assign counter thành công');
+      const result = await openCounterApi(selectedCounterId, assignNotes, isVip);
+      toast.success(result.message || 'Đã mở quầy thành công');
       setShowAssignDialog(false);
       setShowCounterModal(false);
       setAssignNotes('');
+      setIsVip(false);
       // Refresh counters list to update status
       await loadCounters();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Không thể assign counter';
+      const message = error instanceof Error ? error.message : 'Không thể mở quầy';
       toast.error(message);
     } finally {
       setLoadingAssign(false);
     }
-  }, [selectedCounterId, assignNotes, loadCounters]);
+  }, [selectedCounterId, assignNotes, isVip, loadCounters]);
 
   const handleCheckoutCounter = useCallback(async () => {
     if (!selectedCounterId) {
@@ -1237,6 +1280,32 @@ export default function ReceptionPage() {
                 onChange={(e) => setAssignNotes(e.target.value)}
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="is-vip" className="text-right">
+                Loại quầy
+              </Label>
+              <div className="col-span-3 flex items-center space-x-2">
+                <Checkbox
+                  id="is-vip"
+                  checked={isVip}
+                  onCheckedChange={(checked) => setIsVip(!!checked)}
+                />
+                <Label htmlFor="is-vip" className="text-sm font-normal cursor-pointer">
+                  Quầy VIP
+                </Label>
+              </div>
+            </div>
+            {isVip && (
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-4">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Thông báo:</strong> Quầy VIP - Chỉ nhận các bệnh nhân VIP
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -1245,6 +1314,7 @@ export default function ReceptionPage() {
               onClick={() => {
                 setShowAssignDialog(false);
                 setAssignNotes('');
+                setIsVip(false);
               }}
               disabled={loadingAssign}
             >
