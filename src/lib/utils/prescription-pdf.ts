@@ -17,6 +17,7 @@ interface PrescriptionForPDF {
   } | null;
   services?: Array<{
     order: number;
+    note?: string | null;
     service?: {
       serviceCode?: string;
       name?: string;
@@ -142,17 +143,19 @@ export const generatePrescriptionPDF = async (prescription: PrescriptionForPDF):
         {
           table: {
             headerRows: 1,
-            widths: [28, 120, '*'],
+            widths: [28, 100, '*', 150],
             body: [
               [
                 { text: '#', style: 'tableHeader', alignment: 'center' },
                 { text: 'Mã dịch vụ', style: 'tableHeader' },
-                { text: 'Tên dịch vụ', style: 'tableHeader' }
+                { text: 'Tên dịch vụ', style: 'tableHeader' },
+                { text: 'Ghi chú', style: 'tableHeader' }
               ],
               ...(prescription.services?.map((s) => [
                 { text: String(s.order), alignment: 'center', fontSize: 10 },
                 { text: s.service?.serviceCode || '—', fontSize: 10 },
-                { text: s.service?.name || '—', fontSize: 10 }
+                { text: s.service?.name || '—', fontSize: 10 },
+                { text: s.note || '—', fontSize: 10 }
               ]) || [])
             ]
           },

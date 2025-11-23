@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
@@ -31,12 +32,19 @@ interface Service {
 interface PrescriptionService {
   serviceCode: string;
   order: number;
+  note?: string;
+}
+
+interface PrescriptionServiceRequest {
+  serviceCode: string;
+  order: number;
+  note?: string;
 }
 
 interface PrescriptionData {
   patientProfileId: string;
   medicalRecordId: string;
-  services: PrescriptionService[];
+  services: PrescriptionServiceRequest[];
 }
 
 export default function CreatePrescriptionPage() {
@@ -126,6 +134,12 @@ export default function CreatePrescriptionPage() {
     });
   }, []);
 
+  const updateServiceNote = useCallback((serviceCode: string, note: string) => {
+    setSelectedServices(prev => prev.map(s => 
+      s.serviceCode === serviceCode ? { ...s, note: note || undefined } : s
+    ));
+  }, []);
+
   const handleCreatePrescription = async () => {
     if (!medicalRecord) {
       toast.error('Thiếu thông tin cần thiết');
@@ -139,10 +153,17 @@ export default function CreatePrescriptionPage() {
 
     setIsCreating(true);
     try {
+      // Format services with note (trim only when sending, not during typing)
+      const formattedServices: PrescriptionServiceRequest[] = selectedServices.map(service => ({
+        serviceCode: service.serviceCode,
+        order: service.order,
+        ...(service.note && service.note.trim().length > 0 && { note: service.note.trim() })
+      }));
+
       const prescriptionData: PrescriptionData = {
         patientProfileId: medicalRecord.patientProfileId,
         medicalRecordId: recordId,
-        services: selectedServices
+        services: formattedServices
       };
 
       const response = await fetch('/api/prescriptions', {
@@ -278,26 +299,43 @@ export default function CreatePrescriptionPage() {
                   {selectedServices.map((service, index) => (
                     <div
                       key={service.serviceCode}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
                     >
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <GripVertical className="h-4 w-4 cursor-move" />
-                        <Badge variant="secondary" className="text-xs">
-                          {service.order}
-                        </Badge>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-1">
+                          <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                          <Badge variant="secondary" className="text-xs">
+                            {service.order}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-900">{service.serviceCode}</p>
+                            <p className="text-xs text-gray-600">Dịch vụ #{index + 1}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeService(service.serviceCode)}
+                          className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{service.serviceCode}</p>
-                        <p className="text-xs text-gray-600">Dịch vụ #{index + 1}</p>
+                      
+                      {/* Note Input */}
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <Label className="text-xs font-medium text-gray-700 mb-2 block">
+                          Ghi chú (tùy chọn)
+                        </Label>
+                        <Textarea
+                          placeholder="Nhập ghi chú cho dịch vụ này..."
+                          value={service.note || ''}
+                          onChange={(e) => updateServiceNote(service.serviceCode, e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="text-xs min-h-[60px] bg-white"
+                          rows={2}
+                        />
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeService(service.serviceCode)}
-                        className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   ))}
                 </div>

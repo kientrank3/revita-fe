@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MedicalRecord } from '@/lib/types/medical-record';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface Service {
@@ -63,6 +64,7 @@ interface PrescriptionService {
   serviceName?: string;
   order: number;
   doctorId?: string;
+  note?: string;
 }
 
 interface PrescriptionServiceRequest {
@@ -70,6 +72,7 @@ interface PrescriptionServiceRequest {
   serviceCode?: string
   serviceId?: string;
   doctorId?: string;
+  note?: string;
 }
 
 interface PrescriptionData {
@@ -244,6 +247,12 @@ export default function ReceptionCreatePrescriptionPage() {
   const updateServiceDoctor = useCallback((serviceCode: string, doctorId: string | undefined) => {
     setSelectedServices(prev => prev.map(s => 
       s.serviceCode === serviceCode ? { ...s, doctorId } : s
+    ));
+  }, []);
+
+  const updateServiceNote = useCallback((serviceCode: string, note: string) => {
+    setSelectedServices(prev => prev.map(s => 
+      s.serviceCode === serviceCode ? { ...s, note: note || undefined } : s
     ));
   }, []);
 
@@ -982,6 +991,11 @@ export default function ReceptionCreatePrescriptionPage() {
         serviceData.doctorId = String(service.doctorId).trim();
       }
       
+      // Include note if provided (trim only when sending, not during typing)
+      if (service.note && service.note.trim().length > 0) {
+        serviceData.note = service.note.trim();
+      }
+      
       return serviceData;
     }).filter((s): s is PrescriptionServiceRequest => s !== null);
 
@@ -1404,6 +1418,21 @@ export default function ReceptionCreatePrescriptionPage() {
                           </Button>
                         </div>
                         
+                        {/* Note Input */}
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <Label className="text-xs font-medium text-gray-700 mb-2 block">
+                            Ghi chú (tùy chọn)
+                          </Label>
+                          <Textarea
+                            placeholder="Nhập ghi chú cho dịch vụ này..."
+                            value={service.note || ''}
+                            onChange={(e) => updateServiceNote(service.serviceCode, e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="text-xs min-h-[60px] bg-white"
+                            rows={2}
+                          />
+                        </div>
+
                         {/* Doctor Selection */}
                         {service.serviceId && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
