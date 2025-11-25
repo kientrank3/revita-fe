@@ -355,7 +355,7 @@ function CategoriesTab() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Bạn có chắc chắn muốn xóa danh mục <span className="font-semibold text-foreground">"{itemToDelete?.name}"</span>? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa danh mục <span className="font-semibold text-foreground">&quot;{itemToDelete?.name}&quot;</span>? Hành động này không thể hoàn tác.
             </p>
           </div>
           <DialogFooter>
@@ -864,7 +864,7 @@ function ServicesTab() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Bạn có chắc chắn muốn xóa dịch vụ <span className="font-semibold text-foreground">"{itemToDelete?.name}"</span>? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa dịch vụ <span className="font-semibold text-foreground">&quot;{itemToDelete?.name}&quot;</span>? Hành động này không thể hoàn tác.
             </p>
           </div>
           <DialogFooter>
@@ -1319,7 +1319,7 @@ function PackagesTab() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Bạn có chắc chắn muốn xóa gói <span className="font-semibold text-foreground">"{itemToDelete?.name}"</span>? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa gói <span className="font-semibold text-foreground">&quot;{itemToDelete?.name}&quot;</span>? Hành động này không thể hoàn tác.
             </p>
           </div>
           <DialogFooter>
