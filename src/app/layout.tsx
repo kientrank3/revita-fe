@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { LayoutRedirect } from "@/components/auth/LayoutRedirect";
+import { GoogleAuthListener } from "@/components/auth/GoogleAuthListener";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <LayoutRedirect />
+          <GoogleAuthListener />
           {children}
           <Toaster />
         </AuthProvider>

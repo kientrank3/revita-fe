@@ -158,17 +158,17 @@ export function MainHeader() {
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-primary/10 transition-all duration-200">
                       <Avatar className="h-10 w-10 ring-2 ring-primary/20 hover:ring-primary/40 transition-all duration-200">
                         <AvatarImage src={user.avatar || ''} alt={user.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-sm font-semibold">
+                        <AvatarFallback className="bg-linear-to-br from-primary to-primary/80 text-white text-sm font-semibold">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
-                    <div className="flex items-center justify-start gap-3 p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg mb-2">
+                  <DropdownMenuContent className="w-80 p-2" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-3 p-3 bg-linear-to-r from-primary/5 to-primary/10 rounded-lg mb-2">
                       <Avatar className="h-12 w-12">
                         <AvatarImage src={user.avatar || ''} alt={user.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white">
+                        <AvatarFallback className="bg-linear-to-br from-primary to-primary/80 text-white">
                           {getInitials(user.name)}
                         </AvatarFallback>
                       </Avatar>
