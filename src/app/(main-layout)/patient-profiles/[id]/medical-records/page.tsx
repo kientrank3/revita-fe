@@ -1,6 +1,11 @@
 'use client';
 
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { ArrowLeft, FileText, Calendar, User, AlertCircle, Stethoscope, Download, Eye, Star } from 'lucide-react';
+
 import { useMedicalRecords } from '@/lib/hooks/useMedicalRecords';
 import { usePatientProfiles } from '@/lib/hooks/usePatientProfiles';
 import { PatientProfileInfo } from '@/components/patient/PatientProfileInfo';
@@ -9,17 +14,33 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  ArrowLeft, 
-  FileText, 
-  Calendar, 
-  User, 
-  AlertCircle,
-  Stethoscope,
-  Download,
-  Eye
-} from 'lucide-react';
-import Link from 'next/link';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { doctorRatingService, type DoctorRating, type DoctorRatingStats } from '@/lib/services/doctor-rating.service';
+import type { MedicalRecord } from '@/lib/types/medical-record';
+
+type MedicalRecordWithDoctor = MedicalRecord & {
+  doctor?: {
+    id?: string;
+    doctorId?: string;
+    authId?: string;
+    doctorCode?: string;
+    description?: string;
+  };
+};
+
+interface RatingDialogState {
+  open: boolean;
+  doctorId?: string;
+  medicalRecordId?: string;
+  existingRating?: DoctorRating | null;
+}
+
+const INITIAL_RATING_FORM = {
+  rating: 5,
+  comment: '',
+};
 
 export default function PatientProfileMedicalRecordsPage() {
   const params = useParams();
@@ -31,9 +52,18 @@ export default function PatientProfileMedicalRecordsPage() {
   });
   
   // Ensure medicalRecords is always an array
-  const safeMedicalRecords = Array.isArray(medicalRecords) ? medicalRecords : [];
+  const safeMedicalRecords = useMemo<MedicalRecordWithDoctor[]>(() => {
+    return Array.isArray(medicalRecords) ? (medicalRecords as MedicalRecordWithDoctor[]) : [];
+  }, [medicalRecords]);
   
   const currentProfile = patientProfiles.find(p => p.id === patientProfileId);
+
+  const [patientRatings, setPatientRatings] = useState<Record<string, DoctorRating>>({});
+  const [doctorStats, setDoctorStats] = useState<Record<string, DoctorRatingStats>>({});
+  const [isLoadingPatientRatings, setIsLoadingPatientRatings] = useState(false);
+  const [ratingDialog, setRatingDialog] = useState<RatingDialogState>({ open: false });
+  const [ratingForm, setRatingForm] = useState(INITIAL_RATING_FORM);
+  const [isSavingRating, setIsSavingRating] = useState(false);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -56,6 +86,217 @@ export default function PatientProfileMedicalRecordsPage() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getDoctorIdFromRecord = useCallback((record: MedicalRecordWithDoctor) => {
+    return record.doctorId || record.doctor?.id || record.doctor?.doctorId || record.doctor?.authId || null;
+  }, []);
+
+  const loadPatientRatings = useCallback(async () => {
+    try {
+      setIsLoadingPatientRatings(true);
+      const result = await doctorRatingService.getPatientRatings(1, 200);
+      const ratingsArray: DoctorRating[] = Array.isArray(result)
+        ? result
+        : Array.isArray(result.data)
+        ? result.data
+        : [];
+      const ratingsMap: Record<string, DoctorRating> = {};
+      ratingsArray.forEach((rating) => {
+        if (rating.medicalRecordId) {
+          ratingsMap[rating.medicalRecordId] = rating;
+        }
+      });
+      setPatientRatings(ratingsMap);
+    } catch (err) {
+      console.error('Error loading patient ratings:', err);
+    } finally {
+      setIsLoadingPatientRatings(false);
+    }
+  }, []);
+
+  const loadDoctorStats = useCallback(async (doctorIds: string[]) => {
+    const uniqueIds = Array.from(new Set(doctorIds.filter((id): id is string => Boolean(id))));
+    if (uniqueIds.length === 0) return;
+    try {
+      const statsEntries = await Promise.all(
+        uniqueIds.map(async (id) => {
+          try {
+            const stats = await doctorRatingService.getDoctorStats(id);
+            return [id, stats] as const;
+          } catch (err) {
+            console.error('Error loading stats for doctor:', id, err);
+            return null;
+          }
+        })
+      );
+      setDoctorStats((prev) => {
+        const updated = { ...prev };
+        statsEntries.forEach((entry) => {
+          if (entry) {
+            updated[entry[0]] = entry[1];
+          }
+        });
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error loading doctor stats:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPatientRatings();
+  }, [loadPatientRatings]);
+
+  useEffect(() => {
+    const doctors = safeMedicalRecords
+      .map((record) => getDoctorIdFromRecord(record))
+      .filter((id): id is string => Boolean(id));
+    if (doctors.length) {
+      loadDoctorStats(doctors);
+    }
+  }, [safeMedicalRecords, getDoctorIdFromRecord, loadDoctorStats]);
+
+  const openRatingDialog = (record: MedicalRecordWithDoctor) => {
+    const doctorId = getDoctorIdFromRecord(record);
+    if (!doctorId) {
+      toast.error('Không tìm thấy thông tin bác sĩ để đánh giá');
+      return;
+    }
+    const existingRating = patientRatings[record.id];
+    setRatingDialog({
+      open: true,
+      doctorId,
+      medicalRecordId: record.id,
+      existingRating,
+    });
+    setRatingForm({
+      rating: existingRating?.rating || 5,
+      comment: existingRating?.comment || '',
+    });
+  };
+
+  const closeRatingDialog = () => {
+    setRatingDialog({ open: false });
+    setRatingForm(INITIAL_RATING_FORM);
+  };
+
+  const refreshDoctorStats = useCallback(
+    async (doctorId: string) => {
+      await loadDoctorStats([doctorId]);
+    },
+    [loadDoctorStats]
+  );
+
+  const handleSubmitRating = async () => {
+    if (!ratingDialog.doctorId || !ratingDialog.medicalRecordId) return;
+    if (ratingForm.rating < 1) {
+      toast.error('Vui lòng chọn số sao đánh giá');
+      return;
+    }
+    setIsSavingRating(true);
+    try {
+      let updatedRating: DoctorRating;
+      if (ratingDialog.existingRating) {
+        updatedRating = await doctorRatingService.updateRating(ratingDialog.existingRating.id, {
+          rating: ratingForm.rating,
+          comment: ratingForm.comment,
+        });
+        toast.success('Cập nhật đánh giá thành công');
+      } else {
+        updatedRating = await doctorRatingService.createRating({
+          doctorId: ratingDialog.doctorId,
+          medicalRecordId: ratingDialog.medicalRecordId,
+          rating: ratingForm.rating,
+          comment: ratingForm.comment,
+        });
+        toast.success('Gửi đánh giá thành công');
+      }
+      setPatientRatings((prev) => ({
+        ...prev,
+        [ratingDialog.medicalRecordId as string]: updatedRating,
+      }));
+      await refreshDoctorStats(ratingDialog.doctorId);
+      closeRatingDialog();
+    } catch (err) {
+      console.error('Error submitting rating:', err);
+      const message = err instanceof Error ? err.message : 'Không thể gửi đánh giá. Vui lòng thử lại.';
+      toast.error(message);
+    } finally {
+      setIsSavingRating(false);
+    }
+  };
+
+  const RatingStars = ({
+    value,
+    onSelect,
+    size = 18,
+  }: {
+    value: number;
+    onSelect?: (value: number) => void;
+    size?: number;
+  }) => (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((starValue) => {
+        const filled = value >= starValue;
+        const interactive = Boolean(onSelect);
+        return (
+          <button
+            key={starValue}
+            type="button"
+            className={`p-0.5 ${interactive ? 'hover:scale-105 transition-transform' : 'cursor-default'}`}
+            onClick={() => onSelect?.(starValue)}
+            disabled={!interactive}
+          >
+            <Star
+              className={filled ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+              style={{ width: size, height: size }}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderRatingSummary = (record: MedicalRecordWithDoctor) => {
+    const doctorId = getDoctorIdFromRecord(record);
+    if (!doctorId) {
+      return null;
+    }
+    const stats = doctorStats[doctorId];
+    const existingRating = patientRatings[record.id];
+
+    return (
+      <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Đánh giá bác sĩ</p>
+            {stats ? (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <RatingStars value={stats.averageRating || 0} />
+                <span className="font-semibold">{(stats.averageRating ?? 0).toFixed(1)} / 5</span>
+                <span className="text-xs text-gray-500">({stats.totalRatings || 0} đánh giá)</span>
+              </div>
+            ) : (
+              <span className="text-xs text-gray-500">Chưa có đánh giá</span>
+            )}
+            {existingRating && (
+              <p className="mt-1 text-xs text-gray-500">
+                Bạn đã đánh giá: <strong>{existingRating.rating}/5</strong>
+              </p>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant={existingRating ? 'secondary' : 'default'}
+            onClick={() => openRatingDialog(record)}
+            disabled={isLoadingPatientRatings}
+          >
+            {existingRating ? 'Chỉnh sửa đánh giá' : 'Đánh giá bác sĩ'}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -112,8 +353,9 @@ export default function PatientProfileMedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
+    <>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center space-x-4 mb-4">
@@ -259,12 +501,48 @@ export default function PatientProfileMedicalRecordsPage() {
                       </Link>
                     </Button>
                   </div>
+
+                {renderRatingSummary(record)}
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+        </div>
       </div>
-    </div>
+
+      <Dialog open={ratingDialog.open} onOpenChange={(open) => (!open ? closeRatingDialog() : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đánh giá bác sĩ</DialogTitle>
+            <DialogDescription>Chia sẻ trải nghiệm của bạn để giúp chúng tôi cải thiện dịch vụ.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <RatingStars value={ratingForm.rating} onSelect={(value) => setRatingForm((prev) => ({ ...prev, rating: value }))} size={28} />
+              <span className="text-sm text-gray-600">{ratingForm.rating} / 5</span>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ratingComment">Nhận xét</Label>
+              <Textarea
+                id="ratingComment"
+                placeholder="Bạn có thể mô tả chi tiết trải nghiệm của mình..."
+                value={ratingForm.comment}
+                onChange={(e) => setRatingForm((prev) => ({ ...prev, comment: e.target.value }))}
+                rows={4}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeRatingDialog}>
+                Hủy
+              </Button>
+              <Button onClick={handleSubmitRating} disabled={isSavingRating || ratingForm.rating < 1}>
+                {isSavingRating ? 'Đang gửi...' : ratingDialog.existingRating ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
