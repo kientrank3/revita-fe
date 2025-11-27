@@ -1725,11 +1725,6 @@ export default function InvoicesPage() {
                         <div className="text-sm flex items-center justify-between text-green-600">
                           <span className="flex items-center gap-2">
                             <span>Giảm giá</span>
-                            {preview?.loyaltyInfo?.tierInfo && (
-                              <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
-                                ({preview.loyaltyInfo.tierInfo.discountPercent}%)
-                              </Badge>
-                            )}
                             <span>:</span>
                           </span>
                           <span className="font-medium">-{discountAmount.toLocaleString()} đ</span>
@@ -1947,16 +1942,7 @@ export default function InvoicesPage() {
                       <div className="flex items-center justify-between text-green-600">
                         <span className="flex items-center gap-2">
                           <span>Giảm giá</span>
-                          {preview?.loyaltyInfo?.tierInfo && (
-                            <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
-                              {preview.loyaltyInfo.tierInfo.name} ({preview.loyaltyInfo.tierInfo.discountPercent}%)
-                            </Badge>
-                          )}
-                          {preview?.loyaltyInfo?.totalPoints !== undefined && (
-                            <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                              {preview.loyaltyInfo.totalPoints} điểm
-                            </Badge>
-                          )}
+                          
                           <span>:</span>
                         </span>
                         <span className="font-medium">-{discountAmount.toLocaleString()} đ</span>
