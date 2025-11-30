@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, Camera, CameraOff } from 'lucide-react';
+import { QrCode, Camera, CameraOff, AlertTriangle, User, Stethoscope } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from 'html5-qrcode';
 import { toast } from 'sonner';
@@ -426,12 +427,36 @@ export default function SupportServingPage() {
           {pendingData && (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
-                Mã phiếu: <span className="font-medium text-foreground">{pendingData.prescriptionCode}</span> · Trạng thái: {pendingData.status} · Tổng dịch vụ chờ: {pendingData.totalCount}
+                Mã phiếu: <span className="font-medium text-foreground">{pendingData.prescriptionCode}</span> · 
+                Trạng thái: <span className="font-medium text-foreground">
+                  {pendingData.status === 'PENDING' ? 'Chờ thực hiện' : 
+                   pendingData.status === 'RESCHEDULED' ? 'Đã hẹn lại' : 
+                   'Hỗn hợp'}
+                </span> · 
+                Tổng dịch vụ chờ: {pendingData.totalCount}
               </div>
+
+              {/* Cảnh báo nếu có bác sĩ/kỹ thuật viên không làm việc */}
+              {pendingData.services.some(s => s.isDoctorNotWorking || s.isTechnicianNotWorking) && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-yellow-800">Cảnh báo</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Có dịch vụ được hẹn lại với bác sĩ/kỹ thuật viên hiện không làm việc hôm nay. 
+                        Vui lòng kiểm tra và liên hệ để bố trí lại.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Danh sách dịch vụ PENDING</CardTitle>
+                  <CardTitle className="text-base">
+                    Danh sách dịch vụ {pendingData.status === 'RESCHEDULED' ? 'ĐÃ HẸN LẠI' : pendingData.status === 'MIXED' ? 'CHỜ THỰC HIỆN & ĐÃ HẸN LẠI' : 'CHỜ THỰC HIỆN'}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -439,21 +464,72 @@ export default function SupportServingPage() {
                       <TableRow>
                         <TableHead>#</TableHead>
                         <TableHead>Tên dịch vụ</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Bác sĩ</TableHead>
+                        <TableHead>Kỹ thuật viên</TableHead>
                         <TableHead>Service ID</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingData.services.map((s: { serviceId: string; serviceName: string }, idx: number) => (
-                        <TableRow key={s.serviceId}>
-                          <TableCell>{idx + 1}</TableCell>
-                          <TableCell>{s.serviceName}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{s.serviceId}</TableCell>
-                        </TableRow>
-                      ))}
+                      {pendingData.services.map((s, idx: number) => {
+                        const isRescheduled = s.status === 'RESCHEDULED';
+                        const hasDoctor = s.doctorId && s.doctorName;
+                        const hasTechnician = s.technicianId && s.technicianName;
+                        const doctorNotWorking = s.isDoctorNotWorking === true;
+                        const technicianNotWorking = s.isTechnicianNotWorking === true;
+                        
+                        return (
+                          <TableRow key={s.serviceId}>
+                            <TableCell>{idx + 1}</TableCell>
+                            <TableCell>{s.serviceName}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={isRescheduled ? "secondary" : "default"}
+                                className={isRescheduled ? "bg-orange-100 text-orange-800 border-orange-200" : ""}
+                              >
+                                {isRescheduled ? 'Đã hẹn lại' : 'Chờ thực hiện'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {hasDoctor ? (
+                                <div className="flex items-center gap-1">
+                                  <Stethoscope className="h-3 w-3 text-blue-600" />
+                                  <span className="text-sm">{s.doctorName}</span>
+                                  {doctorNotWorking && (
+                                    <Badge variant="destructive" className="text-xs ml-1">
+                                      <AlertTriangle className="h-2 w-2 mr-1" />
+                                      Không làm việc
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">--</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {hasTechnician ? (
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3 w-3 text-green-600" />
+                                  <span className="text-sm">{s.technicianName}</span>
+                                  {technicianNotWorking && (
+                                    <Badge variant="destructive" className="text-xs ml-1">
+                                      <AlertTriangle className="h-2 w-2 mr-1" />
+                                      Không làm việc
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">--</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{s.serviceId}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {pendingData.services.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
-                            Không có dịch vụ PENDING
+                          <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                            Không có dịch vụ {pendingData.status === 'RESCHEDULED' ? 'đã hẹn lại' : 'chờ thực hiện'}
                           </TableCell>
                         </TableRow>
                       )}

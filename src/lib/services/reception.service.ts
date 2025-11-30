@@ -18,13 +18,20 @@ import {
 interface PendingServiceItem {
   serviceId: string;
   serviceName: string;
+  status: 'PENDING' | 'RESCHEDULED';
+  doctorId?: string | null;
+  technicianId?: string | null;
+  doctorName?: string | null;
+  technicianName?: string | null;
+  isDoctorNotWorking?: boolean;
+  isTechnicianNotWorking?: boolean;
 }
 
 export interface PendingServicesResponse {
   prescriptionId: string;
   prescriptionCode: string;
   services: PendingServiceItem[];
-  status: string;
+  status: 'PENDING' | 'RESCHEDULED' | 'MIXED';
   totalCount: number;
 }
 
