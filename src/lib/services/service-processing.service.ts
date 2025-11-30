@@ -27,8 +27,7 @@ class ServiceProcessingService {
   // 2. UPDATE SERVICE STATUS - General status update with note
   async updateServiceStatus(data: UpdateServiceStatusRequest): Promise<UpdateServiceStatusResponse> {
     console.log('📝 Updating service status:', {
-      prescriptionId: data.prescriptionId,
-      serviceId: data.serviceId,
+      prescriptionServiceId: data.prescriptionServiceId,
       status: data.status,
       note: data.note
     });
@@ -42,10 +41,10 @@ class ServiceProcessingService {
   // 3. UPDATE SERVICE RESULTS
   async updateServiceResults(data: UpdateServiceResultsRequest): Promise<UpdateServiceResultsResponse> {
     console.log('📝 Updating service results:', {
-      prescriptionId: data.prescriptionId,
-      serviceId: data.serviceId,
+      prescriptionServiceId: data.prescriptionServiceId,
       resultsCount: data.results.length,
-      note: data.note
+      note: data.note,
+      shouldReschedule: data.shouldReschedule
     });
     console.log('🔐 JWT Token should be in Authorization header automatically');
 
@@ -109,13 +108,12 @@ class ServiceProcessingService {
   }
 
   // 6. START SERVICE (SHORTCUT) - WAITING → SERVING
-  async startService(prescriptionId: string, serviceId: string): Promise<UpdateServiceStatusResponse> {
-    console.log('▶️ Starting service:', { prescriptionId, serviceId });
+  async startService(prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> {
+    console.log('▶️ Starting service:', { prescriptionServiceId });
     console.log('🔐 JWT Token should be in Authorization header automatically');
 
     const response = await api.post(`${this.baseUrl}/prescription-service/start`, {
-      prescriptionId,
-      serviceId,
+      prescriptionServiceId,
       status: 'SERVING',
       note: 'Bắt đầu thực hiện dịch vụ'
     });
@@ -124,13 +122,12 @@ class ServiceProcessingService {
   }
 
   // 7. COMPLETE SERVICE (SHORTCUT) - SERVING → WAITING_RESULT
-  async completeService(prescriptionId: string, serviceId: string): Promise<UpdateServiceStatusResponse> {
-    console.log('✅ Completing service:', { prescriptionId, serviceId });
+  async completeService(prescriptionServiceId: string): Promise<UpdateServiceStatusResponse> {
+    console.log('✅ Completing service:', { prescriptionServiceId });
     console.log('🔐 JWT Token should be in Authorization header automatically');
 
     const response = await api.post(`${this.baseUrl}/prescription-service/complete`, {
-      prescriptionId,
-      serviceId,
+      prescriptionServiceId,
       status: 'WAITING_RESULT',
       note: 'Hoàn thành thực hiện dịch vụ'
     });
