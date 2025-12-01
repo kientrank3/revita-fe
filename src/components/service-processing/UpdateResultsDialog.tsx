@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
 import { fileStorageService } from '@/lib/services/file-storage.service';
-import { PrescriptionService } from '@/lib/types/service-processing';
+import { PrescriptionService, UpdateServiceResultsRequest } from '@/lib/types/service-processing';
 import { Upload, FileText, X, Image, File, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface UpdateResultsDialogProps {
@@ -119,15 +119,12 @@ export function UpdateResultsDialog({
       }
 
       // Update results - ALWAYS include shouldReschedule field
-      const updateData: any = {
+      const updateData: UpdateServiceResultsRequest = {
         prescriptionServiceId,
         results: filteredResults,
         shouldReschedule: shouldReschedule || false, // Explicitly set to false if not true
+        ...(note.trim() && { note: note.trim() }),
       };
-      
-      if (note.trim()) {
-        updateData.note = note.trim();
-      }
       
       console.log('📤 Updating results for service:', {
         prescriptionId: service.prescriptionId,
