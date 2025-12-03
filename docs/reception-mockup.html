@@ -4,212 +4,185 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mockup - Quản lý hàng chờ tiếp nhận</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
-            background: #f5f5f5;
+            background: #f8f9fa;
             padding: 20px;
         }
-        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; }
-        .header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-        .card { background: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
-        .card-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        .card-title { font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-        .btn { padding: 8px 16px; background: #0066cc; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 14px; }
-        .btn-secondary { background: #666; }
-        .btn-success { background: #28a745; }
-        .btn-outline { background: white; border: 1px solid #ddd; color: #333; }
-        .btn-danger { background: #dc3545; }
-        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
-        .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; border: 1px solid; }
-        .badge-success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
-        .badge-warning { background: #fff3cd; color: #856404; border-color: #ffeaa7; }
-        .badge-info { background: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
-        .badge-secondary { background: #e2e3e5; color: #383d41; border-color: #d6d8db; }
-        .badge-danger { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-        .badge-pink { background: #fce4ec; color: #880e4f; border-color: #f8bbd0; }
-        .badge-indigo { background: #e8eaf6; color: #283593; border-color: #c5cae9; }
-        .badge-amber { background: #fff8e1; color: #f57f17; border-color: #ffe082; }
-        .badge-emerald { background: #e8f5e9; color: #1b5e20; border-color: #c8e6c9; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .current-patient { background: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 4px; margin-bottom: 15px; }
         .next-patient { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        .queue-item { padding: 12px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 4px; background: white; }
+        .queue-item { padding: 12px; border: 1px solid #dee2e6; margin-bottom: 10px; border-radius: 4px; background: white; }
         .queue-item.serving { border-color: #b3d9ff; background: #e7f3ff; }
         .queue-item.next { border-color: #ffeaa7; background: #fff3cd; }
-        .separator { height: 1px; background: #ddd; margin: 15px 0; }
-        .action-buttons { display: flex; flex-direction: column; gap: 10px; }
         .queue-list { max-height: 500px; overflow-y: auto; }
-        .empty-state { text-align: center; padding: 40px; color: #666; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; }
         .priority-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-        .patient-info { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
-        .patient-details { font-size: 12px; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="header">
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
             <div>
-                <h1 style="font-size: 24px; margin-bottom: 5px;">Quản lý hàng chờ tiếp nhận</h1>
-                <p style="color: #666; font-size: 14px;">Theo dõi trạng thái quầy và thao tác với bệnh nhân theo chuẩn API hàng chờ mới</p>
+                <h1 class="h4 mb-2 text-secondary">Quản lý hàng chờ tiếp nhận</h1>
+                <p class="text-muted small mb-0">Theo dõi trạng thái quầy và thao tác với bệnh nhân theo chuẩn API hàng chờ mới</p>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-outline">👤 Quản lý quầy</button>
+            <div>
+                <button class="btn btn-outline-secondary">Quản lý quầy</button>
             </div>
         </div>
 
         <!-- Main Grid -->
-        <div class="grid">
+        <div class="row g-4">
             <!-- Left Column: Trạng thái phục vụ -->
-            <div>
+            <div class="col-lg-4">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>✓</span>
-                            Trạng thái phục vụ
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <h6 class="card-title mb-0">Trạng thái phục vụ</h6>
                         </div>
-                        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                        <div class="small text-muted mb-3">
                             Quầy: Quầy tiếp nhận 1 (CTR-001)
                         </div>
-                    </div>
-                    <div>
-                        <!-- Current Patient -->
-                        <div class="current-patient">
-                            <div class="patient-info">
-                                <div>
-                                    <span class="badge badge-success">Đang phục vụ</span>
+                        <div>
+                            <!-- Current Patient -->
+                            <div class="current-patient">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <span class="badge bg-success">Đang phục vụ</span>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-danger">Gọi 2</span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span class="badge badge-danger">⚠ Gọi 2</span>
+                                <div class="mb-3">
+                                    <div class="fs-5 fw-bold mb-2">Nguyễn Văn A</div>
+                                    <div class="small text-muted">Tuổi: 35</div>
+                                    <div class="fw-bold text-primary mt-2">Số thứ tự: A001</div>
+                                    <div class="small text-muted">Bắt đầu: 10:30</div>
+                                </div>
+                                <div class="priority-badges">
+                                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">Đúng hẹn</span>
                                 </div>
                             </div>
-                            <div style="margin-top: 10px;">
-                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Nguyễn Văn A</div>
-                                <div class="patient-details">Tuổi: 35</div>
-                                <div style="font-weight: bold; color: #0066cc; margin-top: 5px;">Số thứ tự: A001</div>
-                                <div class="patient-details">Bắt đầu: 10:30</div>
+
+                            <!-- Next Patient -->
+                            <div class="next-patient">
+                                <div class="fw-bold mb-2">Bệnh nhân tiếp theo</div>
+                                <div>Trần Thị B</div>
+                                <div class="small text-warning-emphasis mt-1">Số thứ tự: A002</div>
                             </div>
-                            <div class="priority-badges">
-                                <span class="badge badge-emerald">Đúng hẹn</span>
+
+                            <hr>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex flex-column gap-2">
+                                <button class="btn btn-success w-100">
+                                    Gọi bệnh nhân tiếp theo
+                                </button>
+                                <button class="btn btn-outline-secondary w-100">
+                                    Bỏ qua bệnh nhân hiện tại
+                                </button>
                             </div>
-                        </div>
-
-                        <!-- Next Patient -->
-                        <div class="next-patient">
-                            <div style="font-weight: bold; margin-bottom: 5px;">Bệnh nhân tiếp theo</div>
-                            <div>Trần Thị B</div>
-                            <div style="font-size: 11px; color: #856404; margin-top: 3px;">Số thứ tự: A002</div>
-                        </div>
-
-                        <div class="separator"></div>
-
-                        <!-- Action Buttons -->
-                        <div class="action-buttons">
-                            <button class="btn btn-success" style="width: 100%; padding: 12px;">
-                                ▶ Gọi bệnh nhân tiếp theo
-                            </button>
-                            <button class="btn btn-outline" style="width: 100%;">
-                                ⏭ Bỏ qua bệnh nhân hiện tại
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Right Column: Hàng chờ -->
-            <div>
+            <div class="col-lg-8">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>📋</span>
-                            Hàng chờ (5)
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                            <h6 class="card-title mb-0">Hàng chờ (5)</h6>
                         </div>
-                    </div>
-                    <div class="queue-list">
-                        <!-- Queue Item 1 -->
-                        <div class="queue-item">
-                            <div class="patient-info">
-                                <div>
-                                    <span style="font-weight: bold;">1. Trần Thị B</span>
+                        <div class="queue-list">
+                            <!-- Queue Item 1 -->
+                            <div class="queue-item next">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold">1. Trần Thị B</span>
+                                    </div>
+                                    <span class="badge bg-info">Tiếp theo</span>
                                 </div>
-                                <span class="badge badge-info">Tiếp theo</span>
+                                <div class="small text-muted mb-2">
+                                    <span>10:25</span>
+                                    <span class="ms-3">Số: A002</span>
+                                    <span class="ms-3">Tuổi: 28</span>
+                                    <span class="badge bg-secondary ms-3">Gọi 1</span>
+                                </div>
+                                <div class="priority-badges">
+                                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50">Thai sản</span>
+                                </div>
                             </div>
-                            <div class="patient-details" style="margin-top: 8px;">
-                                <span>🕐 10:25</span>
-                                <span style="margin-left: 15px;">Số: A002</span>
-                                <span style="margin-left: 15px;">Tuổi: 28</span>
-                                <span class="badge badge-secondary" style="margin-left: 15px;">Gọi 1</span>
-                            </div>
-                            <div class="priority-badges">
-                                <span class="badge badge-pink">Thai sản</span>
-                            </div>
-                        </div>
 
-                        <!-- Queue Item 2 -->
-                        <div class="queue-item">
-                            <div class="patient-info">
-                                <div>
-                                    <span style="font-weight: bold;">2. Lê Văn C</span>
+                            <!-- Queue Item 2 -->
+                            <div class="queue-item">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold">2. Lê Văn C</span>
+                                    </div>
+                                    <span class="badge bg-secondary">Đang chờ</span>
                                 </div>
-                                <span class="badge badge-secondary">Đang chờ</span>
+                                <div class="small text-muted mb-2">
+                                    <span>10:20</span>
+                                    <span class="ms-3">Số: A003</span>
+                                    <span class="ms-3">Tuổi: 45</span>
+                                </div>
+                                <div class="priority-badges">
+                                    <span class="badge bg-warning bg-opacity-25 text-warning-emphasis border border-warning border-opacity-50">Cao tuổi</span>
+                                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">Đúng hẹn</span>
+                                </div>
                             </div>
-                            <div class="patient-details" style="margin-top: 8px;">
-                                <span>🕐 10:20</span>
-                                <span style="margin-left: 15px;">Số: A003</span>
-                                <span style="margin-left: 15px;">Tuổi: 45</span>
-                            </div>
-                            <div class="priority-badges">
-                                <span class="badge badge-amber">Cao tuổi</span>
-                                <span class="badge badge-emerald">Đúng hẹn</span>
-                            </div>
-                        </div>
 
-                        <!-- Queue Item 3 -->
-                        <div class="queue-item">
-                            <div class="patient-info">
-                                <div>
-                                    <span style="font-weight: bold;">3. Phạm Thị D</span>
+                            <!-- Queue Item 3 -->
+                            <div class="queue-item">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold">3. Phạm Thị D</span>
+                                    </div>
+                                    <span class="badge bg-secondary">Đang chờ</span>
                                 </div>
-                                <span class="badge badge-secondary">Đang chờ</span>
+                                <div class="small text-muted mb-2">
+                                    <span>10:15</span>
+                                    <span class="ms-3">Số: A004</span>
+                                    <span class="ms-3">Tuổi: 32</span>
+                                </div>
                             </div>
-                            <div class="patient-details" style="margin-top: 8px;">
-                                <span>🕐 10:15</span>
-                                <span style="margin-left: 15px;">Số: A004</span>
-                                <span style="margin-left: 15px;">Tuổi: 32</span>
-                            </div>
-                        </div>
 
-                        <!-- Queue Item 4 -->
-                        <div class="queue-item">
-                            <div class="patient-info">
-                                <div>
-                                    <span style="font-weight: bold;">4. Hoàng Văn E</span>
+                            <!-- Queue Item 4 -->
+                            <div class="queue-item">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold">4. Hoàng Văn E</span>
+                                    </div>
+                                    <span class="badge bg-secondary">Đang chờ</span>
                                 </div>
-                                <span class="badge badge-secondary">Đang chờ</span>
+                                <div class="small text-muted mb-2">
+                                    <span>10:10</span>
+                                    <span class="ms-3">Số: A005</span>
+                                    <span class="ms-3">Tuổi: 25</span>
+                                </div>
                             </div>
-                            <div class="patient-details" style="margin-top: 8px;">
-                                <span>🕐 10:10</span>
-                                <span style="margin-left: 15px;">Số: A005</span>
-                                <span style="margin-left: 15px;">Tuổi: 25</span>
-                            </div>
-                        </div>
 
-                        <!-- Queue Item 5 -->
-                        <div class="queue-item">
-                            <div class="patient-info">
-                                <div>
-                                    <span style="font-weight: bold;">5. Võ Thị F</span>
+                            <!-- Queue Item 5 -->
+                            <div class="queue-item">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold">5. Võ Thị F</span>
+                                    </div>
+                                    <span class="badge bg-secondary">Đang chờ</span>
                                 </div>
-                                <span class="badge badge-secondary">Đang chờ</span>
-                            </div>
-                            <div class="patient-details" style="margin-top: 8px;">
-                                <span>🕐 10:05</span>
-                                <span style="margin-left: 15px;">Số: A006</span>
-                                <span style="margin-left: 15px;">Tuổi: 50</span>
-                            </div>
-                            <div class="priority-badges">
-                                <span class="badge badge-indigo">Khuyết tật</span>
+                                <div class="small text-muted mb-2">
+                                    <span>10:05</span>
+                                    <span class="ms-3">Số: A006</span>
+                                    <span class="ms-3">Tuổi: 50</span>
+                                </div>
+                                <div class="priority-badges">
+                                    <span class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50">Khuyết tật</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -217,6 +190,6 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
