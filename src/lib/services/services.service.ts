@@ -103,6 +103,21 @@ export type ServiceFilters = {
   categoryId?: string
   specialtyId?: string
   requiresDoctor?: string
+  search?: string
+}
+
+export type ServiceSearchResponse = {
+  success: boolean
+  message: string
+  data: {
+    services: Service[]
+    pagination: {
+      total: number
+      limit: number
+      offset: number
+      hasMore: boolean
+    }
+  }
 }
 
 export type PackageFilters = {
@@ -184,6 +199,7 @@ export const servicesService = {
     if (filters?.categoryId) params.set("categoryId", filters.categoryId)
     if (filters?.specialtyId) params.set("specialtyId", filters.specialtyId)
     if (filters?.requiresDoctor) params.set("requiresDoctor", filters.requiresDoctor)
+    if (filters?.search) params.set("search", filters.search)
     
     return apiFetch<ListResponse<Service>>(`/services/management/services?${params.toString()}`)
   },
@@ -214,6 +230,17 @@ export const servicesService = {
     return apiFetch<{ success: boolean; message: string }>(`/services/management/services/${id}`, {
       method: "DELETE",
     })
+  },
+}
+
+export const serviceSearchApi = {
+  async searchServices(query: string, limit = 20, offset = 0): Promise<ServiceSearchResponse> {
+    const params = new URLSearchParams({
+      query,
+      limit: String(limit),
+      offset: String(offset),
+    })
+    return apiFetch<ServiceSearchResponse>(`/services/search?${params.toString()}`)
   },
 }
 

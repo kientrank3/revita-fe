@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -137,6 +137,33 @@ export function AdminWorkSessionManager({
     };
     loadDoctorSessions();
   }, [selectedDoctorId, dateFrom, dateTo]);
+
+  // Handle status update with reload for doctor-specific view
+  const handleStatusUpdate = useCallback(async (sessionId: string, status: string) => {
+    try {
+      await onUpdateStatus(sessionId, status);
+      // If viewing a specific doctor's sessions, reload doctorSessions to reflect the change
+      if (selectedDoctorId) {
+        const params: { userType: 'DOCTOR'; startDate?: string; endDate?: string } = { userType: 'DOCTOR' };
+        if (dateFrom) params.startDate = dateFrom;
+        if (dateTo) params.endDate = dateTo;
+        try {
+          setLoadingSessions(true);
+          const resp = await workSessionApi.getUserWorkSessions(selectedDoctorId, params);
+          const data = resp.data?.data || resp.data || [];
+          setDoctorSessions(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error('Failed to reload doctor sessions:', err);
+        } finally {
+          setLoadingSessions(false);
+        }
+      }
+      // If viewing all sessions, workSessions from props will be updated by parent
+    } catch (err) {
+      // Error is handled by parent component
+      throw err;
+    }
+  }, [onUpdateStatus, selectedDoctorId, dateFrom, dateTo]);
 
   const filteredDoctors = useMemo(() => {
     const q = doctorSearch.toLowerCase();
@@ -455,7 +482,7 @@ export function AdminWorkSessionManager({
                                   <div className="flex items-center justify-center gap-2">
                                     <Select
                                       value={session.status}
-                                      onValueChange={(value) => onUpdateStatus(session.id, value)}
+                                      onValueChange={(value) => handleStatusUpdate(session.id, value)}
                                     >
                                       <SelectTrigger className="w-36 h-9 text-xs">
                                         <SelectValue />

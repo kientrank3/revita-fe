@@ -34,10 +34,14 @@ type Service = {
   serviceId: string;
   serviceCode: string;
   name: string;
-  price: number;
+  price: number; // Giá sau khi giảm
+  originalPrice?: number; // Giá gốc
+  discountAmount?: number; // Số tiền giảm
+  discountPercent?: number; // Phần trăm giảm
   description?: string | null;
   status: PrescriptionStatus;
   order?: number;
+  prescriptionServiceId?: string;
 };
 
 type LoadedPrescription = {
@@ -65,10 +69,22 @@ type LoadedPrescription = {
 };
 
 type PreviewResponse = {
-  totalAmount: number;
+  totalAmount: number; // Tổng sau khi giảm
+  originalTotalAmount?: number; // Tổng giá gốc trước khi giảm
+  totalDiscountAmount?: number; // Tổng số tiền được giảm
   selectedServices: Service[];
   patientName: string;
   prescriptionDetails: LoadedPrescription;
+  loyaltyInfo?: {
+    totalPoints: number;
+    tierInfo?: {
+      tier: string;
+      name: string;
+      discountPercent: number;
+      minPoints: number;
+      nextTierPoints?: number;
+    };
+  };
 };
 
 type PaymentMethodType = 'CASH' | 'TRANSFER';
@@ -775,6 +791,32 @@ export default function InvoicesPage() {
     if (!preview) return 0;
     return preview.totalAmount;
   }, [preview]);
+
+  // Tính toán giá gốc và giá khấu trừ
+  const originalAmount = useMemo(() => {
+    if (!preview) return 0;
+    // Ưu tiên dùng originalTotalAmount từ BE
+    if (preview.originalTotalAmount !== undefined) {
+      return preview.originalTotalAmount;
+    }
+    // Fallback: tính từ originalPrice hoặc price của từng service
+    return preview.selectedServices.reduce((sum, s) => {
+      return sum + (s.originalPrice ?? s.price ?? 0);
+    }, 0);
+  }, [preview]);
+
+  const discountAmount = useMemo(() => {
+    if (!preview) return 0;
+    // Ưu tiên dùng totalDiscountAmount từ BE
+    if (preview.totalDiscountAmount !== undefined) {
+      return preview.totalDiscountAmount;
+    }
+    // Fallback: tính từ chênh lệch
+    const calculated = originalAmount - preview.totalAmount;
+    return calculated > 0 ? calculated : 0;
+  }, [preview, originalAmount]);
+
+  const hasDiscount = discountAmount > 0;
 
   const isTransferPayment = paymentMethod === 'TRANSFER';
   const isCreatedInvoicePaid = createdInvoice ? ['PAID', 'SUCCEEDED'].includes(createdInvoice.paymentStatus ?? '') : false;
@@ -1616,7 +1658,25 @@ export default function InvoicesPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="text-sm font-semibold">{s.price?.toLocaleString()} đ</div>
+                          <div className="text-right">
+                            {s.originalPrice && s.originalPrice > s.price ? (
+                              <div className="space-y-0.5">
+                                <div className="text-xs text-gray-400 line-through">
+                                  {s.originalPrice.toLocaleString()} đ
+                                </div>
+                                <div className="text-sm font-semibold text-primary">
+                                  {s.price?.toLocaleString()} đ
+                                </div>
+                                {s.discountPercent && (
+                                  <div className="text-xs text-green-600">
+                                    -{s.discountPercent}%
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm font-semibold">{s.price?.toLocaleString()} đ</div>
+                            )}
+                          </div>
                           {canSelect ? (
                             <Button
                               variant={checked ? 'default' : 'outline'}
@@ -1647,10 +1707,39 @@ export default function InvoicesPage() {
               <CardContent className="space-y-4">
                 <div className="text-sm">Số dịch vụ đã chọn: {selectedCodes.length}</div>
                 <Separator />
-                <div className="text-sm flex items-center justify-between">
-                  <span>Tổng tiền:</span>
-                  <span className="font-semibold text-lg">{previewLoading ? '...' : totalSelected.toLocaleString() + ' đ'}</span>
-                </div>
+                
+                {/* Hiển thị giá gốc, giá khấu trừ và tổng thanh toán */}
+                {previewLoading ? (
+                  <div className="text-sm flex items-center justify-between">
+                    <span>Tổng tiền:</span>
+                    <span className="font-semibold text-lg">...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {hasDiscount && (
+                      <>
+                        <div className="text-sm flex items-center justify-between text-gray-600">
+                          <span>Tổng giá gốc:</span>
+                          <span>{originalAmount.toLocaleString()} đ</span>
+                        </div>
+                        <div className="text-sm flex items-center justify-between text-green-600">
+                          <span className="flex items-center gap-2">
+                            <span>Giảm giá</span>
+                            <span>:</span>
+                          </span>
+                          <span className="font-medium">-{discountAmount.toLocaleString()} đ</span>
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+                    <div className="text-sm flex items-center justify-between">
+                      <span className="font-medium">Tổng thanh toán:</span>
+                      <span className="font-semibold text-lg text-primary">
+                        {totalSelected.toLocaleString()} đ
+                      </span>
+                    </div>
+                  </div>
+                )}
 
               {selectedCodes.length === 0 ? (
                 <div className="text-center py-6 text-gray-500">
@@ -1817,14 +1906,54 @@ export default function InvoicesPage() {
                 <CardContent className="space-y-2 text-sm">
                   {preview?.selectedServices.map((s) => (
                     <div key={s.serviceCode} className="flex items-center justify-between">
-                      <span>{s.name}</span>
-                      <span>{s.price.toLocaleString()} đ</span>
+                      <div className="flex-1">
+                        <span>{s.name}</span>
+                        {s.discountPercent && (
+                          <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-700">
+                            -{s.discountPercent}%
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {s.originalPrice && s.originalPrice > s.price ? (
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-gray-400 line-through">
+                              {s.originalPrice.toLocaleString()} đ
+                            </div>
+                            <div className="font-medium text-primary">
+                              {s.price.toLocaleString()} đ
+                            </div>
+                          </div>
+                        ) : (
+                          <span>{s.price.toLocaleString()} đ</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <Separator />
+                  
+                  {/* Hiển thị giá gốc, giá khấu trừ và tổng thanh toán */}
+                  {hasDiscount && (
+                    <>
+                      <div className="flex items-center justify-between text-gray-600">
+                        <span>Tổng giá gốc:</span>
+                        <span>{originalAmount.toLocaleString()} đ</span>
+                      </div>
+                      <div className="flex items-center justify-between text-green-600">
+                        <span className="flex items-center gap-2">
+                          <span>Giảm giá</span>
+                          
+                          <span>:</span>
+                        </span>
+                        <span className="font-medium">-{discountAmount.toLocaleString()} đ</span>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+                  
                   <div className="flex items-center justify-between font-semibold">
-                    <span>Tổng</span>
-                    <span>{preview?.totalAmount.toLocaleString()} đ</span>
+                    <span>Tổng thanh toán:</span>
+                    <span className="text-primary">{preview?.totalAmount.toLocaleString()} đ</span>
                   </div>
                 </CardContent>
               </Card>

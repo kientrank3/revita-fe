@@ -92,8 +92,46 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
       }
       
       // Handle work session response structure
-      const workSessionsData = response.data || response || [];
-      setWorkSessions(Array.isArray(workSessionsData) ? workSessionsData : []);
+      // Response structure from API can be:
+      // - { data: WorkSession[] } (from useWorkSessionManagement)
+      // - { data: { data: WorkSession[] } } (nested)
+      // - WorkSession[] (direct array)
+      
+      let workSessionsData: WorkSession[] = [];
+      
+      if (response) {
+        // Check if response has data property
+        if (response.data !== undefined) {
+          // If data is an array, use it directly
+          if (Array.isArray(response.data)) {
+            workSessionsData = response.data;
+          }
+          // If data is an object with nested data
+          else if (response.data && typeof response.data === 'object' && response.data.data) {
+            if (Array.isArray(response.data.data)) {
+              workSessionsData = response.data.data;
+            }
+          }
+          // If data is an object with workSessions property
+          else if (response.data && typeof response.data === 'object' && response.data.workSessions) {
+            if (Array.isArray(response.data.workSessions)) {
+              workSessionsData = response.data.workSessions;
+            }
+          }
+        }
+        // If response is directly an array
+        else if (Array.isArray(response)) {
+          workSessionsData = response;
+        }
+      }
+      
+      // Always create a new array reference to ensure React detects the change
+      // This forces React to recognize the state change and trigger re-render
+      const newSessionsArray = Array.isArray(workSessionsData) ? [...workSessionsData] : [];
+      setWorkSessions(newSessionsArray);
+      
+      // Log for debugging (can be removed in production)
+      console.log('Work sessions loaded:', newSessionsArray.length, 'sessions');
     } catch (err) {
       console.error('Failed to load work sessions:', err);
     }
@@ -351,9 +389,18 @@ export const useWorkSessionCalendar = (options: UseWorkSessionCalendarOptions = 
 
   // Admin-specific functions
   const handleUpdateWorkSessionStatus = useCallback(async (sessionId: string, status: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await workSessionApi.update(sessionId, { status: status as any });
-    await loadWorkSessions();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await workSessionApi.update(sessionId, { status: status as any });
+      
+      // Force reload work sessions to get updated data from server
+      // This ensures we have the latest state from backend
+      await loadWorkSessions();
+    } catch (err) {
+      // If update fails, reload to ensure consistency
+      await loadWorkSessions();
+      throw err;
+    }
   }, [loadWorkSessions]);
 
   const handleCreateWorkSessionForUser = useCallback(async (formData: WorkSessionFormData, userId: string) => {

@@ -489,7 +489,7 @@ export function WorkSessionForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
+      <DialogContent className="max-w-[50vw] max-h-[90vh] flex flex-col border-0 shadow-2xl bg-white">
         <DialogHeader className="pb-4 border-b  -m-6 p-6 mb-0 shrink-0">
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 rounded-full bg-linear-to-r bg-primary text-white">

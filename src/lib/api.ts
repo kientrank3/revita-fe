@@ -88,10 +88,14 @@ export const registerApi = {
     api.post('/register/resend-otp', data),
   
   complete: (data: { 
-    sessionId: string; 
-    fullName: string; 
-    password: string; 
-    confirmPassword: string;
+    sessionId: string;
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+    citizenId?: string;
+    avatar?: string;
+    password: string;
   }) =>
     api.post('/register/complete', data),
 };

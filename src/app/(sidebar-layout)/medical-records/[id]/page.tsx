@@ -15,6 +15,7 @@ import {
   XCircle,
   AlertCircle,
   Eye,
+  History,
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -78,12 +79,22 @@ interface Prescription {
   doctor?: any;
 }
 
+interface MedicalRecordHistory {
+  id: string;
+  action: string;
+  changedBy?: string;
+  changedByName?: string;
+  changedAt: string;
+}
+
+type MedicalRecordWithHistory = MedicalRecord & { histories?: MedicalRecordHistory[] };
+
 export default function MedicalRecordDetailPage() {
   const router = useRouter();
   const params = useParams();
   const recordId = params.id as string;
 
-  const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
+  const [medicalRecord, setMedicalRecord] = useState<MedicalRecordWithHistory | null>(null);
   const [template, setTemplate] = useState<Template | null>(null);
   const [doctor, setDoctor] = useState<DoctorData | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfileData | null>(null);
@@ -95,6 +106,7 @@ export default function MedicalRecordDetailPage() {
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
 
   // Load prescriptions for this medical record
   const loadPrescriptions = async () => {
@@ -374,6 +386,19 @@ export default function MedicalRecordDetailPage() {
     }
   };
 
+  const formatHistoryAction = (action: string) => {
+    switch (action) {
+      case 'CREATE':
+        return 'Tạo mới';
+      case 'UPDATE':
+        return 'Cập nhật';
+      case 'DELETE':
+        return 'Xóa';
+      default:
+        return action;
+    }
+  };
+
   const downloadServicePrescriptionPdf = async (prescription: Prescription) => {
     try {
       setDownloadingPdfId(prescription.id);
@@ -569,32 +594,44 @@ export default function MedicalRecordDetailPage() {
     <div className="container mx-auto  bg-white  py-6 px-8">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleBack}
-            className="flex items-center gap-2 text-sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="h-5 w-px bg-gray-300" />
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">Chi tiết bệnh án</h1>
-            <p className="text-sm text-gray-600">
-              {template.name} • {template.specialtyName}
-              {patientProfile && (
-                <span className="ml-2 text-blue-500">
-                  • {patientProfile.name}
-                </span>
-              )}
-              {doctor && (
-                <span className="ml-2 text-green-600">
-                  • Bác sĩ: {doctor.name}
-                </span>
-              )}
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleBack}
+              className="flex items-center gap-2 text-sm"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="h-5 w-px bg-gray-300" />
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900">Chi tiết bệnh án</h1>
+              <p className="text-sm text-gray-600">
+                {template.name} • {template.specialtyName}
+                {patientProfile && (
+                  <span className="ml-2 text-blue-500">
+                    • {patientProfile.name}
+                  </span>
+                )}
+                {doctor && (
+                  <span className="ml-2 text-green-600">
+                    • Bác sĩ: {doctor.name}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsHistoryDialogOpen(true)}
+            className="flex items-center gap-2"
+            disabled={!medicalRecord.histories || medicalRecord.histories.length === 0}
+          >
+            <History className="h-4 w-4" />
+            Lịch sử thay đổi
+          </Button>
         </div>
         {/* QR moved inside MedicalRecordDocument */}
       </div>
@@ -615,7 +652,7 @@ export default function MedicalRecordDetailPage() {
 
         {/* Right Column - Prescriptions & Attachments */}
         <div className="lg:col-span-1 space-y-6">
-        <Card className="border-l-1 border-l-orange-500">
+        <Card className="border-l border-l-orange-500">
             <CardHeader className="">
               <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
                 <ClipboardList className="h-5 w-5 text-orange-600" />
@@ -726,7 +763,7 @@ export default function MedicalRecordDetailPage() {
             </CardContent>
           </Card>
           {/* Medical Prescriptions Section */}
-          <Card className="border-l-1 border-l-blue-500 p-0">
+          <Card className="border-l border-l-blue-500 p-0">
           
             <CardContent className="p-0 ">
               <MedicalRecordPrescriptions 
@@ -766,6 +803,52 @@ export default function MedicalRecordDetailPage() {
       </div>
 
       {/* Edit Dialog */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Lịch sử thay đổi
+            </DialogTitle>
+          </DialogHeader>
+          {medicalRecord.histories && medicalRecord.histories.length > 0 ? (
+            <div className="space-y-4">
+              {medicalRecord.histories
+                .slice()
+                .sort(
+                  (a, b) =>
+                    new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime(),
+                )
+                .map((history) => (
+                  <div
+                    key={history.id}
+                    className="rounded-lg border border-gray-200 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {formatHistoryAction(history.action)}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {new Date(history.changedAt).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-700">
+                      Thực hiện bởi:{' '}
+                      <span className="font-medium">
+                        {history.changedByName || history.changedBy || 'Không xác định'}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500">
+              Chưa có lịch sử thay đổi nào cho bệnh án này
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

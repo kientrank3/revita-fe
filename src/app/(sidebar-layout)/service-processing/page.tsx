@@ -86,6 +86,7 @@ export default function ServiceProcessingPage() {
     patientProfileId: string;
     services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
   } | null>(null);
+  const [shouldReschedule, setShouldReschedule] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function ServiceProcessingPage() {
       patientProfileId: string;
       patientName: string;
       prescriptionCode: string;
-      services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
+      services: Array<{ id?: string; prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
       overallStatus: 'SERVING' | 'PREPARING' | 'SKIPPED' | 'WAITING_RESULT' | 'RETURNING' | 'WAITING';
       queueOrder: number;
     }>;
@@ -823,18 +824,79 @@ export default function ServiceProcessingPage() {
     };
   }, [isQrScannerOpen, startQrScanner, stopQrScanner]);
 
-  const handleUpdateServiceStatus = async (
+  // Helper function to get prescriptionServiceId from multiple sources
+  const getPrescriptionServiceIdFromQueue = async (
     prescriptionId: string,
-    serviceId: string,
+    serviceId: string
+  ): Promise<string | null> => {
+    // First, try to find in myServices
+    const foundInMyServices = myServices.find((s: any) => 
+      s.prescriptionId === prescriptionId && s.serviceId === serviceId
+    );
+    if (foundInMyServices?.id) {
+      return foundInMyServices.id;
+    }
+
+    // If not found, try to find in current prescription
+    // Note: prescription object uses prescriptionCode, not prescriptionId
+    // We need to match by serviceId only since we don't have prescriptionId in prescription object
+    if (prescription) {
+      const foundInPrescription = prescription.services.find((s: any) => 
+        s.serviceId === serviceId
+      );
+      if (foundInPrescription?.id) {
+        return foundInPrescription.id;
+      }
+    }
+
+    // If still not found, try to scan prescription to get full data
+    try {
+      // Find prescription code from queue
+      const patientInQueue = queue?.patients.find(p => 
+        p.services.some(s => s.prescriptionId === prescriptionId && s.serviceId === serviceId)
+      );
+      if (patientInQueue?.prescriptionCode) {
+        const scanResponse = await serviceProcessingService.scanPrescription(patientInQueue.prescriptionCode);
+        const foundService = scanResponse.prescription.services.find((s: any) => 
+          s.serviceId === serviceId
+        );
+        if (foundService?.id) {
+          return foundService.id;
+        }
+      }
+    } catch (e) {
+      console.error('Error scanning prescription to get service ID:', e);
+    }
+
+    return null;
+  };
+
+  const handleUpdateServiceStatus = async (
+    prescriptionServiceIdOrIds: string | { prescriptionId: string; serviceId: string },
     newStatus: ServiceStatus,
     note?: string
   ) => {
-    const serviceKey = getPrescriptionServiceId({ prescriptionId, serviceId });
-    setUpdatingService(serviceKey);
+    let prescriptionServiceId: string;
+
+    // If it's an object, we need to find the ID
+    if (typeof prescriptionServiceIdOrIds === 'object') {
+      const foundId = await getPrescriptionServiceIdFromQueue(
+        prescriptionServiceIdOrIds.prescriptionId,
+        prescriptionServiceIdOrIds.serviceId
+      );
+      if (!foundId) {
+        toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+        return;
+      }
+      prescriptionServiceId = foundId;
+    } else {
+      prescriptionServiceId = prescriptionServiceIdOrIds;
+    }
+
+    setUpdatingService(prescriptionServiceId);
     try {
       const response = await serviceProcessingService.updateServiceStatus({
-        prescriptionId,
-        serviceId,
+        prescriptionServiceId,
         status: newStatus,
         note
       });
@@ -882,15 +944,38 @@ export default function ServiceProcessingPage() {
 
     // Handle individual service start (from prescription details)
     if (typeof patientOrServiceId === 'string') {
-      // For individual service, we need to get prescriptionId and serviceId from the string
-      // The string format is "prescriptionId-serviceId"
-      const [prescriptionId, serviceId] = patientOrServiceId.split('-');
-      const serviceKey = patientOrServiceId; // Keep the combined key for UI state
-
+      // Legacy format: try to find service by id from myServices or prescription
+      const serviceKey = patientOrServiceId;
       setUpdatingService(serviceKey);
+      
+      // Try to find service in myServices first
+      const foundService = myServices.find(s => {
+        const key = getPrescriptionServiceId(s);
+        return key === serviceKey;
+      });
+      
+      let prescriptionServiceId: string | undefined;
+      
+      if (foundService?.id) {
+        prescriptionServiceId = foundService.id;
+      } else if (prescription) {
+        // Try to find in prescription
+        const foundInPrescription = prescription.services.find(s => {
+          const key = getPrescriptionServiceId(s);
+          return key === serviceKey;
+        });
+        prescriptionServiceId = foundInPrescription?.id;
+      }
+      
+      if (!prescriptionServiceId) {
+        toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+        setUpdatingService(null);
+        return;
+      }
+      
       try {
-        console.log('▶️ Quick starting individual service:', { prescriptionId, serviceId });
-        const response = await serviceProcessingService.startService(prescriptionId, serviceId);
+        console.log('▶️ Quick starting individual service:', { prescriptionServiceId });
+        const response = await serviceProcessingService.startService(prescriptionServiceId);
 
         console.log('✅ Individual service started successfully:', response);
 
@@ -919,7 +1004,7 @@ export default function ServiceProcessingPage() {
 
     // Handle patient batch start (from patient queue)
     const patient = patientOrServiceId;
-    const waitingServices = patient.services.filter(s => s.status === 'WAITING');
+    const waitingServices = patient.services.filter((s: any) => s.status === 'WAITING');
 
     if (waitingServices.length === 0) {
       toast.warning('Không có dịch vụ nào đang chờ để bắt đầu');
@@ -929,15 +1014,18 @@ export default function ServiceProcessingPage() {
     console.log(`▶️ Starting ${waitingServices.length} services for patient: ${patient.patientName}`);
 
     // Set updating state for all services
-    waitingServices.forEach(service => {
+    waitingServices.forEach((service: any) => {
       setUpdatingService(getPrescriptionServiceId(service));
     });
 
     try {
       // Start all services concurrently
-      const startPromises = waitingServices.map(async (service) => {
-        console.log(`▶️ Starting service: ${service.service.name} (${service.prescriptionId}-${service.serviceId})`);
-        return serviceProcessingService.startService(service.prescriptionId, service.serviceId);
+      const startPromises = waitingServices.map(async (service: any) => {
+        if (!service.id) {
+          throw new Error(`Service ${service.service.name} không có ID`);
+        }
+        console.log(`▶️ Starting service: ${service.service.name} (prescriptionServiceId: ${service.id})`);
+        return serviceProcessingService.startService(service.id);
       });
 
       const responses = await Promise.allSettled(startPromises);
@@ -946,7 +1034,7 @@ export default function ServiceProcessingPage() {
       let successCount = 0;
       let errorCount = 0;
 
-      responses.forEach((result, index) => {
+      responses.forEach((result: any, index: number) => {
         const service = waitingServices[index];
         if (result.status === 'fulfilled') {
           console.log(`✅ Service started: ${service.service.name}`, result.value);
@@ -1039,9 +1127,11 @@ export default function ServiceProcessingPage() {
         break;
 
       case 'complete':
-        if (status === 'SERVING') {
-          console.log('⏳ Moving service to WAITING_RESULT:', { prescriptionId, serviceId });
-          handleUpdateServiceStatus(prescriptionId, serviceId, 'WAITING_RESULT', 'Chờ kết quả');
+        if (status === 'SERVING' && service.id) {
+          console.log('⏳ Moving service to WAITING_RESULT:', { prescriptionServiceId: service.id });
+          handleUpdateServiceStatus(service.id, 'WAITING_RESULT', 'Chờ kết quả');
+        } else if (!service.id) {
+          toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
         }
         break;
 
@@ -1063,28 +1153,43 @@ export default function ServiceProcessingPage() {
   };
 
   const handleQuickComplete = async (serviceOrId: any) => {
-    let prescriptionId: string;
-    let serviceId: string;
+    let prescriptionServiceId: string | undefined;
     let serviceKey: string;
 
     if (typeof serviceOrId === 'string') {
-      // Legacy: parse from combined string
-      const parts = serviceOrId.split('-');
-      prescriptionId = parts.slice(0, 5).join('-');
-      serviceId = parts.slice(5).join('-');
+      // Legacy: try to find service by id from myServices or prescription
       serviceKey = serviceOrId;
+      
+      const foundService = myServices.find((s: any) => {
+        const key = getPrescriptionServiceId(s);
+        return key === serviceKey;
+      });
+      
+      if (foundService?.id) {
+        prescriptionServiceId = foundService.id;
+      } else if (prescription) {
+        const foundInPrescription = prescription.services.find((s: any) => {
+          const key = getPrescriptionServiceId(s);
+          return key === serviceKey;
+        });
+        prescriptionServiceId = foundInPrescription?.id;
+      }
     } else {
-      // New: use direct IDs from service object
-      prescriptionId = serviceOrId.prescriptionId;
-      serviceId = serviceOrId.serviceId;
+      // New: use id from service object
+      prescriptionServiceId = serviceOrId.id;
       serviceKey = getPrescriptionServiceId(serviceOrId);
+    }
+
+    if (!prescriptionServiceId) {
+      toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+      return;
     }
 
     setUpdatingService(serviceKey);
     try {
-      console.log('⏳ Moving service to WAITING_RESULT:', { prescriptionId, serviceId });
+      console.log('⏳ Moving service to WAITING_RESULT:', { prescriptionServiceId });
       // Chuyển sang trạng thái chờ kết quả
-      const response = await serviceProcessingService.completeService(prescriptionId, serviceId);
+      const response = await serviceProcessingService.completeService(prescriptionServiceId);
 
       console.log('🎯 Service moved to WAITING_RESULT successfully:', response);
 
@@ -1104,8 +1209,9 @@ export default function ServiceProcessingPage() {
     }
   };
 
-  const handleOpenResultsDialog = (service: PrescriptionService) => {
+  const handleOpenResultsDialog = (service: PrescriptionService, reschedule = false) => {
     setSelectedService(service);
+    setShouldReschedule(reschedule);
     setResultsDialogOpen(true);
   };
 
@@ -1114,10 +1220,19 @@ export default function ServiceProcessingPage() {
     patientProfileId: string,
     prescriptionId: string,
     serviceId: string,
-    serviceName: string
+    serviceName: string,
+    reschedule = false
   ) => {
-    // Create a minimal service object for the dialog
-    const serviceForDialog: PrescriptionService = {
+    // Try to find full service data from myServices or prescription
+    const foundService = myServices.find((s: any) => 
+      s.prescriptionId === prescriptionId && s.serviceId === serviceId
+    ) || prescription?.services.find((s: any) => s.serviceId === serviceId);
+
+    // Create a service object for the dialog
+    const serviceForDialog: PrescriptionService = foundService ? {
+      ...foundService,
+      id: foundService.id
+    } : {
       prescriptionId,
       serviceId,
       service: {
@@ -1146,6 +1261,7 @@ export default function ServiceProcessingPage() {
         status: 'WAITING_RESULT'
       }]
     });
+    setShouldReschedule(reschedule);
     setResultsDialogOpen(true);
   };
 
@@ -1349,9 +1465,12 @@ export default function ServiceProcessingPage() {
             <Button
               size="sm"
                         onClick={() => {
-                          const { prescriptionId, serviceId } = service;
-                          console.log('⏳ Updating status to WAITING_RESULT:', { prescriptionId, serviceId });
-                          handleUpdateServiceStatus(prescriptionId, serviceId, 'WAITING_RESULT', 'Chờ kết quả');
+                          if (!service.id) {
+                            toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+                            return;
+                          }
+                          console.log('⏳ Updating status to WAITING_RESULT:', { prescriptionServiceId: service.id });
+                          handleUpdateServiceStatus(service.id, 'WAITING_RESULT', 'Chờ kết quả');
                         }}
                         disabled={updatingService === serviceKey}
                         className="flex items-center gap-1 h-7 text-xs"
@@ -1364,10 +1483,12 @@ export default function ServiceProcessingPage() {
               size="sm"
                         variant="outline"
                         onClick={() => {
-                          // Use direct IDs from service object
-                          const { prescriptionId, serviceId } = service;
-                          console.log('🔍 Direct IDs from service:', { prescriptionId, serviceId });
-                          handleUpdateServiceStatus(prescriptionId, serviceId, 'COMPLETED', 'Hoàn thành dịch vụ');
+                          if (!service.id) {
+                            toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+                            return;
+                          }
+                          console.log('🔍 Updating service status:', { prescriptionServiceId: service.id });
+                          handleUpdateServiceStatus(service.id, 'COMPLETED', 'Hoàn thành dịch vụ');
                         }}
                         disabled={updatingService === serviceKey}
                         className="flex items-center gap-1 h-7 text-xs"
@@ -1379,23 +1500,41 @@ export default function ServiceProcessingPage() {
           )}
 
                   {service.status === 'WAITING_RESULT' && onUpdateResults && (
-            <Button
-              size="sm"
-              variant="outline"
-                      onClick={() => {
-                        console.log('🔍 Opening results dialog for WAITING_RESULT service:', {
-                          prescriptionId: service.prescriptionId,
-                          serviceId: service.serviceId,
-                          status: service.status
-                        });
-                        onUpdateResults(service);
-                      }}
-                      className="flex items-center gap-1 h-7 text-xs"
-            >
-              <FileCheck className="h-3 w-3" />
-              Cập nhật kết quả
-            </Button>
-          )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          console.log('🔍 Opening results dialog for WAITING_RESULT service:', {
+                            prescriptionId: service.prescriptionId,
+                            serviceId: service.serviceId,
+                            status: service.status
+                          });
+                          handleOpenResultsDialog(service, false);
+                        }}
+                        className="flex items-center gap-1 h-7 text-xs"
+                      >
+                        <FileCheck className="h-3 w-3" />
+                        Cập nhật kết quả
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          console.log('🔍 Opening reschedule dialog for WAITING_RESULT service:', {
+                            prescriptionId: service.prescriptionId,
+                            serviceId: service.serviceId,
+                            status: service.status
+                          });
+                          handleOpenResultsDialog(service, true);
+                        }}
+                        className="flex items-center gap-1 h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                      >
+                        <Clock className="h-3 w-3" />
+                        Hẹn lại
+                      </Button>
+                    </div>
+                  )}
 
         </div>
               </div>
@@ -1679,9 +1818,12 @@ export default function ServiceProcessingPage() {
                       <Button
                         size="sm"
                                 onClick={() => {
-                                  const { prescriptionId, serviceId } = service;
-                                  console.log('⏳ Updating status to WAITING_RESULT from prescription details:', { prescriptionId, serviceId });
-                                  handleUpdateServiceStatus(prescriptionId, serviceId, 'WAITING_RESULT', 'Chờ kết quả');
+                                  if (!service.id) {
+                                    toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+                                    return;
+                                  }
+                                  console.log('⏳ Updating status to WAITING_RESULT from prescription details:', { prescriptionServiceId: service.id });
+                                  handleUpdateServiceStatus(service.id, 'WAITING_RESULT', 'Chờ kết quả');
                                 }}
                                 disabled={updatingService === getPrescriptionServiceId(service)}
                                 className="flex items-center gap-1 h-8"
@@ -1692,24 +1834,43 @@ export default function ServiceProcessingPage() {
                     )}
 
                             {actions.includes('uploadResults') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                                onClick={() => {
-                                  console.log('🔍 Opening results dialog from prescription details:', {
-                                    prescriptionId: service.prescriptionId,
-                                    serviceId: service.serviceId,
-                                    status: service.status
-                                  });
-                                  handleServiceAction(service, 'uploadResults');
-                                }}
-                                disabled={updatingService === getPrescriptionServiceId(service)}
-                                className="flex items-center gap-1 h-8"
-                      >
-                        <FileCheck className="h-3 w-3" />
-                        Cập nhật kết quả
-                      </Button>
-                    )}
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    console.log('🔍 Opening results dialog from prescription details:', {
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      status: service.status
+                                    });
+                                    handleOpenResultsDialog(service, false);
+                                  }}
+                                  disabled={updatingService === getPrescriptionServiceId(service)}
+                                  className="flex items-center gap-1 h-8"
+                                >
+                                  <FileCheck className="h-3 w-3" />
+                                  Cập nhật kết quả
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    console.log('🔍 Opening reschedule dialog from prescription details:', {
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      status: service.status
+                                    });
+                                    handleOpenResultsDialog(service, true);
+                                  }}
+                                  disabled={updatingService === getPrescriptionServiceId(service)}
+                                  className="flex items-center gap-1 h-8 border-orange-300 text-orange-700 hover:bg-orange-50"
+                                >
+                                  <Clock className="h-3 w-3" />
+                                  Hẹn lại
+                                </Button>
+                              </div>
+                            )}
                           </>
                         );
                       })()}
@@ -1867,18 +2028,18 @@ export default function ServiceProcessingPage() {
                       {p.services
                         .filter(s => s.status === 'SERVING')
                         .map((service) => {
-                          const serviceKey = `${service.prescriptionId}-${service.serviceId}`;
-                          const isUpdating = updatingService === serviceKey;
+                          const serviceKey = service.id || `${service.prescriptionId}-${service.serviceId}`;
+                          const isUpdating = updatingService === serviceKey || updatingService === `${service.prescriptionId}-${service.serviceId}`;
                           
                           return (
                             <div key={serviceKey} className="flex gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  handleUpdateServiceStatus(
-                                    service.prescriptionId,
-                                    service.serviceId,
+                                onClick={async () => {
+                                  const idToUse = service.id || { prescriptionId: service.prescriptionId, serviceId: service.serviceId };
+                                  await handleUpdateServiceStatus(
+                                    idToUse,
                                     'WAITING_RESULT',
                                     'Chờ kết quả'
                                   );
@@ -1900,10 +2061,10 @@ export default function ServiceProcessingPage() {
                               </Button>
                               <Button
                                 size="sm"
-                                onClick={() => {
-                                  handleUpdateServiceStatus(
-                                    service.prescriptionId,
-                                    service.serviceId,
+                                onClick={async () => {
+                                  const idToUse = service.id || { prescriptionId: service.prescriptionId, serviceId: service.serviceId };
+                                  await handleUpdateServiceStatus(
+                                    idToUse,
                                     'COMPLETED',
                                     'Hoàn thành dịch vụ'
                                   );
@@ -1935,26 +2096,46 @@ export default function ServiceProcessingPage() {
                       {(() => {
                         const waitingResultServices = p.services.filter(s => s.status === 'WAITING_RESULT');
                         
-                        // If only one service, show button directly
+                        // If only one service, show buttons directly
                         if (waitingResultServices.length === 1) {
                           const service = waitingResultServices[0];
                           return (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                handleOpenResultsDialogFromQueue(
-                                  p.patientProfileId,
-                                  service.prescriptionId,
-                                  service.serviceId,
-                                  service.serviceName
-                                );
-                              }}
-                              className="flex items-center gap-1 h-7 text-xs w-full"
-                            >
-                              <FileCheck className="h-3 w-3" />
-                              Cập nhật kết quả
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  handleOpenResultsDialogFromQueue(
+                                    p.patientProfileId,
+                                    service.prescriptionId,
+                                    service.serviceId,
+                                    service.serviceName,
+                                    false
+                                  );
+                                }}
+                                className="flex items-center gap-1 h-7 text-xs flex-1"
+                              >
+                                <FileCheck className="h-3 w-3" />
+                                Cập nhật kết quả
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  handleOpenResultsDialogFromQueue(
+                                    p.patientProfileId,
+                                    service.prescriptionId,
+                                    service.serviceId,
+                                    service.serviceName,
+                                    true
+                                  );
+                                }}
+                                className="flex items-center gap-1 h-7 text-xs flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+                              >
+                                <Clock className="h-3 w-3" />
+                                Hẹn lại
+                              </Button>
+                            </div>
                           );
                         }
                         
@@ -1993,30 +2174,58 @@ export default function ServiceProcessingPage() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const selected = selectedPatientForResults?.patientProfileId === p.patientProfileId
-                                  ? selectedPatientForResults.services[0]
-                                  : null;
-                                if (selected) {
-                                  handleOpenResultsDialogFromQueue(
-                                    p.patientProfileId,
-                                    selected.prescriptionId,
-                                    selected.serviceId,
-                                    selected.serviceName
-                                  );
-                                } else {
-                                  toast.error('Vui lòng chọn dịch vụ cần cập nhật kết quả');
-                                }
-                              }}
-                              disabled={selectedPatientForResults?.patientProfileId !== p.patientProfileId}
-                              className="flex items-center gap-1 h-7 text-xs w-full"
-                            >
-                              <FileCheck className="h-3 w-3" />
-                              Cập nhật kết quả
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const selected = selectedPatientForResults?.patientProfileId === p.patientProfileId
+                                    ? selectedPatientForResults.services[0]
+                                    : null;
+                                  if (selected) {
+                                    handleOpenResultsDialogFromQueue(
+                                      p.patientProfileId,
+                                      selected.prescriptionId,
+                                      selected.serviceId,
+                                      selected.serviceName,
+                                      false
+                                    );
+                                  } else {
+                                    toast.error('Vui lòng chọn dịch vụ cần cập nhật kết quả');
+                                  }
+                                }}
+                                disabled={selectedPatientForResults?.patientProfileId !== p.patientProfileId}
+                                className="flex items-center gap-1 h-7 text-xs flex-1"
+                              >
+                                <FileCheck className="h-3 w-3" />
+                                Cập nhật kết quả
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const selected = selectedPatientForResults?.patientProfileId === p.patientProfileId
+                                    ? selectedPatientForResults.services[0]
+                                    : null;
+                                  if (selected) {
+                                    handleOpenResultsDialogFromQueue(
+                                      p.patientProfileId,
+                                      selected.prescriptionId,
+                                      selected.serviceId,
+                                      selected.serviceName,
+                                      true
+                                    );
+                                  } else {
+                                    toast.error('Vui lòng chọn dịch vụ cần hẹn lại');
+                                  }
+                                }}
+                                disabled={selectedPatientForResults?.patientProfileId !== p.patientProfileId}
+                                className="flex items-center gap-1 h-7 text-xs flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+                              >
+                                <Clock className="h-3 w-3" />
+                                Hẹn lại
+                              </Button>
+                            </div>
                           </div>
                         );
                       })()}
@@ -2072,6 +2281,7 @@ export default function ServiceProcessingPage() {
                            (selectedService as any).prescription?.patientProfile?.id ||
                            (selectedService as any).patientProfileId}
           onUpdate={handleResultsUpdate}
+          shouldReschedule={shouldReschedule}
         />
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { AuthUser, AuthState, LoginCredentials, AuthResponse, UserRole } from '../types/auth';
 import { authMiddleware, AuthContext as MiddlewareAuthContext } from '../middleware/auth';
 import { authApi, userApi } from '../api';
@@ -58,6 +58,7 @@ interface AuthContextValue extends MiddlewareAuthContext {
   refreshToken: () => Promise<boolean>;
   updateProfile: (data: Partial<AuthUser>) => Promise<boolean>;
   updateAvatar: (avatarUrl: string) => Promise<boolean>;
+  reloadAuth: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -73,12 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize auth state on mount
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
@@ -181,7 +177,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       });
     }
-  };
+  }, []);
+
+  // Initialize auth state on mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
@@ -400,6 +401,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshToken,
     updateProfile,
     updateAvatar,
+    reloadAuth: initializeAuth,
     isLoading: state.isLoading,
     error,
   };

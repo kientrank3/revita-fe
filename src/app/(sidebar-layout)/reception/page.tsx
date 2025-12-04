@@ -132,17 +132,12 @@ const DEFAULT_HTTP_HOST = 'http://localhost:3000';
 
 const trimTrailingSlash = (value: string) => (value.endsWith('/') ? value.slice(0, -1) : value);
 
-const apiBaseFromEnv = process.env.NEXT_PUBLIC_QUEUE_API_BASE;
-const socketBaseFromEnv = process.env.NEXT_PUBLIC_QUEUE_SOCKET_URL;
-
 const API_BASE_URL = trimTrailingSlash(
-  apiBaseFromEnv && apiBaseFromEnv.length > 0 ? apiBaseFromEnv : `${DEFAULT_HTTP_HOST}/api`
+  process.env.NEXT_PUBLIC_API_URL || `${DEFAULT_HTTP_HOST}/api`
 );
 
 const SOCKET_URL = trimTrailingSlash(
-  socketBaseFromEnv && socketBaseFromEnv.length > 0
-    ? socketBaseFromEnv
-    : `${DEFAULT_HTTP_HOST}/counters`
+  process.env.NEXT_PUBLIC_QUEUE_SOCKET_URL || `${DEFAULT_HTTP_HOST}/counters`
 );
 
 const KNOWN_STATUSES: QueueStatus[] = ['WAITING', 'NEXT', 'SERVING', 'SKIPPED', 'COMPLETED', 'REMOVED'];

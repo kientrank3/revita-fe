@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,15 +55,25 @@ export function WorkSessionDetails({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isAdmin = false,
 }: WorkSessionDetailsProps) {
-  if (!workSession) return null;
+  // Local state to ensure component updates when workSession prop changes
+  const [currentSession, setCurrentSession] = useState(workSession);
 
-  const startTime = new Date(workSession.startTime);
-  const endTime = new Date(workSession.endTime);
+  // Update local state when workSession prop changes
+  useEffect(() => {
+    if (workSession) {
+      setCurrentSession(workSession);
+    }
+  }, [workSession]);
+
+  if (!currentSession) return null;
+
+  const startTime = new Date(currentSession.startTime);
+  const endTime = new Date(currentSession.endTime);
   const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
   const hours = Math.floor(duration / 60);
   const minutes = duration % 60;
 
-  const statusColors = WorkSessionStatusColors[workSession.status];
+  const statusColors = WorkSessionStatusColors[currentSession.status];
   const statusIcon = {
     PENDING: <AlertCircle className="h-4 w-4" />,
     APPROVED: <CheckCircle className="h-4 w-4" />,
@@ -122,7 +133,7 @@ export function WorkSessionDetails({
           {/* Status */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {statusIcon[workSession.status]}
+              {statusIcon[currentSession.status]}
               <span className="font-medium">Trạng thái:</span>
             </div>
             <Badge
@@ -133,7 +144,7 @@ export function WorkSessionDetails({
                 color: statusColors.textColor,
               }}
             >
-              {getStatusText(workSession.status)}
+              {getStatusText(currentSession.status)}
             </Badge>
           </div>
 
@@ -174,7 +185,7 @@ export function WorkSessionDetails({
           </Card>
 
           {/* Booth Information */}
-          {workSession.booth && (
+          {currentSession.booth && (
             <Card>
               <CardHeader className="pb-0.5">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -185,17 +196,17 @@ export function WorkSessionDetails({
               <CardContent>
                 <div className="space-y-2">
                   <div>
-                    <p className="font-medium">{workSession.booth.name}</p>
+                    <p className="font-medium">{currentSession.booth.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Mã phòng: {workSession.booth.boothCode}
+                      Mã phòng: {currentSession.booth.boothCode}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      Phòng: {workSession.booth.room.roomName}
+                      Phòng: {currentSession.booth.room.roomName}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Chuyên khoa: {workSession.booth.room.specialty.name}
+                      Chuyên khoa: {currentSession.booth.room.specialty.name}
                     </p>
                   </div>
                 </div>
@@ -212,25 +223,25 @@ export function WorkSessionDetails({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {workSession.doctor && (
+              {currentSession.doctor && (
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
                   <Stethoscope className="h-5 w-5 text-blue-600" />
                   <div>
-                    <p className="font-medium">{workSession.doctor.auth.name}</p>
+                    <p className="font-medium">{currentSession.doctor.auth.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Bác sĩ • Mã: {workSession.doctor.doctorCode}
+                      Bác sĩ • Mã: {currentSession.doctor.doctorCode}
                     </p>
                   </div>
                 </div>
               )}
               
-              {workSession.technician && (
+              {currentSession.technician && (
                 <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
                   <User className="h-5 w-5 text-green-600" />
                   <div>
-                    <p className="font-medium">{workSession.technician.auth.name}</p>
+                    <p className="font-medium">{currentSession.technician.auth.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Kỹ thuật viên • Mã: {workSession.technician.technicianCode}
+                      Kỹ thuật viên • Mã: {currentSession.technician.technicianCode}
                     </p>
                   </div>
                 </div>
@@ -242,12 +253,12 @@ export function WorkSessionDetails({
           <Card>
             <CardHeader className="pb-0.5">
               <CardTitle className="text-lg">
-                Dịch vụ thực hiện ({workSession.services.length})
+                Dịch vụ thực hiện ({currentSession.services.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {workSession.services.map((serviceItem, index) => (
+                {currentSession.services.map((serviceItem, index) => (
                   <div
                     key={serviceItem.service?.id || `service-${index}`}
                     className="p-3 border rounded-lg hover:bg-muted/50"
@@ -275,22 +286,22 @@ export function WorkSessionDetails({
           {/* Timestamps */}
           <div className="text-xs text-muted-foreground space-y-1">
             <p>
-              Tạo lúc: {new Date(workSession.createdAt).toLocaleString('vi-VN')}
+              Tạo lúc: {new Date(currentSession.createdAt).toLocaleString('vi-VN')}
             </p>
             <p>
-              Cập nhật: {new Date(workSession.updatedAt).toLocaleString('vi-VN')}
+              Cập nhật: {new Date(currentSession.updatedAt).toLocaleString('vi-VN')}
             </p>
           </div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {/* Status Change Buttons (for admin) */}
-          {canChangeStatus && workSession.status === 'PENDING' && (
+          {canChangeStatus && currentSession.status === 'PENDING' && (
             <div className="flex gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onStatusUpdate?.(workSession.id, 'APPROVED')}
+                onClick={() => onStatusUpdate?.(currentSession.id, 'APPROVED')}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >
@@ -300,7 +311,7 @@ export function WorkSessionDetails({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onStatusUpdate?.(workSession.id, 'CANCELED')}
+                onClick={() => onStatusUpdate?.(currentSession.id, 'CANCELED')}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >
@@ -314,7 +325,7 @@ export function WorkSessionDetails({
             {canEdit && (
               <Button
                 variant="outline"
-                onClick={() => onEdit?.(workSession)}
+                onClick={() => onEdit?.(currentSession)}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >
@@ -326,7 +337,7 @@ export function WorkSessionDetails({
             {canDelete && (
               <Button
                 variant="destructive"
-                onClick={() => onDelete?.(workSession.id)}
+                onClick={() => onDelete?.(currentSession.id)}
                 disabled={loading}
                 className="flex-1 sm:flex-none"
               >

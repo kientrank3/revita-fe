@@ -8,6 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { publicApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { doctorRatingService, type DoctorRating, type DoctorRatingStats } from '@/lib/services/doctor-rating.service';
 import { 
   Search, 
   Star, 
@@ -17,7 +19,8 @@ import {
   Users,
   Sparkles,
   Activity,
-  Shield
+  Shield,
+  MessageSquare
 } from 'lucide-react';
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -50,18 +53,25 @@ export default function DoctorsPage() {
   const [data, setData] = useState<PublicDoctor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [specialtyName, setSpecialtyName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [isRatingsDialogOpen, setIsRatingsDialogOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<PublicDoctor | null>(null);
+  const [doctorRatings, setDoctorRatings] = useState<DoctorRating[]>([]);
+  const [doctorStats, setDoctorStats] = useState<DoctorRatingStats | null>(null);
+  const [ratingsLoading, setRatingsLoading] = useState(false);
+  const [ratingsError, setRatingsError] = useState<string | null>(null);
+  const [ratingsPage, setRatingsPage] = useState(1);
+  const ratingsPerPage = 5;
+  const [ratingsTotal, setRatingsTotal] = useState(0);
 
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await publicApi.getDoctors(
-          specialtyName ? { specialtyName } : undefined
-        );
+        const res = await publicApi.getDoctors();
         setData(res.data || []);
       } catch (e: unknown) {
         setError(getErrorMessage(e, 'Không thể tải danh sách bác sĩ'));
@@ -70,24 +80,81 @@ export default function DoctorsPage() {
       }
     };
     fetchDoctors();
-  }, [specialtyName]);
+  }, []);
 
   useEffect(() => {
-    // Reset to first page when filter changes
     setCurrentPage(1);
-  }, [specialtyName]);
+  }, [searchTerm]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(data.length / itemsPerPage)), [data.length]);
+  const filteredDoctors = useMemo(() => {
+    if (!searchTerm.trim()) return data;
+    const query = searchTerm.trim().toLowerCase();
+    return data.filter((doctor) => {
+      const haystack = [
+        doctor.name,
+        doctor.doctor.specialty?.name,
+        doctor.doctor.specialty?.specialtyCode,
+        doctor.doctor.doctorCode,
+      ]
+        .filter(Boolean)
+        .map((value) => value!.toLowerCase());
+      return haystack.some((value) => value.includes(query));
+    });
+  }, [data, searchTerm]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredDoctors.length / itemsPerPage)), [filteredDoctors.length]);
   const startIndex = useMemo(() => (currentPage - 1) * itemsPerPage, [currentPage]);
   const endIndex = useMemo(() => startIndex + itemsPerPage, [startIndex]);
-  const currentDoctors = useMemo(() => data.slice(startIndex, endIndex), [data, startIndex, endIndex]);
+  const currentDoctors = useMemo(() => filteredDoctors.slice(startIndex, endIndex), [filteredDoctors, startIndex, endIndex]);
+
+  const openRatingsDialog = (doctor: PublicDoctor) => {
+    setSelectedDoctor(doctor);
+    setRatingsPage(1);
+    setIsRatingsDialogOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      if (!isRatingsDialogOpen || !selectedDoctor) return;
+      try {
+        setRatingsLoading(true);
+        setRatingsError(null);
+        const [stats, ratingsResult] = await Promise.all([
+          doctorRatingService.getDoctorStats(selectedDoctor.doctor.id),
+          doctorRatingService.getRatingsByDoctor(selectedDoctor.doctor.id, ratingsPage, ratingsPerPage),
+        ]);
+        setDoctorStats(stats);
+        const ratingList = Array.isArray(ratingsResult)
+          ? ratingsResult
+          : ratingsResult.data || [];
+        setDoctorRatings(ratingList);
+        const total = Array.isArray(ratingsResult) ? ratingList.length : ratingsResult.meta?.total ?? ratingList.length;
+        setRatingsTotal(total);
+      } catch (e) {
+        setDoctorStats(null);
+        setDoctorRatings([]);
+        setRatingsError(getErrorMessage(e, 'Không thể tải đánh giá'));
+      } finally {
+        setRatingsLoading(false);
+      }
+    };
+    fetchRatings();
+  }, [isRatingsDialogOpen, selectedDoctor, ratingsPage]);
+
+  const RatingStars = ({ value }: { value: number }) => (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star key={star} className={value >= star ? 'h-4 w-4 text-yellow-400 fill-yellow-400' : 'h-4 w-4 text-gray-300'} />
+      ))}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-white">
-      <section className="bg-gradient-to-b from-[#f0f9ff] to-white relative overflow-hidden">
+      <section className="bg-linear-to-b from-[#f0f9ff] to-white relative overflow-hidden">
         {/* Background decorations */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-linear-to-br from-primary/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-linear-to-tr from-blue-50 to-transparent rounded-full blur-2xl"></div>
         
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
           <div className="max-w-5xl mx-auto text-center">
@@ -104,7 +171,6 @@ export default function DoctorsPage() {
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-4">
               Đội ngũ bác sĩ <span className="text-primary relative">
                 giàu kinh nghiệm
-                <div className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-500 rounded-full"></div>
               </span>
             </h1>
             <p className="mt-3 text-gray-600 text-base sm:text-lg max-w-3xl mx-auto">
@@ -123,9 +189,9 @@ export default function DoctorsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Lọc theo chuyên khoa (vd: Tim mạch)"
-                value={specialtyName}
-                onChange={(e) => setSpecialtyName(e.target.value)}
+                placeholder="Tìm kiếm bác sĩ theo tên, mã hoặc chuyên khoa"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-5 border-gray-300 focus:border-primary focus:ring-primary/20"
               />
             </div>
@@ -135,25 +201,25 @@ export default function DoctorsPage() {
             <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
               <Users className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">
-                {loading ? 'Đang tải...' : `${data.length} bác sĩ`}
+                {loading ? 'Đang tải...' : `${filteredDoctors.length} bác sĩ`}
               </span>
             </div>
-            {specialtyName && (
+            {searchTerm && (
               <Badge variant="secondary" className="bg-green-100 text-green-700">
                 <Shield className="h-3 w-3 mr-1" />
-                Đã lọc
+                Đang lọc
               </Badge>
             )}
           </div>
 
           <div className="space-y-6">
             {currentDoctors.map((d) => (
-              <Card key={d.id} className="border border-gray-200 w-full mx-auto bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
+              <Card key={d.id} className="border border-gray-200 w-[85%] mx-auto bg-white hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-br from-primary/5 to-transparent rounded-full blur-xl opacity-50"></div>
                 <CardContent className="p-6 relative">
                   <div className="flex items-start gap-6">
                     <div className="relative">
-                      <div className="w-40 h-40 sm:w-40 sm:h-40 rounded-xl overflow-hidden flex-shrink-0 relative group-hover:scale-105 transition-transform duration-300 ">
+                      <div className="w-40 h-40 sm:w-40 sm:h-40 rounded-xl overflow-hidden shrink-0 relative group-hover:scale-105 transition-transform duration-300 ">
                         <Image
                           unoptimized
                           src={d.avatar || '/logos/LogoRevita-v2-noneBG.png'}
@@ -177,11 +243,15 @@ export default function DoctorsPage() {
                           </Badge>
                         )}
                         {typeof d.doctor.rating === 'number' && (
-                          <Badge variant="outline" className="border-yellow-200 text-yellow-700">
-                            <Star className="h-3 w-3 mr-1 fill-current" />
+                          <Badge variant="outline" className="border-yellow-200 text-yellow-700 flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-current" />
                             {d.doctor.rating.toFixed(1)}
                           </Badge>
                         )}
+                        <Button variant="outline" size="sm" className="text-xs hover:bg-transparent hover:text-primary " onClick={() => openRatingsDialog(d)}>
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Xem đánh giá
+                        </Button>
                       </div>
                       
                       <Separator className="my-4" />
@@ -204,18 +274,18 @@ export default function DoctorsPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        {d.doctor.workHistory && (
-                          <div className="flex items-start gap-3">
-                            <TrendingUp className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      {d.doctor.workHistory && (
+                        <div className="flex items-start gap-3">
+                          <TrendingUp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                             <div>
                               <p className="text-sm font-medium text-gray-700">Kinh nghiệm</p>
                               <p className="text-sm text-gray-600">{d.doctor.workHistory}</p>
                             </div>
                           </div>
                         )}
-                        {d.doctor.description && (
-                          <div className="flex items-start gap-3">
-                            <Clock className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      {d.doctor.description && (
+                        <div className="flex items-start gap-3">
+                          <Clock className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
                             <div>
                               <p className="text-sm font-medium text-gray-700">Giới thiệu</p>
                               <p className="text-sm text-gray-600">{d.doctor.description}</p>
@@ -240,7 +310,7 @@ export default function DoctorsPage() {
           )}
 
           {/* Pagination */}
-          {!loading && data.length > 0 && (
+          {!loading && filteredDoctors.length > 0 && (
             <div className="mt-8 mb-8 flex items-center justify-center gap-2">
               <Button
                 variant="outline"
@@ -273,6 +343,122 @@ export default function DoctorsPage() {
           )}
         </div>
       </div>
+      <Dialog open={isRatingsDialogOpen} onOpenChange={(open) => (!open ? setIsRatingsDialogOpen(false) : null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Đánh giá bác sĩ {selectedDoctor?.name}</DialogTitle>
+            <DialogDescription>Xem nhận xét từ bệnh nhân về bác sĩ này.</DialogDescription>
+          </DialogHeader>
+          {ratingsLoading ? (
+            <div className="py-6 text-center text-sm text-gray-500">Đang tải đánh giá...</div>
+          ) : ratingsError ? (
+            <div className="py-6 text-center text-sm text-red-600">{ratingsError}</div>
+          ) : (
+            <div className="space-y-4">
+              {doctorStats && (
+                <div className="rounded-lg border border-gray-200 p-4 bg-gray-50 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Điểm trung bình</p>
+                      <div className="flex items-center gap-2">
+                        <RatingStars value={doctorStats.averageRating || 0} />
+                        <span className="text-lg font-semibold text-gray-900">
+                          {(doctorStats.averageRating ?? 0).toFixed(1)} / 5
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{doctorStats.totalRatings || 0} lượt đánh giá</p>
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-1 w-full sm:w-1/2">
+                      {(doctorStats.ratingDistribution || [])
+                        .slice()
+                        .sort((a, b) => b.rating - a.rating)
+                        .map((item) => (
+                          <div key={item.rating} className="flex items-center gap-2">
+                            <span>{item.rating}★</span>
+                            <div className="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-yellow-400"
+                                style={{
+                                  width: doctorStats.totalRatings
+                                    ? `${item.percentage ?? (item.count / doctorStats.totalRatings) * 100}%`
+                                    : '0%',
+                                }}
+                              />
+                            </div>
+                            <span>{item.count}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                  {doctorStats.recentComments && doctorStats.recentComments.length > 0 && (
+                    <div className="border-t border-gray-200 pt-3 space-y-2">
+                      <p className="text-xs font-semibold text-gray-700">Nhận xét gần đây</p>
+                      {doctorStats.recentComments.slice(0, 3).map((c) => (
+                        <div key={c.id} className="text-xs text-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                          <div className="flex items-center gap-2">
+                            <RatingStars value={c.rating} />
+                            <span className="font-medium">{c.patientName}</span>
+                          </div>
+                          <span className="text-[11px] text-gray-400">
+                            {new Date(c.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                          {c.comment && <p className="text-gray-700 mt-1 sm:mt-0">{c.comment}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {doctorRatings.length === 0 ? (
+                <div className="text-center text-sm text-gray-500 py-6">Chưa có đánh giá nào.</div>
+              ) : (
+                <div className="space-y-3">
+                  {doctorRatings.map((rating) => (
+                    <div key={rating.id} className="rounded-lg border border-gray-200 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <RatingStars value={rating.rating} />
+                        <span className="text-xs text-gray-500">
+                          {new Date(rating.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                      {rating.comment ? (
+                        <p className="text-sm text-gray-700">{rating.comment}</p>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Không có nhận xét.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {ratingsTotal > ratingsPerPage && (
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRatingsPage((p) => Math.max(1, p - 1))}
+                    disabled={ratingsPage === 1}
+                  >
+                    Trang trước
+                  </Button>
+                  <span className="text-xs text-gray-500">
+                    Trang {ratingsPage} / {Math.max(1, Math.ceil(ratingsTotal / ratingsPerPage))}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRatingsPage((p) => Math.min(Math.ceil(ratingsTotal / ratingsPerPage), p + 1))}
+                    disabled={ratingsPage >= Math.ceil(ratingsTotal / ratingsPerPage)}
+                  >
+                    Trang sau
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
