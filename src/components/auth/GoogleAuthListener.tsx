@@ -56,7 +56,7 @@ export function GoogleAuthListener() {
         isProcessing.current = false;
         sessionStorage.removeItem(GOOGLE_PROCESSING_KEY);
       });
-  }, [router]);
+  }, [router, reloadAuth]);
 
   return null;
 }

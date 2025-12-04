@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, Camera, CameraOff } from 'lucide-react';
+import { QrCode, Camera, CameraOff, AlertTriangle, User, Stethoscope } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from 'html5-qrcode';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function SupportServingPage() {
   const [prescriptionCode, setPrescriptionCode] = useState<string>("");
@@ -19,6 +21,7 @@ export default function SupportServingPage() {
   const [loadingPending, setLoadingPending] = useState<boolean>(false);
   const [loadingAssign, setLoadingAssign] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<Set<string>>(new Set());
   
   // QR Scanner states
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
@@ -40,6 +43,7 @@ export default function SupportServingPage() {
     if (!codeToFetch) return;
     setError("");
     setAssignResult(null);
+    setSelectedServiceIds(new Set()); // Clear selections when fetching new data
     setLoadingPending(true);
     try {
       const data = await receptionService.getPendingServices(codeToFetch);
@@ -55,11 +59,23 @@ export default function SupportServingPage() {
 
   const handleAssignNext = useCallback(async () => {
     if (!pendingData?.prescriptionCode) return;
+    
+    // Check if any service is selected
+    if (selectedServiceIds.size === 0) {
+      toast.error('Vui lòng chọn ít nhất một dịch vụ để gán');
+      return;
+    }
+    
     setError("");
     setLoadingAssign(true);
     try {
-      const res = await receptionService.assignNextService({ prescriptionCode: pendingData.prescriptionCode });
+      const res = await receptionService.assignNextService({ 
+        prescriptionCode: pendingData.prescriptionCode,
+        prescriptionServiceIds: Array.from(selectedServiceIds)
+      });
       setAssignResult(res);
+      // Clear selected services after successful assignment
+      setSelectedServiceIds(new Set());
       // Optionally refresh pending list after assignment
       try {
         const refreshed = await receptionService.getPendingServices(pendingData.prescriptionCode);
@@ -73,7 +89,7 @@ export default function SupportServingPage() {
     } finally {
       setLoadingAssign(false);
     }
-  }, [pendingData?.prescriptionCode]);
+  }, [pendingData?.prescriptionCode, selectedServiceIds]);
 
   // QR Scanner handlers
   const stopQrScanner = useCallback(async () => {
@@ -426,34 +442,154 @@ export default function SupportServingPage() {
           {pendingData && (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
-                Mã phiếu: <span className="font-medium text-foreground">{pendingData.prescriptionCode}</span> · Trạng thái: {pendingData.status} · Tổng dịch vụ chờ: {pendingData.totalCount}
+                Mã phiếu: <span className="font-medium text-foreground">{pendingData.prescriptionCode}</span> · 
+                Trạng thái: <span className="font-medium text-foreground">
+                  {pendingData.status === 'PENDING' ? 'Chờ thực hiện' : 
+                   pendingData.status === 'RESCHEDULED' ? 'Đã hẹn lại' : 
+                   'Hỗn hợp'}
+                </span> · 
+                Tổng dịch vụ chờ: {pendingData.totalCount}
               </div>
+
+              {/* Cảnh báo nếu có bác sĩ/kỹ thuật viên không làm việc */}
+              {pendingData.services.some(s => s.isDoctorNotWorking || s.isTechnicianNotWorking) && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-yellow-800">Cảnh báo</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Có dịch vụ được hẹn lại với bác sĩ/kỹ thuật viên hiện không làm việc hôm nay. 
+                        Vui lòng kiểm tra và liên hệ để bố trí lại.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Danh sách dịch vụ PENDING</CardTitle>
+                  <CardTitle className="text-base">
+                    Danh sách dịch vụ {pendingData.status === 'RESCHEDULED' ? 'ĐÃ HẸN LẠI' : pendingData.status === 'MIXED' ? 'CHỜ THỰC HIỆN & ĐÃ HẸN LẠI' : 'CHỜ THỰC HIỆN'}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={pendingData.services.length > 0 && pendingData.services.every(s => selectedServiceIds.has(s.prescriptionServiceId))}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                // Select all
+                                setSelectedServiceIds(new Set(pendingData.services.map(s => s.prescriptionServiceId)));
+                              } else {
+                                // Deselect all
+                                setSelectedServiceIds(new Set());
+                              }
+                            }}
+                          />
+                        </TableHead>
                         <TableHead>#</TableHead>
                         <TableHead>Tên dịch vụ</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Bác sĩ</TableHead>
+                        <TableHead>Kỹ thuật viên</TableHead>
                         <TableHead>Service ID</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingData.services.map((s: { serviceId: string; serviceName: string }, idx: number) => (
-                        <TableRow key={s.serviceId}>
-                          <TableCell>{idx + 1}</TableCell>
-                          <TableCell>{s.serviceName}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{s.serviceId}</TableCell>
-                        </TableRow>
-                      ))}
+                      {pendingData.services.map((s, idx: number) => {
+                        const isRescheduled = s.status === 'RESCHEDULED';
+                        const isWaitingResult = s.status === 'WAITING_RESULT';
+                        const hasDoctor = s.doctorId && s.doctorName;
+                        const hasTechnician = s.technicianId && s.technicianName;
+                        const doctorNotWorking = s.isDoctorNotWorking === true;
+                        const technicianNotWorking = s.isTechnicianNotWorking === true;
+                        const isSelected = selectedServiceIds.has(s.prescriptionServiceId);
+                        
+                        // Get status text and color
+                        let statusText = 'Chờ thực hiện';
+                        let statusVariant: "default" | "secondary" | "destructive" | "outline" = "default";
+                        let statusClassName = "";
+                        
+                        if (isRescheduled) {
+                          statusText = 'Đã hẹn lại';
+                          statusVariant = "secondary";
+                          statusClassName = "bg-orange-100 text-orange-800 border-orange-200";
+                        } else if (isWaitingResult) {
+                          statusText = 'Chờ kết quả';
+                          statusVariant = "secondary";
+                          statusClassName = "bg-cyan-100 text-cyan-800 border-cyan-200";
+                        }
+                        
+                        return (
+                          <TableRow key={s.prescriptionServiceId}>
+                            <TableCell>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(selectedServiceIds);
+                                  if (checked) {
+                                    newSet.add(s.prescriptionServiceId);
+                                  } else {
+                                    newSet.delete(s.prescriptionServiceId);
+                                  }
+                                  setSelectedServiceIds(newSet);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>{idx + 1}</TableCell>
+                            <TableCell>{s.serviceName}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={statusVariant}
+                                className={statusClassName}
+                              >
+                                {statusText}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {hasDoctor ? (
+                                <div className="flex items-center gap-1">
+                                  <Stethoscope className="h-3 w-3 text-blue-600" />
+                                  <span className="text-sm">{s.doctorName}</span>
+                                  {doctorNotWorking && (
+                                    <Badge variant="destructive" className="text-xs ml-1">
+                                      <AlertTriangle className="h-2 w-2 mr-1" />
+                                      Không làm việc
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">--</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {hasTechnician ? (
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3 w-3 text-green-600" />
+                                  <span className="text-sm">{s.technicianName}</span>
+                                  {technicianNotWorking && (
+                                    <Badge variant="destructive" className="text-xs ml-1">
+                                      <AlertTriangle className="h-2 w-2 mr-1" />
+                                      Không làm việc
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">--</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{s.serviceId}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {pendingData.services.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
-                            Không có dịch vụ PENDING
+                          <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                            Không có dịch vụ {pendingData.status === 'RESCHEDULED' ? 'đã hẹn lại' : 'chờ thực hiện'}
                           </TableCell>
                         </TableRow>
                       )}
@@ -463,10 +599,17 @@ export default function SupportServingPage() {
               </Card>
 
               <div className="flex items-center gap-2">
-                <Button onClick={handleAssignNext} disabled={loadingAssign || pendingData.totalCount === 0}>
-                  {loadingAssign ? 'Đang gán...' : 'Gán dịch vụ tiếp theo'}
+                <Button 
+                  onClick={handleAssignNext} 
+                  disabled={loadingAssign || selectedServiceIds.size === 0}
+                >
+                  {loadingAssign ? 'Đang gán...' : `Gán ${selectedServiceIds.size} dịch vụ đã chọn`}
                 </Button>
-                <span className="text-xs text-muted-foreground">Gán dịch vụ có thứ tự nhỏ nhất cho phiên làm việc phù hợp</span>
+                <span className="text-xs text-muted-foreground">
+                  {selectedServiceIds.size > 0 
+                    ? `Đã chọn ${selectedServiceIds.size}/${pendingData.services.length} dịch vụ`
+                    : 'Vui lòng chọn ít nhất một dịch vụ để gán'}
+                </span>
               </div>
 
               {assignResult && (
@@ -475,26 +618,56 @@ export default function SupportServingPage() {
                     <CardTitle className="text-base">Kết quả gán</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="text-sm">
-                      Đã chuyển dịch vụ <span className="font-medium">{assignResult.assignedService.serviceId}</span> sang trạng thái <span className="font-medium">{assignResult.assignedService.status}</span>
-                    </div>
-                    <Separator />
-                    <div className="text-sm">
-                      Phiên được chọn: <span className="font-medium">{assignResult.chosenSession.id}</span>
-                      {assignResult.chosenSession.doctorId ? (
-                        <>
-                          {' '}· Bác sĩ: <span className="font-medium">{assignResult.chosenSession.doctorId}</span>
-                        </>
-                      ) : null}
-                      {assignResult.chosenSession.technicianId ? (
-                        <>
-                          {' '}· Kỹ thuật viên: <span className="font-medium">{assignResult.chosenSession.technicianId}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Thời gian: {new Date(assignResult.chosenSession.startTime).toLocaleString()} - {new Date(assignResult.chosenSession.endTime).toLocaleString()}
-                    </div>
+                    {/* Single service result */}
+                    {assignResult.assignedService && (
+                      <>
+                        <div className="text-sm">
+                          Đã chuyển dịch vụ <span className="font-medium">{assignResult.assignedService.serviceId}</span> sang trạng thái <span className="font-medium">{assignResult.assignedService.status}</span>
+                        </div>
+                        <Separator />
+                      </>
+                    )}
+                    
+                    {/* Multiple services result */}
+                    {assignResult.assignedServices && assignResult.assignedServices.length > 0 && (
+                      <>
+                        <div className="text-sm">
+                          Đã chuyển <span className="font-medium">{assignResult.assignedServices.length}</span> dịch vụ:
+                        </div>
+                        <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                          {assignResult.assignedServices.map((service, idx) => (
+                            <li key={idx}>
+                              <span className="font-medium">{service.serviceId}</span> - Trạng thái: <span className="font-medium">{service.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <Separator />
+                      </>
+                    )}
+                    
+                    {/* Session info */}
+                    {assignResult.chosenSession && (
+                      <>
+                        <div className="text-sm">
+                          Phiên được chọn: <span className="font-medium">{assignResult.chosenSession.id}</span>
+                          {assignResult.chosenSession.doctorId ? (
+                            <>
+                              {' '}· Bác sĩ: <span className="font-medium">{assignResult.chosenSession.doctorId}</span>
+                            </>
+                          ) : null}
+                          {assignResult.chosenSession.technicianId ? (
+                            <>
+                              {' '}· Kỹ thuật viên: <span className="font-medium">{assignResult.chosenSession.technicianId}</span>
+                            </>
+                          ) : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Thời gian: {new Date(assignResult.chosenSession.startTime).toLocaleString()} - {new Date(assignResult.chosenSession.endTime).toLocaleString()}
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Queue preview */}
                     {assignResult.queuePreview && (
                       <div className="text-sm text-muted-foreground">
                         Ảnh chụp hàng đợi: {assignResult.queuePreview.totalCount} bệnh nhân
