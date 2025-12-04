@@ -49,12 +49,35 @@ function CompleteRegistrationContent() {
     setLoading(true);
     setError("");
     try {
+      // Validate required fields
+      if (!form.fullName.trim()) {
+        setError("Vui lòng nhập họ và tên");
+        setLoading(false);
+        return;
+      }
+      
+      if (!form.dateOfBirth) {
+        setError("Vui lòng chọn ngày sinh");
+        setLoading(false);
+        return;
+      }
+      
+      if (!form.address.trim()) {
+        setError("Vui lòng nhập địa chỉ");
+        setLoading(false);
+        return;
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const response = await registerApi.complete({
         sessionId,
-        fullName: form.fullName,
+        name: form.fullName,
+        dateOfBirth: form.dateOfBirth,
+        gender: form.gender,
+        address: form.address,
+        citizenId: form.citizenId || undefined,
+        avatar: form.avatar || undefined,
         password: form.password,
-        confirmPassword: form.confirmPassword,
       });
       
       setSuccess(true);

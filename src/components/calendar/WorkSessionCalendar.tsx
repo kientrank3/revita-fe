@@ -108,10 +108,27 @@ export function WorkSessionCalendar({
     }
   }, [isAdmin, isReady]);
 
+  // Clear loadedEvents when events prop changes to ensure we use fresh data from parent
+  // This ensures calendar updates immediately when parent refreshes after status change
+  useEffect(() => {
+    // When parent provides events, invalidate local cache to prevent stale data
+    if (events !== undefined) {
+      setLoadedEvents([]);
+      loadedEventsMonthKeyRef.current = '';
+    }
+  }, [events]);
+
   // Choose source events:
-  // - use locally loaded events if they match the visible month
-  // - otherwise fallback to parent-provided events
+  // - Priority: parent-provided events (always use latest from props for immediate updates)
+  // - Fallback: locally loaded events only when parent hasn't provided events yet
   const baseEvents = useMemo<CalendarEvent[]>(() => {
+    // Always prioritize events from props if provided (even if empty)
+    // This ensures calendar updates immediately when parent refreshes after status change
+    if (events !== undefined) {
+      return events;
+    }
+    
+    // Fallback: use locally loaded events only if parent hasn't provided any
     const calendarApi = calendarRef.current?.getApi();
     const visibleDate = calendarApi?.getDate();
     const visibleMonthKey = visibleDate ? getMonthKey(visibleDate) : '';
@@ -120,7 +137,7 @@ export function WorkSessionCalendar({
     if (hasLoadedForVisibleMonth) {
       return loadedEvents;
     }
-    return events ?? [];
+    return [];
   }, [events, loadedEvents]);
 
   // Filter calendar events by specialty (admin only)
@@ -395,16 +412,20 @@ export function WorkSessionCalendar({
   // Final events to display
   const displayEvents = filteredEvents;
   
-  const calendarEvents: EventInput[] = displayEvents.map(event => ({
-    id: event.id,
-    title: event.title,
-    start: event.start,
-    end: event.end,
-    backgroundColor: event.backgroundColor,
-    borderColor: event.borderColor,
-    textColor: event.textColor,
-    extendedProps: event.extendedProps,
-  }));
+  // Memoize calendarEvents to ensure it updates when displayEvents change
+  // This ensures FullCalendar receives new events when status is updated
+  const calendarEvents: EventInput[] = useMemo(() => {
+    return displayEvents.map(event => ({
+      id: event.id,
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      backgroundColor: event.backgroundColor,
+      borderColor: event.borderColor,
+      textColor: event.textColor,
+      extendedProps: event.extendedProps,
+    }));
+  }, [displayEvents]);
 
   return (
     <Card className="w-full border border-gray-200 shadow-sm bg-white">

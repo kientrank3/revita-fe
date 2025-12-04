@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { CalendarStats } from '@/components/calendar/CalendarStats';
@@ -80,6 +80,24 @@ export default function CalendarPage() {
       return filteredEventIds.has(session.id);
     });
   }, [workSessions, filteredCalendarEvents, calendarEvents.length]);
+
+  // Auto-update selectedSession when workSessions change (e.g., after status update)
+  useEffect(() => {
+    if (selectedSession?.id && showDetails) {
+      const updatedSession = workSessions.find(s => s.id === selectedSession.id);
+      if (updatedSession) {
+        // Update if status or other key fields changed
+        if (
+          updatedSession.status !== selectedSession.status ||
+          updatedSession.startTime !== selectedSession.startTime ||
+          updatedSession.endTime !== selectedSession.endTime
+        ) {
+          setSelectedSession(updatedSession);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workSessions, showDetails]);
 
   // Access control - redirect if no permission
   if (!hasCalendarAccess) {
@@ -170,7 +188,12 @@ export default function CalendarPage() {
   const handleStatusUpdate = async (sessionId: string, status: string) => {
     try {
       await handleUpdateWorkSessionStatus(sessionId, status);
+      // Force a small delay to ensure state updates, then reload to sync with server
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await refreshCalendar();
+      
       toast.success('Cập nhật trạng thái thành công!');
+      // selectedSession will be auto-updated via useEffect when workSessions refreshes
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật trạng thái');
     }
