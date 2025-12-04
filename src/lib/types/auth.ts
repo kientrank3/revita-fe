@@ -1,4 +1,4 @@
-import { Admin, Doctor, Patient, Receptionist } from "./user";
+import { Admin, Doctor, Patient, Receptionist, Cashier } from "./user";
 
 export interface AuthUser {
   id: string;
@@ -11,10 +11,11 @@ export interface AuthUser {
   gender: 'male' | 'female' | 'other';
   address: string;
   citizenId: string;
-  patient?: Patient;
-  doctor?: Doctor;
-  receptionist?: Receptionist;
-  admin?: Admin;
+  patient?: Patient | null;
+  doctor?: Doctor | null;
+  receptionist?: Receptionist | null;
+  admin?: Admin | null;
+  cashier?: Cashier | null;
 }
 
 export type UserRole = 'PATIENT' | 'DOCTOR' | 'RECEPTIONIST' | 'ADMIN' | 'CASHIER' | 'TECHNICIAN';

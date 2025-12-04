@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -9,10 +9,14 @@ import listPlugin from '@fullcalendar/list';
 import { EventInput, EventClickArg, DateSelectArg, EventDropArg } from '@fullcalendar/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 // import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarEvent, WorkSession } from '@/lib/types/work-session';
 import { useWorkSessionCalendar } from '@/lib/hooks/useWorkSessionCalendar';
+import { specialtiesService } from '@/lib/services/services.service';
+import { toast } from 'sonner';
 
 // Helper function to get FullCalendar view type
 const getViewType = (view: 'month' | 'week' | 'day') => {
@@ -28,6 +32,12 @@ const getViewType = (view: 'month' | 'week' | 'day') => {
   }
 };
 
+interface Specialty {
+  id: string;
+  specialtyCode: string;
+  name: string;
+}
+
 interface WorkSessionCalendarProps {
   events: CalendarEvent[];
   loading?: boolean;
@@ -36,10 +46,12 @@ interface WorkSessionCalendarProps {
   onEventDrop?: (eventId: string, newStart: Date, newEnd: Date) => void;
   view?: 'month' | 'week' | 'day';
   onViewChange?: (view: 'month' | 'week' | 'day') => void;
+  // onDateChange?: (startDate: Date, endDate: Date) => void;
   height?: string | number;
   isAdmin?: boolean;
   selectedDoctorId?: string | null;
   isReady?: boolean;
+  onSpecialtyFilterChange?: (filteredEvents: CalendarEvent[]) => void;
 }
 
 export function WorkSessionCalendar({
@@ -50,20 +62,87 @@ export function WorkSessionCalendar({
   onEventDrop,
   view = 'month',
   onViewChange,
+  // onDateChange,
   height = '100%',
   isAdmin = false,
   selectedDoctorId = null,
   isReady = true,
+  onSpecialtyFilterChange,
 }: WorkSessionCalendarProps) {
   const calendarRef = useRef<FullCalendar>(null);
   const [currentTitle, setCurrentTitle] = useState('');
   const [currentView, setCurrentView] = useState<'month' | 'week' | 'day'>(view);
   const [loadedEvents, setLoadedEvents] = useState<CalendarEvent[]>([]);
+  // Track which month loadedEvents belong to, and which month is currently visible
+  const loadedEventsMonthKeyRef = useRef<string>('');
+  const currentMonthKeyRef = useRef<string>('');
+  const getMonthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}`;
+  
+  // Specialty filter state (only for admin)
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState<string | null>(null);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [loadingSpecialties, setLoadingSpecialties] = useState(false);
+  
   const {loadEvents} = useWorkSessionCalendar({
     selectedDoctorId,
     isAdmin,
     isReady,
   });
+
+  // Fetch specialties for admin
+  useEffect(() => {
+    if (isAdmin && isReady) {
+      const loadSpecialties = async () => {
+        try {
+          setLoadingSpecialties(true);
+          const response = await specialtiesService.listSpecialties(1, 100);
+          setSpecialties(response.data || []);
+        } catch (err) {
+          console.error('Failed to load specialties:', err);
+          toast.error('Không thể tải danh sách chuyên khoa');
+        } finally {
+          setLoadingSpecialties(false);
+        }
+      };
+      loadSpecialties();
+    }
+  }, [isAdmin, isReady]);
+
+  // Choose source events:
+  // - use locally loaded events if they match the visible month
+  // - otherwise fallback to parent-provided events
+  const baseEvents = useMemo<CalendarEvent[]>(() => {
+    const calendarApi = calendarRef.current?.getApi();
+    const visibleDate = calendarApi?.getDate();
+    const visibleMonthKey = visibleDate ? getMonthKey(visibleDate) : '';
+    const hasLoadedForVisibleMonth =
+      loadedEvents.length > 0 && loadedEventsMonthKeyRef.current === visibleMonthKey;
+    if (hasLoadedForVisibleMonth) {
+      return loadedEvents;
+    }
+    return events ?? [];
+  }, [events, loadedEvents]);
+
+  // Filter calendar events by specialty (admin only)
+  const filteredEvents = useMemo((): CalendarEvent[] => {
+    if (!isAdmin || !selectedSpecialtyId) {
+      return baseEvents;
+    }
+    return baseEvents.filter((event) => {
+      const workSession = event.extendedProps.workSession as WorkSession;
+      return workSession.doctor?.specialtyId === selectedSpecialtyId;
+    });
+  }, [baseEvents, selectedSpecialtyId, isAdmin]);
+
+  // Notify parent about filtered events change (for stats)
+  // Use a ref to track if we've initialized to avoid unnecessary calls
+  const hasNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (onSpecialtyFilterChange) {
+      onSpecialtyFilterChange(filteredEvents);
+      hasNotifiedRef.current = true;
+    }
+  }, [filteredEvents, onSpecialtyFilterChange]);
 
 
   // Update title when calendar is ready
@@ -92,9 +171,17 @@ export function WorkSessionCalendar({
     }
   }, [view]);
 
+  // Note: loadedEvents is no longer used in displayEvents (which uses filteredEvents from events prop)
+  // Parent component (page.tsx) is responsible for providing events via props
+  // This useEffect was causing infinite reloads and has been removed
+
   // Load events for month view when component mounts or view changes
+  // Only load if events prop is empty (no filter applied)
   useEffect(() => {
     const loadInitialEvents = async () => {
+      // Only load if events prop is empty (parent hasn't provided filtered events)
+      if (events.length > 0) return;
+      
       if (currentView === 'month') {
         const calendarApi = calendarRef.current?.getApi();
         if (calendarApi) {
@@ -117,23 +204,32 @@ export function WorkSessionCalendar({
     };
 
     loadInitialEvents();
-  }, [currentView, loadEvents]);
+  }, [currentView, loadEvents, events.length]);
 
   // Load events when date changes (for week/day view when month changes)
   const handleDateChange = async (dateInfo: { view: { title: string; calendar: { getDate: () => Date } } }) => {
     setCurrentTitle(dateInfo.view.title);
     
-    // Load events when month changes for any view
+    // Notify parent component about date change so it can load events for the new month
     const currentDate = dateInfo.view.calendar.getDate();
+    // Track visible month
+    currentMonthKeyRef.current = getMonthKey(currentDate);
     const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
     
-    try {
-      const newEvents = await loadEvents(startDate, endDate);
-      setLoadedEvents(newEvents || []);
-    } catch (error) {
-      console.error('Failed to load events for month change:', error);
-    }
+    // Call parent callback to load events for new month
+    // if (onDateChange) {
+    //   onDateChange(startDate, endDate);
+    // } else {
+      // Fallback: load events locally if no callback provided
+      try {
+        const newEvents = await loadEvents(startDate, endDate);
+        setLoadedEvents(newEvents || []);
+        loadedEventsMonthKeyRef.current = getMonthKey(currentDate);
+      } catch (error) {
+        console.error('Failed to load events for month change:', error);
+      }
+    // }
   };
 
   // Navigation functions
@@ -160,10 +256,15 @@ export function WorkSessionCalendar({
         const startDate = new Date(prevDate.getFullYear(), prevDate.getMonth(), 1);
         const endDate = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 1);
         
+        // Notify parent component to load events for new month
         try {
           const newEvents = await loadEvents(startDate, endDate);
           setLoadedEvents(newEvents || []);
           console.log('Loaded events for previous month:', newEvents);
+          // Track that loadedEvents belong to prevDate's month
+          loadedEventsMonthKeyRef.current = getMonthKey(prevDate);
+          // Also update visible month key pre-emptively
+          currentMonthKeyRef.current = getMonthKey(prevDate);
         } catch (error) {
           console.error('Failed to load events for previous month:', error);
         }
@@ -197,10 +298,15 @@ export function WorkSessionCalendar({
         const startDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
         const endDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 1);
         
+        // Notify parent component to load events for new month
         try {
           const newEvents = await loadEvents(startDate, endDate);
           setLoadedEvents(newEvents || []);
           console.log('Loaded events for next month:', newEvents);
+          // Track that loadedEvents belong to nextDate's month
+          loadedEventsMonthKeyRef.current = getMonthKey(nextDate);
+          // Also update visible month key pre-emptively
+          currentMonthKeyRef.current = getMonthKey(nextDate);
         } catch (error) {
           console.error('Failed to load events for next month:', error);
         }
@@ -222,9 +328,12 @@ export function WorkSessionCalendar({
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
       
+      // Notify parent component to load events for current month
       try {
         const newEvents = await loadEvents(startDate, endDate);
         setLoadedEvents(newEvents || []);
+        loadedEventsMonthKeyRef.current = getMonthKey(today);
+        currentMonthKeyRef.current = getMonthKey(today);
       } catch (error) {
         console.error('Failed to load events for today month:', error);
       }
@@ -283,8 +392,8 @@ export function WorkSessionCalendar({
     }
   };
 
-  // Use loaded events if available, otherwise fallback to original events
-  const displayEvents = loadedEvents.length > 0 ? loadedEvents : events;
+  // Final events to display
+  const displayEvents = filteredEvents;
   
   const calendarEvents: EventInput[] = displayEvents.map(event => ({
     id: event.id,
@@ -300,6 +409,37 @@ export function WorkSessionCalendar({
   return (
     <Card className="w-full border border-gray-200 shadow-sm bg-white">
       <CardHeader className="space-y-4 pb-4 border-b border-gray-200 bg-white">
+        {/* Specialty Filter for Admin */}
+        {isAdmin && (
+          <div className="flex items-center gap-3">
+            <Label htmlFor="specialty-filter" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              Lọc theo chuyên khoa:
+            </Label>
+            <Select
+              value={selectedSpecialtyId || 'all'}
+              onValueChange={(value) => {
+                setSelectedSpecialtyId(value === 'all' ? null : value);
+              }}
+              disabled={loadingSpecialties}
+            >
+              <SelectTrigger 
+                id="specialty-filter"
+                className=" border-gray-300 bg-white hover:bg-gray-50"
+              >
+                <SelectValue placeholder="Tất cả chuyên khoa" />
+              </SelectTrigger>
+              <SelectContent >
+                <SelectItem value="all">Tất cả chuyên khoa</SelectItem>
+                {specialties.map((specialty) => (
+                  <SelectItem key={specialty.id} value={specialty.id}>
+                    {specialty.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
         {/* Title and View Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-3">
@@ -495,10 +635,10 @@ export function WorkSessionCalendar({
                     >
                       <div className="flex items-center gap-2 text-[11px] leading-4 min-w-0">
                         <span
-                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
                           style={{ backgroundColor: borderColor }}
                         />
-                        <span className="tabular-nums opacity-80 flex-shrink-0">
+                        <span className="tabular-nums opacity-80 shrink-0">
                           {startHM}{endHM ? ` - ${endHM}` : ''}
                         </span>
                         {/* <span className="truncate flex-1">{eventInfo.event.title || 'Ca làm việc'}</span> */}
@@ -514,7 +654,7 @@ export function WorkSessionCalendar({
                     style={{ backgroundColor: bgColor, color: textColor, borderColor: 'rgba(0,0,0,0.08)', borderLeft: `1px solid ${borderColor}`, borderRight: `1px solid ${borderColor}`, borderBottom: `1px solid ${borderColor}`, borderTop: `1px solid ${borderColor}` }}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-medium tabular-nums flex-shrink-0">{eventInfo.timeText}</span>
+                      <span className="text-xs font-medium tabular-nums shrink-0">{eventInfo.timeText}</span>
                       {/* <span className="text-xs truncate flex-1">{eventInfo.event.title || 'Ca làm việc'}</span> */}
                     </div>
                     {(isWeekView || isDayView) && (

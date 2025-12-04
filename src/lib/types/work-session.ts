@@ -52,6 +52,7 @@ export interface WorkSession {
     id: string;
     doctorCode: string;
     name: string;
+    specialtyId?: string;
     auth: {
       name: string;
       phone?: string;

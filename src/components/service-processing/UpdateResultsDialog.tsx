@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { serviceProcessingService } from '@/lib/services/service-processing.service';
 import { fileStorageService } from '@/lib/services/file-storage.service';
-import { PrescriptionService } from '@/lib/types/service-processing';
+import { PrescriptionService, UpdateServiceResultsRequest } from '@/lib/types/service-processing';
 import { Upload, FileText, X, Image, File, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface UpdateResultsDialogProps {
@@ -23,6 +23,7 @@ interface UpdateResultsDialogProps {
   service: PrescriptionService;
   patientProfileId?: string; // Add patientProfileId prop
   onUpdate: () => void;
+  shouldReschedule?: boolean; // If true, marks service as RESCHEDULED
 }
 
 export function UpdateResultsDialog({
@@ -30,7 +31,8 @@ export function UpdateResultsDialog({
   onOpenChange,
   service,
   patientProfileId,
-  onUpdate
+  onUpdate,
+  shouldReschedule = false
 }: UpdateResultsDialogProps) {
   const [results, setResults] = useState<string[]>(service.results || []);
   const [note, setNote] = useState(service.note || '');
@@ -108,21 +110,34 @@ export function UpdateResultsDialog({
 
     setUpdating(true);
     try {
+      // Get prescriptionServiceId
+      const prescriptionServiceId = service.id;
+      if (!prescriptionServiceId) {
+        toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
+        setUpdating(false);
+        return;
+      }
+
+      // Update results - ALWAYS include shouldReschedule field
+      const updateData: UpdateServiceResultsRequest = {
+        prescriptionServiceId,
+        results: filteredResults,
+        shouldReschedule: shouldReschedule || false, // Explicitly set to false if not true
+        ...(note.trim() && { note: note.trim() }),
+      };
+      
       console.log('📤 Updating results for service:', {
         prescriptionId: service.prescriptionId,
         serviceId: service.serviceId,
         resultCount: filteredResults.length,
         note: note.trim(),
-        currentStatus: service.status
+        currentStatus: service.status,
+        shouldReschedule: shouldReschedule
       });
-
-      // Update results (status remains WAITING_RESULT, don't auto-complete)
-      await serviceProcessingService.updateServiceResults({
-        prescriptionId: service.prescriptionId,
-        serviceId: service.serviceId,
-        results: filteredResults,
-        note: note.trim() || undefined,
-      });
+      
+      console.log('📤 Sending update request:', JSON.stringify(updateData, null, 2));
+      
+      await serviceProcessingService.updateServiceResults(updateData);
 
       console.log('✅ Results updated successfully');
 
@@ -164,7 +179,7 @@ export function UpdateResultsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <FileText className="h-5 w-5 text-blue-600" />
-            Cập nhật kết quả
+            {shouldReschedule ? 'Hẹn lại dịch vụ' : 'Cập nhật kết quả'}
           </DialogTitle>
         </DialogHeader>
 
@@ -298,7 +313,7 @@ export function UpdateResultsDialog({
           <Button 
             onClick={handleSubmit} 
             disabled={updating || uploadingFiles || results.length === 0}
-            className="min-w-[150px] bg-blue-600 hover:bg-blue-700"
+            className={`min-w-[150px] ${shouldReschedule ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             {updating ? (
               <>
@@ -313,7 +328,7 @@ export function UpdateResultsDialog({
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Cập nhật kết quả
+                {shouldReschedule ? 'Hẹn lại dịch vụ' : 'Cập nhật kết quả'}
               </>
             )}
           </Button>

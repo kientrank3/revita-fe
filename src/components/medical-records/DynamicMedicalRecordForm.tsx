@@ -858,7 +858,7 @@ export function DynamicMedicalRecordForm({
         </>
       )}
 
-      <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t pt-4 pb-4 flex justify-end gap-3">
+      <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur supports-backdrop-filter:bg-white/60 border-t pt-4 pb-4 flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel} className="text-sm">
           Hủy
         </Button>

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -300,14 +301,88 @@ export default function ReceptionCreatePrescriptionPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.message || 'Không thể tạo phiếu từ lịch hẹn');
       }
+      const result = await res.json();
       toast.success('Đã tạo phiếu chỉ định từ lịch hẹn');
-      // Reset and navigate to list tab
-      setActiveTab('prescriptions');
+      
+      // Auto generate and download PDF
+      const prescriptionData = result.data || result;
+      const prescriptionCode = prescriptionData.prescriptionCode || result.prescriptionCode;
+      
+      if (prescriptionCode) {
+        try {
+          // Check if response already has full prescription data (with services, patientProfile, doctor)
+          const hasFullData = prescriptionData.services && 
+                              Array.isArray(prescriptionData.services) && 
+                              prescriptionData.patientProfile && 
+                              prescriptionData.doctor;
+          
+          let fullPrescriptionData = prescriptionData;
+          
+          // If response doesn't have full data, fetch it
+          if (!hasFullData) {
+            const presRes = await fetch(`${API_BASE_URL}/prescriptions/${encodeURIComponent(prescriptionCode)}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+            });
+            if (presRes.ok) {
+              const fullPrescription = await presRes.json();
+              fullPrescriptionData = fullPrescription.data || fullPrescription;
+            }
+          }
+          
+          // Generate and download PDF
+          const { generatePrescriptionPDF } = await import('@/lib/utils/prescription-pdf');
+          await generatePrescriptionPDF(fullPrescriptionData);
+          toast.success('Đã tải PDF phiếu chỉ định');
+          
+          // Small delay to ensure PDF download is initiated
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Reset form and reload view after PDF is downloaded
+          setSelectedPatientProfile(null);
+          setSelectedServices([]);
+          setSearchQuery('');
+          setSearchResults([]);
+          setAppointmentCode('');
+          setAppointment(null);
+          setDoctorsByService({});
+          
+          // Switch to prescriptions tab to show the new prescription
+          // fetchPrescriptions will be called by useEffect when tab changes
+          setActiveTab('prescriptions');
+        } catch (pdfError) {
+          console.error('Error generating PDF:', pdfError);
+          toast.error('Tạo phiếu thành công nhưng không thể tạo PDF. Vui lòng in từ danh sách phiếu.');
+          
+          // Still reset form even if PDF generation failed
+          setSelectedPatientProfile(null);
+          setSelectedServices([]);
+          setSearchQuery('');
+          setSearchResults([]);
+          setAppointmentCode('');
+          setAppointment(null);
+          setDoctorsByService({});
+          
+          setActiveTab('prescriptions');
+        }
+      } else {
+        // Reset form even if no prescriptionCode
+        setSelectedPatientProfile(null);
+        setSelectedServices([]);
+        setSearchQuery('');
+        setSearchResults([]);
+        setAppointmentCode('');
+        setAppointment(null);
+        setDoctorsByService({});
+        
+        setActiveTab('prescriptions');
+      }
     } catch (e: unknown) {
       const error = e as { message?: string };
       toast.error(error?.message || 'Không thể tạo phiếu từ lịch hẹn');
     }
-  }, [appointment]);
+  }, [appointment, activeTab]);
 
   // QR Scanner logic
   const stopScanner = useCallback(async () => {

@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Phone, Mail, ArrowRight, Loader2, ArrowLeft, Lock } from "lucide-react"
 import Image from "next/image"
-import { authApi } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { getRedirectPathByRole } from "@/lib/utils/redirect"
 
@@ -138,85 +137,19 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    setError("");
-    
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true)
+    setError("")
+
     try {
-      // Mở popup cho Google OAuth
-      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + '/auth/google/callback')}&response_type=code&scope=email profile`;
-      
-      const popup = window.open(googleAuthUrl, 'googleAuth', 'width=500,height=600,scrollbars=yes,resizable=yes');
-      
-      // Lắng nghe message từ popup
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'GOOGLE_AUTH_SUCCESS' && event.data.code) {
-          try {
-            const response = await authApi.googleLogin({ code: event.data.code });
-            
-            // Lưu token vào localStorage
-            if (response.data.accessToken) {
-              localStorage.setItem('auth_token', response.data.accessToken);
-              if (response.data.refreshToken) {
-                localStorage.setItem('refresh_token', response.data.refreshToken);
-              }
-            }
-            
-            // Redirect based on user role
-            if (response.data.user) {
-              const user = response.data.user;
-              const redirectPath = getRedirectPathByRole(user.role);
-              router.push(redirectPath);
-            } else {
-              router.push('/');
-            }
-          } catch (err: unknown) {
-            // Xử lý thông báo lỗi cụ thể cho Google login
-            let errorMessage = "Đăng nhập Google thất bại";
-            
-            if (err && typeof err === 'object' && 'response' in err) {
-              const errorResponse = err as { response: { data: { message: string } } };
-              const apiMessage = errorResponse.response.data.message;
-              if (apiMessage.toLowerCase().includes('invalid credentials') || 
-                  apiMessage.toLowerCase().includes('invalid') ||
-                  apiMessage.toLowerCase().includes('credentials')) {
-                errorMessage = "Thông tin đăng nhập Google không hợp lệ";
-              } else if (apiMessage.toLowerCase().includes('user not found')) {
-                errorMessage = "Không tìm thấy tài khoản Google này";
-              } else {
-                errorMessage = apiMessage;
-              }
-            } else if (err && typeof err === 'object' && 'message' in err) {
-              errorMessage = (err as { message: string }).message;
-            }
-            
-            setError(errorMessage);
-            // Lưu vào sessionStorage để hiển thị sau reload
-            sessionStorage.setItem('login_error', errorMessage);
-          } finally {
-            setGoogleLoading(false);
-            window.removeEventListener('message', handleMessage);
-          }
-        }
-      };
-      
-      window.addEventListener('message', handleMessage);
-      
-      // Cleanup nếu popup bị đóng
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          setGoogleLoading(false);
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 1000);
-      
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || `${window.location.origin}/api`).replace(/\/$/, "")
+      const redirectUri = encodeURIComponent(`${window.location.origin}/login`)
+      const googleAuthUrl = `${apiBaseUrl}/auth/google?redirect_uri=${redirectUri}`
+      window.location.href = googleAuthUrl
     } catch (err) {
-      setError("Không thể mở cửa sổ đăng nhập Google");
-      setGoogleLoading(false);
+      console.error("Không thể khởi tạo đăng nhập Google:", err)
+      setGoogleLoading(false)
+      setError("Không thể khởi tạo đăng nhập Google")
     }
   }
 
@@ -236,7 +169,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center p-4">
       {/* Back Button */}
       <button
         onClick={handleBack}
@@ -262,7 +195,7 @@ export default function LoginPage() {
 
         {/* Form Card */}
         <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary"></div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/80 to-primary"></div>
 
           <CardHeader className="space-y-1 pb-6 pt-8">
             <CardTitle className="text-2xl font-semibold text-center text-gray-800">Đăng nhập</CardTitle>
@@ -350,7 +283,7 @@ export default function LoginPage() {
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-in slide-in-from-top-2 shadow-lg">
                   <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
@@ -361,7 +294,7 @@ export default function LoginPage() {
                     </div>
                     <button
                       onClick={() => setError("")}
-                      className="flex-shrink-0 text-red-400 hover:text-red-600"
+                      className="shrink-0 text-red-400 hover:text-red-600"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

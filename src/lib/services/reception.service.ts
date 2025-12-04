@@ -16,24 +16,33 @@ import {
 
 // Types for prescription queue endpoints
 interface PendingServiceItem {
+  prescriptionServiceId: string; // ID của prescription service
   serviceId: string;
   serviceName: string;
+  status: 'PENDING' | 'RESCHEDULED' | 'WAITING_RESULT';
+  doctorId?: string | null;
+  technicianId?: string | null;
+  doctorName?: string | null;
+  technicianName?: string | null;
+  isDoctorNotWorking?: boolean;
+  isTechnicianNotWorking?: boolean;
 }
 
 export interface PendingServicesResponse {
   prescriptionId: string;
   prescriptionCode: string;
   services: PendingServiceItem[];
-  status: string;
+  status: 'PENDING' | 'RESCHEDULED' | 'MIXED';
   totalCount: number;
 }
 
 export interface AssignNextServiceRequest {
   prescriptionCode: string;
+  prescriptionServiceIds: string[];
 }
 
 export interface AssignNextServiceResponse {
-  assignedService: {
+  assignedService?: {
     prescriptionId: string;
     serviceId: string;
     status: string;
@@ -41,6 +50,14 @@ export interface AssignNextServiceResponse {
     technicianId?: string | null;
     workSessionId: string;
   };
+  assignedServices?: Array<{
+    prescriptionId: string;
+    serviceId: string;
+    status: string;
+    doctorId?: string | null;
+    technicianId?: string | null;
+    workSessionId: string;
+  }>;
   chosenSession: {
     id: string;
     doctorId?: string | null;

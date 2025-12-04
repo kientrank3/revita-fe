@@ -5,6 +5,16 @@ export type ServiceCategory = {
   id: string
   code: string
   name: string
+  description?: string | null
+}
+
+export type ServiceCategoryDetail = {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  services: Service[]
+  packages: Package[]
 }
 
 export type Specialty = {
@@ -93,6 +103,21 @@ export type ServiceFilters = {
   categoryId?: string
   specialtyId?: string
   requiresDoctor?: string
+  search?: string
+}
+
+export type ServiceSearchResponse = {
+  success: boolean
+  message: string
+  data: {
+    services: Service[]
+    pagination: {
+      total: number
+      limit: number
+      offset: number
+      hasMore: boolean
+    }
+  }
 }
 
 export type PackageFilters = {
@@ -174,6 +199,7 @@ export const servicesService = {
     if (filters?.categoryId) params.set("categoryId", filters.categoryId)
     if (filters?.specialtyId) params.set("specialtyId", filters.specialtyId)
     if (filters?.requiresDoctor) params.set("requiresDoctor", filters.requiresDoctor)
+    if (filters?.search) params.set("search", filters.search)
     
     return apiFetch<ListResponse<Service>>(`/services/management/services?${params.toString()}`)
   },
@@ -204,6 +230,17 @@ export const servicesService = {
     return apiFetch<{ success: boolean; message: string }>(`/services/management/services/${id}`, {
       method: "DELETE",
     })
+  },
+}
+
+export const serviceSearchApi = {
+  async searchServices(query: string, limit = 20, offset = 0): Promise<ServiceSearchResponse> {
+    const params = new URLSearchParams({
+      query,
+      limit: String(limit),
+      offset: String(offset),
+    })
+    return apiFetch<ServiceSearchResponse>(`/services/search?${params.toString()}`)
   },
 }
 
@@ -263,14 +300,14 @@ export const serviceCategoriesService = {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories/${id}`)
   },
 
-  async createCategory(data: { name: string; description?: string }): Promise<DetailResponse<ServiceCategory>> {
+  async createCategory(data: { code: string; name: string; description?: string }): Promise<DetailResponse<ServiceCategory>> {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories`, {
       method: "POST",
       body: JSON.stringify(data),
     })
   },
 
-  async updateCategory(id: string, data: { name?: string; description?: string | null }): Promise<DetailResponse<ServiceCategory>> {
+  async updateCategory(id: string, data: { code?: string; name?: string; description?: string | null }): Promise<DetailResponse<ServiceCategory>> {
     return apiFetch<DetailResponse<ServiceCategory>>(`/service-categories/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -279,6 +316,22 @@ export const serviceCategoriesService = {
 
   async deleteCategory(id: string): Promise<{ success: boolean; message: string }> {
     return apiFetch<{ success: boolean; message: string }>(`/service-categories/${id}`, {
+      method: "DELETE",
+    })
+  },
+
+  async getCategoryDetail(id: string): Promise<DetailResponse<ServiceCategoryDetail>> {
+    return apiFetch<DetailResponse<ServiceCategoryDetail>>(`/service-categories/${id}`)
+  },
+
+  async addServiceToCategory(categoryId: string, serviceId: string): Promise<DetailResponse<Service>> {
+    return apiFetch<DetailResponse<Service>>(`/service-categories/${categoryId}/services/${serviceId}`, {
+      method: "POST",
+    })
+  },
+
+  async removeServiceFromCategory(categoryId: string, serviceId: string): Promise<DetailResponse<Service>> {
+    return apiFetch<DetailResponse<Service>>(`/service-categories/${categoryId}/services/${serviceId}`, {
       method: "DELETE",
     })
   },

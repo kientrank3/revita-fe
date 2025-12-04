@@ -35,6 +35,7 @@ export interface UpdateServiceResultsDto {
   prescriptionServiceId: string;
   results: string[];
   note?: string;
+  shouldReschedule?: boolean;
 }
 
 export interface GetServicesDto {
@@ -124,8 +125,7 @@ export interface ScanPrescriptionResponse {
 }
 
 export interface UpdateServiceStatusRequest {
-  prescriptionId: string;
-  serviceId: string;
+  prescriptionServiceId: string;
   status: ServiceStatus;
   note?: string;
 }
@@ -143,10 +143,10 @@ export interface UpdateServiceStatusResponse {
 }
 
 export interface UpdateServiceResultsRequest {
-  prescriptionId: string;
-  serviceId: string;
+  prescriptionServiceId: string;
   results: string[];
   note?: string;
+  shouldReschedule?: boolean;
 }
 
 export interface UpdateServiceResultsResponse {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { CalendarStats } from '@/components/calendar/CalendarStats';
@@ -9,7 +9,7 @@ import { WorkSessionCalendar } from '@/components/calendar/WorkSessionCalendar';
 import { WorkSessionForm } from '@/components/calendar/WorkSessionForm';
 import { WorkSessionDetails } from '@/components/calendar/WorkSessionDetails';
 import { useWorkSessionCalendar } from '@/lib/hooks/useWorkSessionCalendar';
-import { WorkSession, WorkSessionFormData } from '@/lib/types/work-session';
+import { WorkSession, WorkSessionFormData, CalendarEvent } from '@/lib/types/work-session';
 import { useAuth, useIsAdmin, useIsDoctor, useIsTechnician } from '@/lib/hooks/useAuth';
 import { AdminWorkSessionManager } from '@/components/calendar/AdminWorkSessionManager';
 import { DoctorWorkSessionManager } from '@/components/calendar/DoctorWorkSessionManager';
@@ -23,6 +23,8 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDoctorId] = useState<string | null>(null);
   const [, setShowDoctorList] = useState(false);
+  // Filtered events from WorkSessionCalendar (for stats)
+  const [filteredCalendarEvents, setFilteredCalendarEvents] = useState<CalendarEvent[]>([]);
 
   // Auth hooks
   const { isLoading: authLoading, user } = useAuth();
@@ -59,6 +61,25 @@ export default function CalendarPage() {
     // Only fetch when auth finished determining roles
     isReady: !authLoading,
   });
+
+  // Filter work sessions by specialty for stats (based on filtered events)
+  // If filteredCalendarEvents is not set or empty, use all work sessions
+  const filteredWorkSessions = useMemo((): WorkSession[] => {
+    // If filteredCalendarEvents hasn't been set yet (initial state), use all work sessions
+    if (filteredCalendarEvents.length === 0) {
+      // Check if we have calendarEvents but no filtered events - means no filter applied
+      if (calendarEvents.length > 0) {
+        return workSessions;
+      }
+      // Otherwise, return empty array (still loading)
+      return [];
+    }
+    // Extract work session IDs from filtered events
+    const filteredEventIds = new Set(filteredCalendarEvents.map(e => e.id));
+    return workSessions.filter((session) => {
+      return filteredEventIds.has(session.id);
+    });
+  }, [workSessions, filteredCalendarEvents, calendarEvents.length]);
 
   // Access control - redirect if no permission
   if (!hasCalendarAccess) {
@@ -173,6 +194,8 @@ export default function CalendarPage() {
     setShowForm(true);
   };
 
+  // Handle date change from calendar (when user navigates to different month)
+
   return (
     <div className="min-h-screen bg-white">
       <div className="flex flex-col gap-6 px-8 py-6">
@@ -204,6 +227,7 @@ export default function CalendarPage() {
               loading={loading}
               onEventClick={handleEventClick}
               onDateSelect={handleDateSelect}
+              onSpecialtyFilterChange={setFilteredCalendarEvents}
               view={viewMode}
               onViewChange={setViewMode}
               height="calc(120vh - 400px)"
@@ -214,13 +238,13 @@ export default function CalendarPage() {
           </div>
         </div>
         <div className=" gap-6">
-            <CalendarStats workSessions={workSessions} services={services} showOnlyStats={true} />
+            <CalendarStats workSessions={filteredWorkSessions} services={services} showOnlyStats={true} />
           </div>
         {/* Bottom Modules - Services & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-          <CalendarStats workSessions={workSessions} services={services} showOnlyServices={true} />
-          <CalendarStats workSessions={workSessions} services={services} showOnlyStatus={true} />
+          <CalendarStats workSessions={filteredWorkSessions} services={services} showOnlyServices={true} />
+          <CalendarStats workSessions={filteredWorkSessions} services={services} showOnlyStatus={true} />
         </div>
         {isDoctor && (
           <div>
