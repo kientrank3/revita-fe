@@ -12,7 +12,9 @@ import {
   FileText,
   Stethoscope,
   ClipboardList,
-  Brain
+  Brain,
+  Image as ImageIcon,
+  File,
 } from 'lucide-react';
 import { MedicalRecord, Template, MedicalRecordStatus, CreateMedicalRecordDto } from '@/lib/types/medical-record';
 import { medicalRecordService } from '@/lib/services/medical-record.service';
@@ -26,6 +28,7 @@ import { Eye, Clock, CheckCircle, XCircle, AlertCircle, Link2, QrCode, Loader2, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Html5Qrcode } from 'html5-qrcode';
+import { FilePreviewDialog } from '@/components/common/FilePreviewDialog';
 
 export default function EditMedicalRecordPage() {
   const router = useRouter();
@@ -42,6 +45,7 @@ export default function EditMedicalRecordPage() {
   
   // Service Prescriptions states
   interface ServicePrescriptionService {
+    id?: string;
     prescriptionId: string;
     serviceId: string;
     status: string;
@@ -54,6 +58,38 @@ export default function EditMedicalRecordPage() {
       name: string;
       description: string;
     };
+    // Danh sách các phiếu chỉ định con (issuedPrescriptions)
+    issuedPrescriptions?: Array<{
+      id: string;
+      prescriptionCode: string;
+      status: string;
+      note: string | null;
+      services: Array<{
+        id?: string;
+        prescriptionId: string;
+        serviceId: string;
+        status: string;
+        results: string[];
+        order: number;
+        note: string | null;
+        service: {
+          id: string;
+          serviceCode: string;
+          name: string;
+          description: string;
+        };
+      }>;
+      patientProfile?: {
+        id: string;
+        name: string;
+        dateOfBirth?: string;
+        gender?: string;
+      };
+      doctor?: {
+        id: string;
+        name?: string;
+      };
+    }>;
   }
 
   interface ServicePrescription {
@@ -96,6 +132,11 @@ export default function EditMedicalRecordPage() {
     } 
   };
   const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceWithPrescription | null>(null);
+  
+  // File preview states
+  const [previewFileUrl, setPreviewFileUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   
   // Link prescription states
   const [isLinkPrescriptionDialogOpen, setIsLinkPrescriptionDialogOpen] = useState(false);
@@ -994,71 +1035,212 @@ export default function EditMedicalRecordPage() {
                         {prescription.services.map((service) => (
                           <div
                             key={service.serviceId}
-                            className="flex items-center gap-3 p-2 bg-gray-50 rounded border"
+                            className="space-y-2"
                           >
-                            <Badge variant="outline" className="text-xs">
-                              {service.order}
-                            </Badge>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {service.service.name}
-                              </p>
-                              <p className="text-xs text-gray-600">
-                                {service.service.serviceCode}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                className={`${getServiceStatusColor(service.status)} text-xs`}
-                              >
-                                {getServiceStatusText(service.status)}
+                            <div className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
+                              <Badge variant="outline" className="text-xs">
+                                {service.order}
                               </Badge>
-                              {/* Button to create new prescription for this service */}
-                              {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
-                                  onClick={() => {
-                                    // Convert to ServiceProcessingPrescriptionService format
-                                    const serviceForDialog = {
-                                      id: undefined,
-                                      prescriptionId: service.prescriptionId,
-                                      serviceId: service.serviceId,
-                                      service: {
-                                        id: service.service.id,
-                                        serviceCode: service.service.serviceCode,
-                                        name: service.service.name,
-                                        price: 0,
-                                        description: service.service.description || '',
-                                        timePerPatient: 0
-                                      },
-                                      status: service.status as ServiceProcessingPrescriptionService['status'],
-                                      order: service.order,
-                                      note: service.note,
-                                      startedAt: null,
-                                      completedAt: null,
-                                      results: service.results || [],
-                                      prescription: {
-                                        id: prescription.id,
-                                        prescriptionCode: prescription.prescriptionCode,
-                                        status: prescription.status,
-                                        patientProfile: prescription.patientProfile || {
-                                          id: prescription.patientProfileId,
-                                          name: 'N/A',
-                                          dateOfBirth: '',
-                                          gender: 'OTHER'
-                                        }
-                                      }
-                                    } as ServiceWithPrescription;
-                                    setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
-                                    setCreatePrescriptionDialogOpen(true);
-                                  }}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {service.service.name}
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {service.service.serviceCode}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={`${getServiceStatusColor(service.status)} text-xs`}
                                 >
-                                  <FileText className="h-3 w-3" />
-                                </Button>
-                              )}
+                                  {getServiceStatusText(service.status)}
+                                </Badge>
+                                {/* Button to create new prescription for this service */}
+                                {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                                    onClick={() => {
+                                      // Convert to ServiceProcessingPrescriptionService format
+                                      const serviceForDialog = {
+                                        id: undefined,
+                                        prescriptionId: service.prescriptionId,
+                                        serviceId: service.serviceId,
+                                        service: {
+                                          id: service.service.id,
+                                          serviceCode: service.service.serviceCode,
+                                          name: service.service.name,
+                                          price: 0,
+                                          description: service.service.description || '',
+                                          timePerPatient: 0
+                                        },
+                                        status: service.status as ServiceProcessingPrescriptionService['status'],
+                                        order: service.order,
+                                        note: service.note,
+                                        startedAt: null,
+                                        completedAt: null,
+                                        results: service.results || [],
+                                        prescription: {
+                                          id: prescription.id,
+                                          prescriptionCode: prescription.prescriptionCode,
+                                          status: prescription.status,
+                                          patientProfile: prescription.patientProfile || {
+                                            id: prescription.patientProfileId,
+                                            name: 'N/A',
+                                            dateOfBirth: '',
+                                            gender: 'OTHER'
+                                          }
+                                        }
+                                      } as ServiceWithPrescription;
+                                      setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
+                                      setCreatePrescriptionDialogOpen(true);
+                                    }}
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
+                            
+                            {/* Hiển thị kết quả và note nếu service đã Complete */}
+                            {service.status === 'COMPLETED' && (service.results.length > 0 || service.note) && (
+                              <div className="ml-8 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                {service.note && (
+                                  <div className="mb-2">
+                                    <p className="text-xs font-medium text-green-900 mb-1">Ghi chú:</p>
+                                    <p className="text-xs text-green-800">{service.note}</p>
+                                  </div>
+                                )}
+                                {service.results.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium text-green-900 mb-1">Kết quả ({service.results.length}):</p>
+                                    <div className="space-y-1">
+                                      {service.results.map((result, idx) => {
+                                        const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                        const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                                        const getFileIcon = () => {
+                                          if (['pdf'].includes(extension)) {
+                                            return <FileText className="h-3.5 w-3.5 text-red-500" />;
+                                          }
+                                          if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                            return <ImageIcon className="h-3.5 w-3.5 text-green-500" />;
+                                          }
+                                          if (['doc', 'docx'].includes(extension)) {
+                                            return <FileText className="h-3.5 w-3.5 text-blue-500" />;
+                                          }
+                                          if (['xls', 'xlsx'].includes(extension)) {
+                                            return <FileText className="h-3.5 w-3.5 text-green-600" />;
+                                          }
+                                          return <File className="h-3.5 w-3.5 text-gray-500" />;
+                                        };
+                                        return (
+                                          <button
+                                            key={idx}
+                                            onClick={() => {
+                                              setPreviewFileUrl(result);
+                                              setPreviewFileName(fileName);
+                                              setIsPreviewDialogOpen(true);
+                                            }}
+                                            className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors w-full text-left group"
+                                            title={fileName}
+                                          >
+                                            {getFileIcon()}
+                                            <span className="truncate flex-1">{fileName.length > 40 ? `${fileName.substring(0, 40)}...` : fileName}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Hiển thị danh sách phiếu con (issuedPrescriptions) */}
+                            {service.issuedPrescriptions && service.issuedPrescriptions.length > 0 && (
+                              <div className="ml-8 space-y-2">
+                                <p className="text-xs font-medium text-gray-700 mb-1">
+                                  Phiếu chỉ định con ({service.issuedPrescriptions.length}):
+                                </p>
+                                {service.issuedPrescriptions.map((issuedPrescription) => (
+                                  <div
+                                    key={issuedPrescription.id}
+                                    className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {issuedPrescription.prescriptionCode}
+                                        </Badge>
+                                        <Badge className={`${getServiceStatusColor(issuedPrescription.status)} text-xs`}>
+                                          {getServiceStatusText(issuedPrescription.status)}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Danh sách dịch vụ trong phiếu con */}
+                                    {issuedPrescription.services.length > 0 && (
+                                      <div className="mb-2">
+                                        <p className="text-xs font-medium text-blue-900 mb-1">Dịch vụ:</p>
+                                        <div className="space-y-1">
+                                          {issuedPrescription.services.map((subService) => (
+                                            <div key={subService.serviceId} className="text-xs text-blue-800">
+                                              <span className="font-medium">#{subService.order}</span> {subService.service.name} ({subService.service.serviceCode})
+                                              <Badge className={`ml-2 ${getServiceStatusColor(subService.status)} text-xs`}>
+                                                {getServiceStatusText(subService.status)}
+                                              </Badge>
+                                              
+                                              {/* Kết quả và note của dịch vụ con nếu đã Complete */}
+                                              {subService.status === 'COMPLETED' && (subService.results.length > 0 || subService.note) && (
+                                                <div className="ml-4 mt-1 p-2 bg-white border border-blue-300 rounded">
+                                                  {subService.note && (
+                                                    <p className="text-xs text-gray-700 mb-1">
+                                                      <span className="font-medium">Ghi chú:</span> {subService.note}
+                                                    </p>
+                                                  )}
+                                                  {subService.results.length > 0 && (
+                                                    <div>
+                                                      <p className="text-xs font-medium text-gray-700 mb-1">Kết quả:</p>
+                                                      <div className="space-y-0.5">
+                                                        {subService.results.map((result, idx) => {
+                                                          const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                                          return (
+                                                            <button
+                                                              key={idx}
+                                                              onClick={() => {
+                                                                setPreviewFileUrl(result);
+                                                                setPreviewFileName(fileName);
+                                                                setIsPreviewDialogOpen(true);
+                                                              }}
+                                                              className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
+                                                            >
+                                                              {fileName}
+                                                            </button>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Note của phiếu con */}
+                                    {issuedPrescription.note && (
+                                      <div className="mt-2 pt-2 border-t border-blue-300">
+                                        <p className="text-xs text-blue-800">
+                                          <span className="font-medium">Ghi chú phiếu:</span> {issuedPrescription.note}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1133,7 +1315,7 @@ export default function EditMedicalRecordPage() {
                   <Badge className={`${getServiceStatusColor(selectedPrescription.status)} text-xs`}>
                     {getServiceStatusText(selectedPrescription.status)}
                   </Badge>
-                </div>
+    </div>
                 {selectedPrescription.note && (
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Ghi chú:</span> {selectedPrescription.note}
@@ -1145,61 +1327,184 @@ export default function EditMedicalRecordPage() {
                 <h4 className="font-medium text-sm text-gray-900 mb-2">Dịch vụ ({selectedPrescription.services.length})</h4>
                 <div className="space-y-2">
                   {selectedPrescription.services.map((service: ServicePrescriptionService) => (
-                    <div key={service.serviceId} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
-                      <Badge variant="outline" className="text-xs">{service.order}</Badge>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
-                        <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`${getServiceStatusColor(service.status)} text-xs`}>
-                          {getServiceStatusText(service.status)}
-                        </Badge>
-                        {/* Button to create new prescription for this service */}
-                        {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
-                            onClick={() => {
-                              const serviceForDialog = {
-                                id: undefined,
-                                prescriptionId: service.prescriptionId,
-                                serviceId: service.serviceId,
-                                service: {
-                                  id: service.service.id,
-                                  serviceCode: service.service.serviceCode,
-                                  name: service.service.name,
-                                  price: 0,
-                                  description: service.service.description || '',
-                                  timePerPatient: 0
-                                },
-                                status: service.status as ServiceProcessingPrescriptionService['status'],
-                                order: service.order,
-                                note: service.note,
-                                startedAt: null,
-                                completedAt: null,
-                                results: service.results || [],
-                                prescription: {
-                                  id: selectedPrescription.id,
-                                  prescriptionCode: selectedPrescription.prescriptionCode,
-                                  status: selectedPrescription.status,
-                                  patientProfile: selectedPrescription.patientProfile || {
-                                    id: selectedPrescription.patientProfileId,
-                                    name: 'N/A',
-                                    dateOfBirth: '',
-                                    gender: 'OTHER'
+                    <div key={service.serviceId} className="space-y-2">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+                        <Badge variant="outline" className="text-xs">{service.order}</Badge>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
+                          <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${getServiceStatusColor(service.status)} text-xs`}>
+                            {getServiceStatusText(service.status)}
+                          </Badge>
+                          {/* Button to create new prescription for this service */}
+                          {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                              onClick={() => {
+                                const serviceForDialog = {
+                                  id: undefined,
+                                  prescriptionId: service.prescriptionId,
+                                  serviceId: service.serviceId,
+                                  service: {
+                                    id: service.service.id,
+                                    serviceCode: service.service.serviceCode,
+                                    name: service.service.name,
+                                    price: 0,
+                                    description: service.service.description || '',
+                                    timePerPatient: 0
+                                  },
+                                  status: service.status as ServiceProcessingPrescriptionService['status'],
+                                  order: service.order,
+                                  note: service.note,
+                                  startedAt: null,
+                                  completedAt: null,
+                                  results: service.results || [],
+                                  prescription: {
+                                    id: selectedPrescription.id,
+                                    prescriptionCode: selectedPrescription.prescriptionCode,
+                                    status: selectedPrescription.status,
+                                    patientProfile: selectedPrescription.patientProfile || {
+                                      id: selectedPrescription.patientProfileId,
+                                      name: 'N/A',
+                                      dateOfBirth: '',
+                                      gender: 'OTHER'
+                                    }
                                   }
-                                }
-                              } as ServiceWithPrescription;
-                              setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
-                              setCreatePrescriptionDialogOpen(true);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                          </Button>
-                        )}
+                                } as ServiceWithPrescription;
+                                setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
+                                setCreatePrescriptionDialogOpen(true);
+                              }}
+                            >
+                              <FileText className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
+                      
+                      {/* Hiển thị kết quả và note nếu service đã Complete */}
+                      {service.status === 'COMPLETED' && (service.results.length > 0 || service.note) && (
+                        <div className="ml-8 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          {service.note && (
+                            <div className="mb-2">
+                              <p className="text-xs font-medium text-green-900 mb-1">Ghi chú:</p>
+                              <p className="text-xs text-green-800">{service.note}</p>
+                            </div>
+                          )}
+                          {service.results.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-green-900 mb-1">Kết quả ({service.results.length}):</p>
+                              <div className="space-y-1">
+                                {service.results.map((result, idx) => {
+                                  const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        setPreviewFileUrl(result);
+                                        setPreviewFileName(fileName);
+                                        setIsPreviewDialogOpen(true);
+                                      }}
+                                      className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
+                                    >
+                                      {fileName}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hiển thị danh sách phiếu con (issuedPrescriptions) */}
+                      {service.issuedPrescriptions && service.issuedPrescriptions.length > 0 && (
+                        <div className="ml-8 space-y-2">
+                          <p className="text-xs font-medium text-gray-700 mb-1">
+                            Phiếu chỉ định con ({service.issuedPrescriptions.length}):
+                          </p>
+                          {service.issuedPrescriptions.map((issuedPrescription) => (
+                            <div
+                              key={issuedPrescription.id}
+                              className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {issuedPrescription.prescriptionCode}
+                                  </Badge>
+                                  <Badge className={`${getServiceStatusColor(issuedPrescription.status)} text-xs`}>
+                                    {getServiceStatusText(issuedPrescription.status)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              
+                              {/* Danh sách dịch vụ trong phiếu con */}
+                              {issuedPrescription.services.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="text-xs font-medium text-blue-900 mb-1">Dịch vụ:</p>
+                                  <div className="space-y-1">
+                                    {issuedPrescription.services.map((subService) => (
+                                      <div key={subService.serviceId} className="text-xs text-blue-800">
+                                        <span className="font-medium">#{subService.order}</span> {subService.service.name} ({subService.service.serviceCode})
+                                        <Badge className={`ml-2 ${getServiceStatusColor(subService.status)} text-xs`}>
+                                          {getServiceStatusText(subService.status)}
+                                        </Badge>
+                                        
+                                        {/* Kết quả và note của dịch vụ con nếu đã Complete */}
+                                        {subService.status === 'COMPLETED' && (subService.results.length > 0 || subService.note) && (
+                                          <div className="ml-4 mt-1 p-2 bg-white border border-blue-300 rounded">
+                                            {subService.note && (
+                                              <p className="text-xs text-gray-700 mb-1">
+                                                <span className="font-medium">Ghi chú:</span> {subService.note}
+                                              </p>
+                                            )}
+                                            {subService.results.length > 0 && (
+                                              <div>
+                                                <p className="text-xs font-medium text-gray-700 mb-1">Kết quả:</p>
+                                                <div className="space-y-0.5">
+                                                  {subService.results.map((result, idx) => {
+                                                    const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                                    return (
+                                                      <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                          setPreviewFileUrl(result);
+                                                          setPreviewFileName(fileName);
+                                                          setIsPreviewDialogOpen(true);
+                                                        }}
+                                                        className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
+                                                      >
+                                                        {fileName}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Note của phiếu con */}
+                              {issuedPrescription.note && (
+                                <div className="mt-2 pt-2 border-t border-blue-300">
+                                  <p className="text-xs text-blue-800">
+                                    <span className="font-medium">Ghi chú phiếu:</span> {issuedPrescription.note}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1377,6 +1682,22 @@ export default function EditMedicalRecordPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* File Preview Dialog */}
+      {previewFileUrl && (
+        <FilePreviewDialog
+          open={isPreviewDialogOpen}
+          onOpenChange={(open) => {
+            setIsPreviewDialogOpen(open);
+            if (!open) {
+              setPreviewFileUrl(null);
+              setPreviewFileName(null);
+            }
+          }}
+          fileUrl={previewFileUrl}
+          fileName={previewFileName || undefined}
+        />
+      )}
     </div>
   );
 }
