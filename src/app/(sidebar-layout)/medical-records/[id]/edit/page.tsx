@@ -20,6 +20,12 @@ import { toast } from 'sonner';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import api from '@/lib/config';
 import { MedicalRecordPrescriptions } from '@/components/medical-records/MedicalRecordPrescriptions';
+import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
+import { PrescriptionService as ServiceProcessingPrescriptionService } from '@/lib/types/service-processing';
+import { Eye, Clock, CheckCircle, XCircle, AlertCircle, Link2, QrCode, Search, Loader2, Camera, CameraOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export default function EditMedicalRecordPage() {
   const router = useRouter();
@@ -33,6 +39,56 @@ export default function EditMedicalRecordPage() {
   const [selectedStatus, setSelectedStatus] = useState<MedicalRecordStatus>(MedicalRecordStatus.DRAFT);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictions, setPredictions] = useState<Array<{ icd_code: string; probability: number; disease_name_en: string; disease_name_vi: string }>>([]);
+  
+  // Service Prescriptions states
+  const [servicePrescriptions, setServicePrescriptions] = useState<Array<{
+    id: string;
+    prescriptionCode: string;
+    doctorId: string;
+    patientProfileId: string;
+    note: string;
+    status: string;
+    medicalRecordId: string;
+    services: Array<{
+      prescriptionId: string;
+      serviceId: string;
+      status: string;
+      results: any[];
+      order: number;
+      note: string | null;
+      service: {
+        id: string;
+        serviceCode: string;
+        name: string;
+        description: string;
+      };
+    }>;
+    patientProfile?: any;
+    doctor?: any;
+  }>>([]);
+  const [isLoadingServicePrescriptions, setIsLoadingServicePrescriptions] = useState(false);
+  const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceProcessingPrescriptionService | null>(null);
+  
+  // Link prescription states
+  const [isLinkPrescriptionDialogOpen, setIsLinkPrescriptionDialogOpen] = useState(false);
+  const [prescriptionCode, setPrescriptionCode] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
+  
+  // QR scanner states for linking prescription
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
+  const [usingHtml5Qrcode, setUsingHtml5Qrcode] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const html5QrCodeRef = React.useRef<Html5Qrcode | null>(null);
+  const lastScanRef = React.useRef<string | null>(null);
+  const lastScanTsRef = React.useRef<number>(0);
+  const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
+  const scanningRef = React.useRef(false);
 
   // Load medical record and template
   useEffect(() => {
@@ -60,7 +116,32 @@ export default function EditMedicalRecordPage() {
     };
 
     loadData();
+    loadServicePrescriptions();
   }, [recordId, router]);
+
+  // Load service prescriptions
+  const loadServicePrescriptions = async () => {
+    if (!recordId) return;
+    
+    setIsLoadingServicePrescriptions(true);
+    try {
+      const response = await fetch(`/api/prescriptions/medical-record/${recordId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setServicePrescriptions(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error loading service prescriptions:', error);
+    } finally {
+      setIsLoadingServicePrescriptions(false);
+    }
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSave = async (data: Record<string, any> | CreateMedicalRecordDto) => {
@@ -131,6 +212,71 @@ export default function EditMedicalRecordPage() {
     }
   };
 
+  const getServiceStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'WAITING':
+        return 'bg-orange-100 text-orange-800';
+      case 'SERVING':
+        return 'bg-purple-100 text-purple-800';
+      case 'WAITING_RESULT':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'DELAYED':
+        return 'bg-red-100 text-red-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      case 'NOT_STARTED':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getServiceStatusText = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Chờ thực hiện';
+      case 'WAITING':
+        return 'Đang chờ phục vụ';
+      case 'SERVING':
+        return 'Đang thực hiện';
+      case 'WAITING_RESULT':
+        return 'Chờ kết quả';
+      case 'COMPLETED':
+        return 'Hoàn thành';
+      case 'DELAYED':
+        return 'Trì hoãn';
+      case 'CANCELLED':
+        return 'Đã hủy';
+      case 'NOT_STARTED':
+        return 'Chưa bắt đầu';
+      default:
+        return status;
+    }
+  };
+
+  const getServiceStatusIcon = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+      case 'WAITING':
+      case 'WAITING_RESULT':
+      case 'NOT_STARTED':
+        return <Clock className="h-4 w-4" />;
+      case 'SERVING':
+        return <AlertCircle className="h-4 w-4" />;
+      case 'COMPLETED':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'DELAYED':
+      case 'CANCELLED':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
+    }
+  };
+
   const handlePredict = async () => {
     if (!recordId) return;
     try {
@@ -153,6 +299,438 @@ export default function EditMedicalRecordPage() {
       setIsPredicting(false);
     }
   };
+
+  // Link prescription handler
+  const handleLinkPrescription = async () => {
+    if (!prescriptionCode.trim() || !recordId) {
+      toast.error('Vui lòng nhập mã phiếu chỉ định');
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      const response = await api.patch(`/medical-records/${recordId}/link-prescription`, {
+        prescriptionCode: prescriptionCode.trim(),
+      });
+
+      if (response.data) {
+        toast.success('Đã liên kết phiếu chỉ định thành công');
+        setIsLinkPrescriptionDialogOpen(false);
+        setPrescriptionCode('');
+        // Reload service prescriptions
+        loadServicePrescriptions();
+      }
+    } catch (error: any) {
+      console.error('Error linking prescription:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi liên kết phiếu chỉ định';
+      toast.error(errorMessage);
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  // QR Scanner logic for linking prescription
+  const stopScanner = React.useCallback(async () => {
+    console.log('[QR] Stopping scanner...');
+    setScanning(false);
+    scanningRef.current = false;
+    setUsingHtml5Qrcode(false);
+    
+    // Stop html5-qrcode if running
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        await html5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn('[QR] Error stopping html5-qrcode:', e);
+      }
+      html5QrCodeRef.current = null;
+    }
+    
+    // Stop all tracks first
+    const stream = mediaStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(t => {
+        try {
+          t.stop();
+        } catch (e) {
+          console.warn('[QR] Error stopping track:', e);
+        }
+      });
+      mediaStreamRef.current = null;
+    }
+    
+    // Clear video element srcObject
+    const video = videoRef.current;
+    if (video) {
+      try {
+        video.onerror = null;
+        video.pause();
+        video.srcObject = null;
+        video.load();
+      } catch (e: unknown) {
+        const error = e as { name?: string; message?: string };
+        if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+          console.warn('[QR] Error clearing video srcObject:', error);
+        }
+      }
+    }
+    console.log('[QR] Scanner stopped');
+  }, []);
+
+  const handleQrText = React.useCallback(async (text: string) => {
+    const trimmed = (text || '').trim();
+    const upper = trimmed.toUpperCase();
+    if (!trimmed) return;
+    console.log('[QR] Raw:', text);
+    console.log('[QR] Normalized:', upper);
+    setScanHint(`Đã phát hiện: ${upper.slice(0, 24)}${upper.length > 24 ? '...' : ''}`);
+    
+    // Handle PRESC (prescription code)
+    if (upper.startsWith('PRESC')) {
+      setPrescriptionCode(trimmed);
+      setScanHint('Đã quét mã phiếu chỉ định');
+      toast.success(`Đã quét mã phiếu chỉ định: ${trimmed}`);
+      setTimeout(() => {
+        setIsQrScannerOpen(false);
+        stopScanner();
+      }, 500);
+    } else {
+      toast.info(`Đã đọc QR: ${upper.slice(0, 64)}${upper.length > 64 ? '...' : ''} (không phải mã phiếu chỉ định)`);
+      setScanHint('Đã đọc QR (không phải mã PRESC)');
+    }
+  }, [stopScanner]);
+
+  const startScanner = React.useCallback(async () => {
+    setScanning(true);
+    scanningRef.current = true;
+    setScanHint('Đang khởi động camera...');
+    
+    try {
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: { ideal: 'environment' } }
+        });
+      } catch {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch {
+          throw new Error('Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.');
+        }
+      }
+      
+      if (!scanningRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      
+      mediaStreamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        return;
+      }
+      
+      if (!scanningRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        return;
+      }
+
+      const handleVideoError = (e: Event) => {
+        const error = e as ErrorEvent;
+        if (error.error?.name === 'AbortError' || error.message?.includes('aborted')) {
+          console.log('[QR] Video error (suppressed):', error.error?.name || error.message);
+          return;
+        }
+        console.warn('[QR] Video error:', error);
+      };
+      video.addEventListener('error', handleVideoError, { once: true });
+
+      try {
+        video.srcObject = stream;
+        
+        if (!scanningRef.current) {
+          stream.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+          video.removeEventListener('error', handleVideoError);
+          try {
+            video.srcObject = null;
+            video.pause();
+          } catch {
+            // Ignore cleanup errors
+          }
+          return;
+        }
+
+        try {
+          await video.play();
+        } catch (playError: unknown) {
+          const error = playError as { name?: string; message?: string };
+          if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+            console.log('[QR] Video play aborted (suppressed)');
+            if (!scanningRef.current) {
+              return;
+            }
+          }
+          throw playError;
+        }
+      } catch (playError: unknown) {
+        const error = playError as { name?: string; message?: string };
+        console.error('[QR] Error playing video:', error);
+        video.removeEventListener('error', handleVideoError);
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        const videoEl = videoRef.current;
+        if (videoEl) {
+          try {
+            videoEl.srcObject = null;
+            videoEl.pause();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+          throw playError;
+        }
+        return;
+      }
+
+      if (video.readyState < 2) {
+        await new Promise<void>((resolve, reject) => {
+          if (!scanningRef.current) {
+            reject(new Error('Scanning stopped'));
+            return;
+          }
+          const onLoaded = () => {
+            if (!scanningRef.current) {
+              reject(new Error('Scanning stopped'));
+              return;
+            }
+            resolve();
+          };
+          const onError = () => { reject(new Error('Video load error')); };
+          video.addEventListener('loadeddata', onLoaded, { once: true });
+          video.addEventListener('error', onError, { once: true });
+        }).catch((err) => {
+          console.log('[QR] Error waiting for video metadata:', err);
+          if (!scanningRef.current) {
+            const stream = mediaStreamRef.current;
+            if (stream) {
+              stream.getTracks().forEach(t => t.stop());
+              mediaStreamRef.current = null;
+            }
+            const video = videoRef.current;
+            if (video) {
+              try {
+                video.onerror = null;
+                video.srcObject = null;
+                video.pause();
+              } catch (cleanupError: unknown) {
+                const error = cleanupError as { name?: string; message?: string };
+                if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+                  console.warn('[QR] Error cleaning up video:', error);
+                }
+              }
+            }
+            return;
+          }
+          throw err;
+        });
+      }
+      
+      if (!scanningRef.current || !videoRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+        return;
+      }
+      
+      setScanHint('Camera đã sẵn sàng. Đưa mã QR vào khung...');
+
+      // Try BarcodeDetector first
+      interface BarcodeDetectorInterface {
+        detect(image: HTMLVideoElement): Promise<Array<{ rawValue?: string; rawValueText?: string; raw?: string }>>;
+      }
+      
+      const BD = (window as { BarcodeDetector?: new (options?: { formats?: string[] }) => BarcodeDetectorInterface }).BarcodeDetector;
+      if (BD) {
+        setScannerSupported(true);
+        setUsingHtml5Qrcode(false);
+        let detector: BarcodeDetectorInterface | null = null;
+        try {
+          detector = new BD({ formats: ['qr_code'] });
+        } catch {
+          try {
+            detector = new BD();
+          } catch (e) {
+            console.log('[QR] BarcodeDetector init failed, will use fallback:', e);
+            setScannerSupported(null);
+          }
+        }
+        
+        if (detector) {
+          const tick = async () => {
+            if (!scanningRef.current || !videoRef.current) {
+              return;
+            }
+            
+            try {
+              const detections = await detector!.detect(videoRef.current);
+              if (detections && detections.length > 0) {
+                const raw = (detections[0]?.rawValue ?? detections[0]?.rawValueText ?? detections[0]?.raw ?? '').toString();
+                if (raw) {
+                  const norm = raw.trim();
+                  const now = Date.now();
+                  if (lastScanRef.current === norm && now - lastScanTsRef.current < 1500) {
+                    // skip duplicate
+                  } else {
+                    lastScanRef.current = norm;
+                    lastScanTsRef.current = now;
+                    await handleQrText(norm);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[QR] detect error:', err);
+            }
+            
+            if (scanningRef.current) {
+              requestAnimationFrame(tick);
+            }
+          };
+          
+          setScanHint('Đưa mã QR vào trong khung...');
+          requestAnimationFrame(tick);
+          return;
+        }
+      }
+      
+      // Fallback to html5-qrcode
+      try {
+        setScannerSupported(true);
+        setUsingHtml5Qrcode(true);
+        setScanHint('Đang khởi động bộ quét QR...');
+        
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        
+        const html5QrCode = new Html5Qrcode('qr-reader-link');
+        html5QrCodeRef.current = html5QrCode;
+        
+        const qrCodeSuccessCallback = async (decodedText: string) => {
+          const norm = decodedText.trim();
+          const now = Date.now();
+          
+          if (lastScanRef.current === norm && now - lastScanTsRef.current < 1500) {
+            return;
+          }
+          
+          lastScanRef.current = norm;
+          lastScanTsRef.current = now;
+          await handleQrText(norm);
+        };
+        
+        const qrCodeErrorCallback = (errorMessage: string) => {
+          if (!errorMessage.includes('No QR code found') && !errorMessage.includes('NotFoundException')) {
+            // Keep scanning
+          }
+        };
+        
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        };
+        
+        try {
+          await html5QrCode.start(
+            { facingMode: 'environment' },
+            config,
+            qrCodeSuccessCallback,
+            qrCodeErrorCallback
+          );
+        } catch {
+          try {
+            await html5QrCode.start(
+              { facingMode: 'user' },
+              config,
+              qrCodeSuccessCallback,
+              qrCodeErrorCallback
+            );
+          } catch {
+            try {
+              const cameras = await Html5Qrcode.getCameras();
+              const cameraId = cameras[0]?.id;
+              if (cameraId) {
+                await html5QrCode.start(
+                  cameraId,
+                  config,
+                  qrCodeSuccessCallback,
+                  qrCodeErrorCallback
+                );
+              } else {
+                throw new Error('Không tìm thấy camera');
+              }
+            } catch (finalError) {
+              console.error('[QR] All camera options failed:', finalError);
+              throw finalError;
+            }
+          }
+        }
+        
+        setScanHint('Đưa mã QR vào trong khung...');
+      } catch (html5Error) {
+        console.error('[QR] html5-qrcode failed:', html5Error);
+        setScannerSupported(false);
+        const error = html5Error instanceof Error ? html5Error : new Error('Không thể khởi động bộ quét QR');
+        toast.error(`Không thể khởi động quét QR: ${error.message}`);
+        setScanHint('Lỗi khởi động bộ quét QR');
+      }
+    } catch (e) {
+      setScanning(false);
+      scanningRef.current = false;
+      const error = e instanceof Error ? e : new Error('Không thể truy cập camera');
+      console.error('[QR] getUserMedia error:', error);
+      toast.error(error.message || 'Không thể truy cập camera');
+      setScanHint('Lỗi khởi động camera');
+    }
+  }, [handleQrText, stopScanner]);
+
+  // Handle QR scanner dialog open/close
+  React.useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted') || 
+          error?.message?.includes('fetching process') || error?.message?.includes('media resource')) {
+        event.preventDefault();
+        console.log('[QR] Suppressed unhandled AbortError:', error?.message || error?.name);
+        return;
+      }
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    if (isQrScannerOpen) {
+      setTimeout(() => {
+        startScanner();
+      }, 100);
+    } else {
+      stopScanner();
+    }
+    
+    return () => {
+      stopScanner();
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [isQrScannerOpen, startScanner, stopScanner]);
 
   if (isLoading) {
     return (
@@ -228,6 +806,14 @@ export default function EditMedicalRecordPage() {
             >
               <ClipboardList className="h-4 w-4" />
               Tạo phiếu chỉ định
+            </Button>
+            <Button
+              onClick={() => setIsLinkPrescriptionDialogOpen(true)}
+              variant="outline"
+              className="flex items-center gap-2 text-sm"
+            >
+              <Link2 className="h-4 w-4" />
+              Liên kết phiếu chỉ định
             </Button>
           </div>
         </div>
@@ -309,6 +895,147 @@ export default function EditMedicalRecordPage() {
             medicalRecordId={medicalRecord.id}
             patientProfileId={medicalRecord.patientProfileId}
           />
+
+          {/* Service Prescriptions List */}
+          <Card className="border-l border-l-orange-500">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
+                <ClipboardList className="h-5 w-5 text-orange-600" />
+                Phiếu chỉ định dịch vụ ({servicePrescriptions.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingServicePrescriptions ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
+                </div>
+              ) : servicePrescriptions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <ClipboardList className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Chưa có phiếu chỉ định nào</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {servicePrescriptions.map((prescription) => (
+                    <div
+                      key={prescription.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      {/* Prescription Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {getServiceStatusIcon(prescription.status)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500 mr-2">
+                            {prescription.prescriptionCode}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              setSelectedPrescription(prescription);
+                              setIsPrescriptionDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Services List */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-900">
+                          Dịch vụ ({prescription.services.length})
+                        </h4>
+                        {prescription.services.map((service) => (
+                          <div
+                            key={service.serviceId}
+                            className="flex items-center gap-3 p-2 bg-gray-50 rounded border"
+                          >
+                            <Badge variant="outline" className="text-xs">
+                              {service.order}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {service.service.name}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {service.service.serviceCode}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${getServiceStatusColor(service.status)} text-xs`}
+                              >
+                                {getServiceStatusText(service.status)}
+                              </Badge>
+                              {/* Button to create new prescription for this service */}
+                              {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                                  onClick={() => {
+                                    // Convert to ServiceProcessingPrescriptionService format
+                                    const serviceForDialog = {
+                                      id: undefined,
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.service.id,
+                                        serviceCode: service.service.serviceCode,
+                                        name: service.service.name,
+                                        price: 0,
+                                        description: service.service.description || '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as any,
+                                      order: service.order,
+                                      note: service.note,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: service.results || [],
+                                      prescription: {
+                                        id: prescription.id,
+                                        prescriptionCode: prescription.prescriptionCode,
+                                        status: prescription.status,
+                                        patientProfile: prescription.patientProfile || {
+                                          id: prescription.patientProfileId,
+                                          name: 'N/A',
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    } as ServiceProcessingPrescriptionService & { prescription: any };
+                                    setSelectedServiceForPrescription(serviceForDialog as any);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Note */}
+                      {prescription.note && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-xs text-gray-600">
+                            <span className="font-medium">Ghi chú:</span> {prescription.note}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Edit Form */}
@@ -348,6 +1075,267 @@ export default function EditMedicalRecordPage() {
           )}
         </div>
       </div>
+
+      {/* Prescription Detail Dialog */}
+      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Chi tiết phiếu chỉ định {selectedPrescription ? `#${selectedPrescription.prescriptionCode}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPrescription ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className={`${getServiceStatusColor(selectedPrescription.status)} text-xs`}>
+                    {getServiceStatusText(selectedPrescription.status)}
+                  </Badge>
+                </div>
+                {selectedPrescription.note && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Ghi chú:</span> {selectedPrescription.note}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h4 className="font-medium text-sm text-gray-900 mb-2">Dịch vụ ({selectedPrescription.services.length})</h4>
+                <div className="space-y-2">
+                  {selectedPrescription.services.map((service: any) => (
+                    <div key={service.serviceId} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+                      <Badge variant="outline" className="text-xs">{service.order}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
+                        <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${getServiceStatusColor(service.status)} text-xs`}>
+                          {getServiceStatusText(service.status)}
+                        </Badge>
+                        {/* Button to create new prescription for this service */}
+                        {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                            onClick={() => {
+                              const serviceForDialog = {
+                                id: undefined,
+                                prescriptionId: service.prescriptionId,
+                                serviceId: service.serviceId,
+                                service: {
+                                  id: service.service.id,
+                                  serviceCode: service.service.serviceCode,
+                                  name: service.service.name,
+                                  price: 0,
+                                  description: service.service.description || '',
+                                  timePerPatient: 0
+                                },
+                                status: service.status as any,
+                                order: service.order,
+                                note: service.note,
+                                startedAt: null,
+                                completedAt: null,
+                                results: service.results || [],
+                                prescription: {
+                                  id: selectedPrescription.id,
+                                  prescriptionCode: selectedPrescription.prescriptionCode,
+                                  status: selectedPrescription.status,
+                                  patientProfile: selectedPrescription.patientProfile || {
+                                    id: selectedPrescription.patientProfileId,
+                                    name: 'N/A',
+                                    dateOfBirth: '',
+                                    gender: 'OTHER'
+                                  }
+                                }
+                              } as ServiceProcessingPrescriptionService & { prescription: any };
+                              setSelectedServiceForPrescription(serviceForDialog as any);
+                              setCreatePrescriptionDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">Không có dữ liệu phiếu chỉ định</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Prescription Dialog */}
+      {selectedServiceForPrescription && (
+        <CreatePrescriptionDialog
+          open={createPrescriptionDialogOpen}
+          onOpenChange={(open) => {
+            setCreatePrescriptionDialogOpen(open);
+            if (!open) {
+              setSelectedServiceForPrescription(null);
+            }
+          }}
+          service={selectedServiceForPrescription}
+          patientProfileId={(selectedServiceForPrescription as any).prescription?.patientProfile?.id || 
+                           medicalRecord?.patientProfileId || ''}
+          onSuccess={() => {
+            // Reload service prescriptions after creating new one
+            loadServicePrescriptions();
+          }}
+        />
+      )}
+
+      {/* Link Prescription Dialog */}
+      <Dialog open={isLinkPrescriptionDialogOpen} onOpenChange={setIsLinkPrescriptionDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Liên kết phiếu chỉ định
+            </DialogTitle>
+            <DialogDescription>
+              Nhập mã phiếu chỉ định hoặc quét QR code để liên kết với bệnh án này
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Mã phiếu chỉ định</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nhập mã phiếu chỉ định (VD: PRESC2512051239282014)"
+                  value={prescriptionCode}
+                  onChange={(e) => setPrescriptionCode(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLinkPrescription()}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => setIsQrScannerOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsLinkPrescriptionDialogOpen(false);
+                  setPrescriptionCode('');
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleLinkPrescription}
+                disabled={!prescriptionCode.trim() || isLinking}
+              >
+                {isLinking ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Đang liên kết...
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Liên kết
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={isQrScannerOpen} onOpenChange={setIsQrScannerOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Quét mã QR phiếu chỉ định
+            </DialogTitle>
+            <DialogDescription>
+              Đưa mã QR của phiếu chỉ định (PRESC...) vào khung hình để quét tự động
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '1' }}>
+              {/* Video element for BarcodeDetector */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${usingHtml5Qrcode ? 'hidden' : ''}`}
+                style={{ transform: 'scaleX(-1)' }}
+              />
+              
+              {/* HTML5 QR Code reader container */}
+              <div id="qr-reader-link" className="w-full h-full"></div>
+              
+              {/* Scanning overlay for BarcodeDetector mode */}
+              {scanning && !usingHtml5Qrcode && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="border-2 border-white rounded-lg w-[80%] h-[80%] relative">
+                    {/* Corner indicators */}
+                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+                  </div>
+                </div>
+              )}
+              
+              {!scanning && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="text-center text-white">
+                    <CameraOff className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Camera chưa sẵn sàng</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-gray-600">{scanHint}</p>
+              {scannerSupported === false && (
+                <p className="text-xs text-red-600 mt-2">
+                  Trình duyệt không hỗ trợ quét QR. Vui lòng sử dụng trình duyệt hiện đại hơn.
+                </p>
+              )}
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await stopScanner();
+                  setIsQrScannerOpen(false);
+                }}
+              >
+                Đóng
+              </Button>
+              {!scanning && (
+                <Button
+                  onClick={startScanner}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Khởi động lại
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -28,6 +28,8 @@ import { MedicalRecordAttachments } from '@/components/medical-records/MedicalRe
 import { MedicalRecordPrescriptions } from '@/components/medical-records/MedicalRecordPrescriptions';
 import { Doctor } from '@/lib/types/user';
 import { Badge } from '@/components/ui/badge';
+import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
+import { PrescriptionService as ServiceProcessingPrescriptionService } from '@/lib/types/service-processing';
 
 interface DoctorData {
   id: string;
@@ -107,6 +109,8 @@ export default function MedicalRecordDetailPage() {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceProcessingPrescriptionService | null>(null);
 
   // Load prescriptions for this medical record
   const loadPrescriptions = async () => {
@@ -732,11 +736,58 @@ export default function MedicalRecordDetailPage() {
                                 {service.service.serviceCode}
                               </p>
                             </div>
-                            <Badge
-                              className={`${getStatusColor(service.status)} text-xs`}
-                            >
-                              {getStatusText(service.status, service.order, prescription.services)}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${getStatusColor(service.status)} text-xs`}
+                              >
+                                {getStatusText(service.status, service.order, prescription.services)}
+                              </Badge>
+                              {/* Button to create new prescription for this service */}
+                              {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                                  onClick={() => {
+                                    // Convert PrescriptionService to ServiceProcessingPrescriptionService format
+                                    const serviceForDialog = {
+                                      id: undefined, // May not have id in this context
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.service.id,
+                                        serviceCode: service.service.serviceCode,
+                                        name: service.service.name,
+                                        price: 0,
+                                        description: service.service.description || '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as any,
+                                      order: service.order,
+                                      note: service.note,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: service.results || [],
+                                      prescription: {
+                                        id: prescription.id,
+                                        prescriptionCode: prescription.prescriptionCode,
+                                        status: prescription.status,
+                                        patientProfile: prescription.patientProfile || {
+                                          id: prescription.patientProfileId,
+                                          name: patientProfile?.name || 'N/A',
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    } as ServiceProcessingPrescriptionService & { prescription: any };
+                                    setSelectedServiceForPrescription(serviceForDialog as any);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -912,9 +963,56 @@ export default function MedicalRecordDetailPage() {
                         <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
                         <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
                       </div>
-                      <Badge className={`${getStatusColor(service.status)} text-xs`}>
-                        {getStatusText(service.status, service.order, selectedPrescription.services)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${getStatusColor(service.status)} text-xs`}>
+                          {getStatusText(service.status, service.order, selectedPrescription.services)}
+                        </Badge>
+                        {/* Button to create new prescription for this service */}
+                        {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                            onClick={() => {
+                              // Convert PrescriptionService to ServiceProcessingPrescriptionService format
+                              const serviceForDialog = {
+                                id: undefined,
+                                prescriptionId: service.prescriptionId,
+                                serviceId: service.serviceId,
+                                service: {
+                                  id: service.service.id,
+                                  serviceCode: service.service.serviceCode,
+                                  name: service.service.name,
+                                  price: 0,
+                                  description: service.service.description || '',
+                                  timePerPatient: 0
+                                },
+                                status: service.status as any,
+                                order: service.order,
+                                note: service.note,
+                                startedAt: null,
+                                completedAt: null,
+                                results: service.results || [],
+                                prescription: {
+                                  id: selectedPrescription.id,
+                                  prescriptionCode: selectedPrescription.prescriptionCode,
+                                  status: selectedPrescription.status,
+                                  patientProfile: selectedPrescription.patientProfile || {
+                                    id: selectedPrescription.patientProfileId,
+                                    name: patientProfile?.name || 'N/A',
+                                    dateOfBirth: '',
+                                    gender: 'OTHER'
+                                  }
+                                }
+                              } as ServiceProcessingPrescriptionService & { prescription: any };
+                              setSelectedServiceForPrescription(serviceForDialog as any);
+                              setCreatePrescriptionDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -925,6 +1023,27 @@ export default function MedicalRecordDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Prescription Dialog */}
+      {selectedServiceForPrescription && (
+        <CreatePrescriptionDialog
+          open={createPrescriptionDialogOpen}
+          onOpenChange={(open) => {
+            setCreatePrescriptionDialogOpen(open);
+            if (!open) {
+              setSelectedServiceForPrescription(null);
+            }
+          }}
+          service={selectedServiceForPrescription}
+          patientProfileId={(selectedServiceForPrescription as any).prescription?.patientProfile?.id || 
+                           medicalRecord?.patientProfileId || 
+                           patientProfile?.id || ''}
+          onSuccess={() => {
+            // Reload prescriptions after creating new one
+            loadPrescriptions();
+          }}
+        />
+      )}
     </div>
   );
 }

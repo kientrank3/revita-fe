@@ -1540,7 +1540,7 @@ export default function ServiceProcessingPage() {
                   )}
 
                   {/* Button to create new prescription for this service */}
-                  {(service.status === 'WAITING' || service.status === 'SERVING') && (
+                  {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
                     <Button
                       size="sm"
                       variant="outline"
