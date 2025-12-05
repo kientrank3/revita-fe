@@ -49,9 +49,34 @@ export default function SupportServingPage() {
       const data = await receptionService.getPendingServices(codeToFetch);
       setPendingData(data);
     } catch (e: unknown) {
-      const message = (e as { response?: { data?: { message?: string }; status?: number } }).response?.data?.message || 'Không thể lấy thông tin phiếu chỉ định';
-      setPendingData(null);
-      setError(message);
+      const errorResponse = e as { response?: { data?: { message?: string }; status?: number } };
+      const rawMessage = errorResponse?.response?.data?.message || 'Không thể lấy thông tin phiếu chỉ định';
+      
+      // Parse error message to show friendly message if it's about no work sessions
+      if (rawMessage.includes('No active work sessions found for services:')) {
+        // Extract service IDs from error message
+        const serviceIdsMatch = rawMessage.match(/services:\s*([^.]+)/);
+        if (serviceIdsMatch) {
+          const serviceIdsStr = serviceIdsMatch[1].trim();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const serviceIds = serviceIdsStr.split(',').map(id => id.trim());
+          
+          // Try to fetch service names from API or use IDs
+          // For now, show a generic message since we don't have service data yet
+          const friendlyMessage = `Hiện tại chưa có bác sĩ nào đang phục vụ dịch vụ này. Vui lòng kiểm tra lại phiên làm việc.`;
+          setPendingData(null);
+          setError(friendlyMessage);
+          toast.error(friendlyMessage);
+        } else {
+          setPendingData(null);
+          setError(rawMessage);
+          toast.error(rawMessage);
+        }
+      } else {
+        setPendingData(null);
+        setError(rawMessage);
+        toast.error(rawMessage);
+      }
     } finally {
       setLoadingPending(false);
     }
@@ -84,12 +109,47 @@ export default function SupportServingPage() {
         // ignore refresh failure
       }
     } catch (e: unknown) {
-      const message = (e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Không thể gán dịch vụ tiếp theo';
-      setError(message);
+      const errorResponse = e as { response?: { data?: { message?: string } } };
+      const rawMessage = errorResponse?.response?.data?.message || 'Không thể gán dịch vụ tiếp theo';
+      
+      // Parse error message to extract service IDs and show friendly message
+      if (rawMessage.includes('No active work sessions found for services:')) {
+        // Extract service IDs from error message
+        const serviceIdsMatch = rawMessage.match(/services:\s*([^.]+)/);
+        if (serviceIdsMatch && pendingData?.services) {
+          const serviceIdsStr = serviceIdsMatch[1].trim();
+          const serviceIds = serviceIdsStr.split(',').map(id => id.trim());
+          
+          // Map service IDs to service names
+          const serviceNames = serviceIds
+            .map(serviceId => {
+              const service = pendingData.services.find(s => s.serviceId === serviceId);
+              return service?.serviceName || serviceId;
+            })
+            .filter(Boolean);
+          
+          // Create friendly error message
+          if (serviceNames.length > 0) {
+            const serviceNamesText = serviceNames.join(', ');
+            const friendlyMessage = `Hiện tại chưa có bác sĩ nào đang phục vụ ${serviceNamesText}`;
+            setError(friendlyMessage);
+            toast.error(friendlyMessage);
+          } else {
+            setError(rawMessage);
+            toast.error(rawMessage);
+          }
+        } else {
+          setError(rawMessage);
+          toast.error(rawMessage);
+        }
+      } else {
+        setError(rawMessage);
+        toast.error(rawMessage);
+      }
     } finally {
       setLoadingAssign(false);
     }
-  }, [pendingData?.prescriptionCode, selectedServiceIds]);
+  }, [pendingData, selectedServiceIds]);
 
   // QR Scanner handlers
   const stopQrScanner = useCallback(async () => {

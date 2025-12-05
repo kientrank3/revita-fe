@@ -143,7 +143,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body = await response.json()
       message = body?.message || JSON.stringify(body)
-    } catch (_) {
+    } catch {
       // ignore parse error
     }
     throw new Error(message)
@@ -151,7 +151,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   // Some DELETEs may return 204 with body per guide; still try json
   try {
     return (await response.json()) as T
-  } catch (_) {
+  } catch {
     return {} as T
   }
 }

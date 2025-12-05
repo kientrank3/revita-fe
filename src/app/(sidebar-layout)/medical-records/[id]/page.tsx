@@ -54,8 +54,7 @@ interface PrescriptionService {
   prescriptionId: string;
   serviceId: string;
   status: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  results: any[];
+  results: string[];
   order: number;
   note: string | null;
   service: {
@@ -75,10 +74,20 @@ interface Prescription {
   status: string;
   medicalRecordId: string;
   services: PrescriptionService[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  patientProfile?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  doctor?: any;
+    patientProfile?: {
+      id: string;
+      name: string;
+      dateOfBirth?: string;
+      gender?: string;
+      profileCode?: string;
+      phone?: string;
+      address?: string;
+    };
+    doctor?: {
+      id: string;
+      name?: string;
+      position?: string;
+    };
 }
 
 interface MedicalRecordHistory {
@@ -110,7 +119,20 @@ export default function MedicalRecordDetailPage() {
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
-  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceProcessingPrescriptionService | null>(null);
+  type ServiceWithPrescription = ServiceProcessingPrescriptionService & { 
+    prescription?: { 
+      id: string; 
+      prescriptionCode: string; 
+      status: string; 
+      patientProfile: { 
+        id: string; 
+        name: string; 
+        dateOfBirth: string; 
+        gender: string 
+      } 
+    } 
+  };
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceWithPrescription | null>(null);
 
   // Load prescriptions for this medical record
   const loadPrescriptions = async () => {
@@ -543,8 +565,7 @@ export default function MedicalRecordDetailPage() {
           value: { fontSize: 11, color: '#111827' }
         },
         defaultStyle: { fontSize: 11, color: '#111827' }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      } as Parameters<typeof pdfMake.createPdf>[0];
 
       const pdfDoc = pdfMake.createPdf(docDefinition);
       pdfDoc.download(`Phieu-chi-dinh-${prescription.prescriptionCode}.pdf`);
@@ -762,7 +783,7 @@ export default function MedicalRecordDetailPage() {
                                         description: service.service.description || '',
                                         timePerPatient: 0
                                       },
-                                      status: service.status as any,
+                                      status: service.status as ServiceProcessingPrescriptionService['status'],
                                       order: service.order,
                                       note: service.note,
                                       startedAt: null,
@@ -779,8 +800,8 @@ export default function MedicalRecordDetailPage() {
                                           gender: 'OTHER'
                                         }
                                       }
-                                    } as ServiceProcessingPrescriptionService & { prescription: any };
-                                    setSelectedServiceForPrescription(serviceForDialog as any);
+                                    } as ServiceProcessingPrescriptionService & { prescription: { id: string; prescriptionCode: string; status: string; patientProfile: { id: string; name: string; dateOfBirth: string; gender: string } } };
+                                    setSelectedServiceForPrescription(serviceForDialog as ServiceProcessingPrescriptionService & { prescription: { id: string; prescriptionCode: string; status: string; patientProfile: { id: string; name: string; dateOfBirth: string; gender: string } } });
                                     setCreatePrescriptionDialogOpen(true);
                                   }}
                                 >
@@ -987,7 +1008,7 @@ export default function MedicalRecordDetailPage() {
                                   description: service.service.description || '',
                                   timePerPatient: 0
                                 },
-                                status: service.status as any,
+                                status: service.status as ServiceProcessingPrescriptionService['status'],
                                 order: service.order,
                                 note: service.note,
                                 startedAt: null,
@@ -1004,8 +1025,8 @@ export default function MedicalRecordDetailPage() {
                                     gender: 'OTHER'
                                   }
                                 }
-                              } as ServiceProcessingPrescriptionService & { prescription: any };
-                              setSelectedServiceForPrescription(serviceForDialog as any);
+                              } as ServiceWithPrescription;
+                              setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
                               setCreatePrescriptionDialogOpen(true);
                             }}
                           >
@@ -1035,7 +1056,7 @@ export default function MedicalRecordDetailPage() {
             }
           }}
           service={selectedServiceForPrescription}
-          patientProfileId={(selectedServiceForPrescription as any).prescription?.patientProfile?.id || 
+          patientProfileId={selectedServiceForPrescription?.prescription?.patientProfile?.id || 
                            medicalRecord?.patientProfileId || 
                            patientProfile?.id || ''}
           onSuccess={() => {

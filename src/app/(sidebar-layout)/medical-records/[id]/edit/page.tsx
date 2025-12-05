@@ -22,7 +22,7 @@ import api from '@/lib/config';
 import { MedicalRecordPrescriptions } from '@/components/medical-records/MedicalRecordPrescriptions';
 import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
 import { PrescriptionService as ServiceProcessingPrescriptionService } from '@/lib/types/service-processing';
-import { Eye, Clock, CheckCircle, XCircle, AlertCircle, Link2, QrCode, Search, Loader2, Camera, CameraOff } from 'lucide-react';
+import { Eye, Clock, CheckCircle, XCircle, AlertCircle, Link2, QrCode, Loader2, Camera, CameraOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -41,7 +41,22 @@ export default function EditMedicalRecordPage() {
   const [predictions, setPredictions] = useState<Array<{ icd_code: string; probability: number; disease_name_en: string; disease_name_vi: string }>>([]);
   
   // Service Prescriptions states
-  const [servicePrescriptions, setServicePrescriptions] = useState<Array<{
+  interface ServicePrescriptionService {
+    prescriptionId: string;
+    serviceId: string;
+    status: string;
+    results: string[];
+    order: number;
+    note: string | null;
+    service: {
+      id: string;
+      serviceCode: string;
+      name: string;
+      description: string;
+    };
+  }
+
+  interface ServicePrescription {
     id: string;
     prescriptionCode: string;
     doctorId: string;
@@ -49,28 +64,38 @@ export default function EditMedicalRecordPage() {
     note: string;
     status: string;
     medicalRecordId: string;
-    services: Array<{
-      prescriptionId: string;
-      serviceId: string;
-      status: string;
-      results: any[];
-      order: number;
-      note: string | null;
-      service: {
-        id: string;
-        serviceCode: string;
-        name: string;
-        description: string;
-      };
-    }>;
-    patientProfile?: any;
-    doctor?: any;
-  }>>([]);
+    services: ServicePrescriptionService[];
+    patientProfile?: {
+      id: string;
+      name: string;
+      dateOfBirth?: string;
+      gender?: string;
+    };
+    doctor?: {
+      id: string;
+      name?: string;
+    };
+  }
+
+  const [servicePrescriptions, setServicePrescriptions] = useState<ServicePrescription[]>([]);
   const [isLoadingServicePrescriptions, setIsLoadingServicePrescriptions] = useState(false);
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [selectedPrescription, setSelectedPrescription] = useState<ServicePrescription | null>(null);
   const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
-  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceProcessingPrescriptionService | null>(null);
+  type ServiceWithPrescription = ServiceProcessingPrescriptionService & { 
+    prescription?: { 
+      id: string; 
+      prescriptionCode: string; 
+      status: string; 
+      patientProfile: { 
+        id: string; 
+        name: string; 
+        dateOfBirth: string; 
+        gender: string 
+      } 
+    } 
+  };
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceWithPrescription | null>(null);
   
   // Link prescription states
   const [isLinkPrescriptionDialogOpen, setIsLinkPrescriptionDialogOpen] = useState(false);
@@ -89,6 +114,34 @@ export default function EditMedicalRecordPage() {
   const lastScanTsRef = React.useRef<number>(0);
   const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
   const scanningRef = React.useRef(false);
+
+  // Load service prescriptions
+  const loadServicePrescriptions = React.useCallback(async () => {
+    if (!recordId) return;
+    setIsLoadingServicePrescriptions(true);
+    try {
+      const response = await fetch(`/api/prescriptions/medical-record/${recordId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setServicePrescriptions(Array.isArray(data) ? data : []);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load service prescriptions:', response.status, errorData);
+        toast.error('Có lỗi xảy ra khi tải phiếu chỉ định dịch vụ');
+      }
+    } catch (error) {
+      console.error('Error loading service prescriptions:', error);
+      toast.error('Có lỗi xảy ra khi tải phiếu chỉ định dịch vụ');
+    } finally {
+      setIsLoadingServicePrescriptions(false);
+    }
+  }, [recordId]);
 
   // Load medical record and template
   useEffect(() => {
@@ -117,31 +170,7 @@ export default function EditMedicalRecordPage() {
 
     loadData();
     loadServicePrescriptions();
-  }, [recordId, router]);
-
-  // Load service prescriptions
-  const loadServicePrescriptions = async () => {
-    if (!recordId) return;
-    
-    setIsLoadingServicePrescriptions(true);
-    try {
-      const response = await fetch(`/api/prescriptions/medical-record/${recordId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setServicePrescriptions(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error('Error loading service prescriptions:', error);
-    } finally {
-      setIsLoadingServicePrescriptions(false);
-    }
-  };
+  }, [recordId, router, loadServicePrescriptions]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSave = async (data: Record<string, any> | CreateMedicalRecordDto) => {
@@ -309,7 +338,8 @@ export default function EditMedicalRecordPage() {
 
     setIsLinking(true);
     try {
-      const response = await api.patch(`/medical-records/${recordId}/link-prescription`, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await api.patch<any>(`/medical-records/${recordId}/link-prescription`, {
         prescriptionCode: prescriptionCode.trim(),
       });
 
@@ -320,9 +350,20 @@ export default function EditMedicalRecordPage() {
         // Reload service prescriptions
         loadServicePrescriptions();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error linking prescription:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi liên kết phiếu chỉ định';
+      let errorMessage = 'Có lỗi xảy ra khi liên kết phiếu chỉ định';
+      if (error && typeof error === 'object') {
+        // Check for axios error structure
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+          const axiosError = error as { response: { data?: { message?: string } } };
+          errorMessage = axiosError.response.data?.message || errorMessage;
+        } else if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       toast.error(errorMessage);
     } finally {
       setIsLinking(false);
@@ -702,7 +743,7 @@ export default function EditMedicalRecordPage() {
       toast.error(error.message || 'Không thể truy cập camera');
       setScanHint('Lỗi khởi động camera');
     }
-  }, [handleQrText, stopScanner]);
+  }, [handleQrText]);
 
   // Handle QR scanner dialog open/close
   React.useEffect(() => {
@@ -992,7 +1033,7 @@ export default function EditMedicalRecordPage() {
                                         description: service.service.description || '',
                                         timePerPatient: 0
                                       },
-                                      status: service.status as any,
+                                      status: service.status as ServiceProcessingPrescriptionService['status'],
                                       order: service.order,
                                       note: service.note,
                                       startedAt: null,
@@ -1009,8 +1050,8 @@ export default function EditMedicalRecordPage() {
                                           gender: 'OTHER'
                                         }
                                       }
-                                    } as ServiceProcessingPrescriptionService & { prescription: any };
-                                    setSelectedServiceForPrescription(serviceForDialog as any);
+                                    } as ServiceWithPrescription;
+                                    setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
                                     setCreatePrescriptionDialogOpen(true);
                                   }}
                                 >
@@ -1103,7 +1144,7 @@ export default function EditMedicalRecordPage() {
               <div>
                 <h4 className="font-medium text-sm text-gray-900 mb-2">Dịch vụ ({selectedPrescription.services.length})</h4>
                 <div className="space-y-2">
-                  {selectedPrescription.services.map((service: any) => (
+                  {selectedPrescription.services.map((service: ServicePrescriptionService) => (
                     <div key={service.serviceId} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
                       <Badge variant="outline" className="text-xs">{service.order}</Badge>
                       <div className="flex-1 min-w-0">
@@ -1133,7 +1174,7 @@ export default function EditMedicalRecordPage() {
                                   description: service.service.description || '',
                                   timePerPatient: 0
                                 },
-                                status: service.status as any,
+                                status: service.status as ServiceProcessingPrescriptionService['status'],
                                 order: service.order,
                                 note: service.note,
                                 startedAt: null,
@@ -1150,8 +1191,8 @@ export default function EditMedicalRecordPage() {
                                     gender: 'OTHER'
                                   }
                                 }
-                              } as ServiceProcessingPrescriptionService & { prescription: any };
-                              setSelectedServiceForPrescription(serviceForDialog as any);
+                              } as ServiceWithPrescription;
+                              setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
                               setCreatePrescriptionDialogOpen(true);
                             }}
                           >
@@ -1181,7 +1222,7 @@ export default function EditMedicalRecordPage() {
             }
           }}
           service={selectedServiceForPrescription}
-          patientProfileId={(selectedServiceForPrescription as any).prescription?.patientProfile?.id || 
+          patientProfileId={selectedServiceForPrescription?.prescription?.patientProfile?.id ||
                            medicalRecord?.patientProfileId || ''}
           onSuccess={() => {
             // Reload service prescriptions after creating new one

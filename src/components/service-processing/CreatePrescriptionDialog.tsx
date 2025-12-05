@@ -36,10 +36,25 @@ interface PrescriptionServiceRequest {
   note?: string;
 }
 
+// Extended type for PrescriptionService with optional prescription info
+type ServiceWithPrescription = PrescriptionService & {
+  prescription?: {
+    id: string;
+    prescriptionCode: string;
+    status: string;
+    patientProfile: {
+      id: string;
+      name: string;
+      dateOfBirth: string;
+      gender: string;
+    };
+  };
+};
+
 interface CreatePrescriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  service: PrescriptionService;
+  service: ServiceWithPrescription;
   patientProfileId: string;
   onSuccess?: () => void;
 }

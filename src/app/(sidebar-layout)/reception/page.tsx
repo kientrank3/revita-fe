@@ -375,44 +375,7 @@ const fetchCountersFromApi = async (): Promise<CounterSummary[]> => {
     .filter((item): item is CounterSummary => Boolean(item));
 };
 
-const assignCounterApi = async (counterId: string, notes?: string): Promise<{ success: boolean; message?: string }> => {
-  const url = `${API_BASE_URL}/counter-assignment/assign`;
-  const body = {
-    counterId,
-    notes: notes || undefined,
-  };
-
-  // Get auth token from localStorage
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-  
-  const options = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    credentials: 'include' as RequestCredentials,
-    body: JSON.stringify(body),
-  };
-
-  const response = await fetch(url, options);
-
-  const data: unknown = await response.json().catch(() => ({}));
-
-  const successFlag =
-    (typeof data === 'object' && data !== null && 'success' in data && (data as any).success) ||
-    response.ok;
-
-  if (!successFlag) {
-    const message = isPlainObject(data) && typeof data.message === 'string' ? data.message : null;
-    throw new Error(message || 'Không thể assign counter');
-  }
-
-  return {
-    success: true,
-    message: isPlainObject(data) && typeof data.message === 'string' ? data.message : 'Đã assign counter thành công',
-  };
-};
+// Removed unused function: assignCounterApi
 
 const openCounterApi = async (counterId: string, notes?: string, isVip?: boolean): Promise<{ success: boolean; message?: string }> => {
   const url = `${API_BASE_URL}/receptionists/counters/open`;

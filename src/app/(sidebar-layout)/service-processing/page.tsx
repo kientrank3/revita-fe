@@ -42,6 +42,21 @@ import {
   WorkSession,
   GetMyServicesResponse
 } from '@/lib/types/service-processing';
+
+// Extended type for PrescriptionService with prescription info
+type ServiceWithPrescription = PrescriptionService & {
+  prescription?: {
+    id: string;
+    prescriptionCode: string;
+    status: string;
+    patientProfile: {
+      id: string;
+      name: string;
+      dateOfBirth: string;
+      gender: string;
+    };
+  };
+};
 import { UpdateResultsDialog } from '@/components/service-processing/UpdateResultsDialog';
 import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
 
@@ -89,7 +104,7 @@ export default function ServiceProcessingPage() {
   } | null>(null);
   const [shouldReschedule, setShouldReschedule] = useState(false);
   const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
-  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<PrescriptionService | null>(null);
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<ServiceWithPrescription | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
@@ -455,14 +470,41 @@ export default function ServiceProcessingPage() {
   const handleCallNextPatient = async () => {
     setCallingNext(true);
     try {
-      await serviceProcessingService.callNextPatient();
-      toast.success('Đã gọi bệnh nhân tiếp theo');
+      const response = await serviceProcessingService.callNextPatient();
+      console.log('📞 Call next patient response:', response);
+      
+      // Check if response indicates success
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (response.success) {
+          toast.success(response.message || 'Đã gọi bệnh nhân tiếp theo');
+        } else {
+          toast.warning(response.message || 'Không thể gọi bệnh nhân tiếp theo');
+        }
+      } else {
+        toast.success('Đã gọi bệnh nhân tiếp theo');
+      }
+      
+      // Small delay to ensure backend has processed the update
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Reload queue after calling
       const q = await serviceProcessingService.getWaitingQueue();
       setQueue(q);
+      
+      // Also reload my services to reflect status changes
+      await loadMyServices();
     } catch (error: any) {
       console.error('Error calling next patient:', error);
-      toast.error(error.response?.data?.message || 'Không thể gọi bệnh nhân tiếp theo');
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể gọi bệnh nhân tiếp theo';
+      toast.error(errorMessage);
+      
+      // Still try to reload queue even on error
+      try {
+        const q = await serviceProcessingService.getWaitingQueue();
+        setQueue(q);
+      } catch (reloadError) {
+        console.error('Error reloading queue after error:', reloadError);
+      }
     } finally {
       setCallingNext(false);
     }
@@ -1212,10 +1254,50 @@ export default function ServiceProcessingPage() {
     }
   };
 
-  const handleOpenResultsDialog = (service: PrescriptionService, reschedule = false) => {
-    setSelectedService(service);
-    setShouldReschedule(reschedule);
-    setResultsDialogOpen(true);
+  const handleOpenResultsDialog = async (service: PrescriptionService, reschedule = false) => {
+    // If service is SERVING, first move it to WAITING_RESULT before opening dialog
+    if (service.status === 'SERVING' && service.id) {
+      try {
+        console.log('⏳ Moving service from SERVING to WAITING_RESULT before opening results dialog:', { prescriptionServiceId: service.id });
+        await handleUpdateServiceStatus(service.id, 'WAITING_RESULT', 'Chờ kết quả');
+        
+        // Reload service data to get updated status
+        if (prescription) {
+          const scanResponse = await serviceProcessingService.scanPrescription(prescription.prescriptionCode);
+          const updatedService = scanResponse.prescription.services.find(s => s.id === service.id);
+          if (updatedService) {
+            setSelectedService(updatedService);
+            setShouldReschedule(reschedule);
+            setResultsDialogOpen(true);
+            return;
+          }
+        }
+        
+        // If not found in prescription, try myServices
+        await loadMyServices();
+        const updatedService = myServices.find(s => s.id === service.id);
+        if (updatedService) {
+          setSelectedService(updatedService);
+          setShouldReschedule(reschedule);
+          setResultsDialogOpen(true);
+          return;
+        }
+        
+        // Fallback: use original service but update status locally
+        setSelectedService({ ...service, status: 'WAITING_RESULT' });
+        setShouldReschedule(reschedule);
+        setResultsDialogOpen(true);
+      } catch (error: any) {
+        console.error('Error moving service to WAITING_RESULT:', error);
+        toast.error(error.response?.data?.message || 'Không thể chuyển dịch vụ sang chờ kết quả');
+        return;
+      }
+    } else {
+      // Service is already WAITING_RESULT or other status, open dialog directly
+      setSelectedService(service);
+      setShouldReschedule(reschedule);
+      setResultsDialogOpen(true);
+    }
   };
 
   // Handle opening results dialog from queue patient
@@ -1490,8 +1572,12 @@ export default function ServiceProcessingPage() {
                             toast.error('Không tìm thấy ID dịch vụ. Vui lòng làm mới trang.');
                             return;
                           }
-                          console.log('🔍 Updating service status:', { prescriptionServiceId: service.id });
-                          handleUpdateServiceStatus(service.id, 'COMPLETED', 'Hoàn thành dịch vụ');
+                          console.log('🔍 Opening results dialog for completion:', {
+                            prescriptionId: service.prescriptionId,
+                            serviceId: service.serviceId,
+                            status: service.status
+                          });
+                          handleOpenResultsDialog(service, false);
                         }}
                         disabled={updatingService === serviceKey}
                         className="flex items-center gap-1 h-7 text-xs"
@@ -1540,7 +1626,7 @@ export default function ServiceProcessingPage() {
                   )}
 
                   {/* Button to create new prescription for this service */}
-                  {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                  {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING' || service.status === 'WAITING_RESULT') && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1892,7 +1978,7 @@ export default function ServiceProcessingPage() {
                             )}
 
                             {/* Button to create new prescription for this service */}
-                            {(service.status === 'WAITING' || service.status === 'SERVING') && (
+                            {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING' || service.status === 'WAITING_RESULT') && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2098,12 +2184,60 @@ export default function ServiceProcessingPage() {
                               <Button
                                 size="sm"
                                 onClick={async () => {
-                                  const idToUse = service.id || { prescriptionId: service.prescriptionId, serviceId: service.serviceId };
-                                  await handleUpdateServiceStatus(
-                                    idToUse,
-                                    'COMPLETED',
-                                    'Hoàn thành dịch vụ'
+                                  // Find full service data from myServices or prescription
+                                  const fullService = myServices.find(s => 
+                                    s.prescriptionId === service.prescriptionId && 
+                                    s.serviceId === service.serviceId
+                                  ) || prescription?.services.find(s => 
+                                    s.serviceId === service.serviceId
                                   );
+                                  
+                                  if (fullService) {
+                                    console.log('🔍 Opening results dialog from queue for completion:', {
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      status: service.status
+                                    });
+                                    handleOpenResultsDialog(fullService, false);
+                                  } else {
+                                    // If not found, create a minimal service object with queue data
+                                    const minimalService: ServiceWithPrescription = {
+                                      id: service.id || undefined,
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.serviceId,
+                                        serviceCode: '',
+                                        name: service.serviceName,
+                                        price: 0,
+                                        description: '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as ServiceStatus,
+                                      order: service.order || 1,
+                                      note: null,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: [],
+                                      prescription: {
+                                        id: service.prescriptionId,
+                                        prescriptionCode: p.prescriptionCode,
+                                        status: '',
+                                        patientProfile: {
+                                          id: p.patientProfileId,
+                                          name: p.patientName,
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    };
+                                    console.log('🔍 Opening results dialog with minimal service for completion:', {
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      status: service.status
+                                    });
+                                    handleOpenResultsDialog(minimalService, false);
+                                  }
                                 }}
                                 disabled={isUpdating}
                                 className="flex items-center gap-1 h-7 text-xs bg-green-600 hover:bg-green-700"
@@ -2137,7 +2271,7 @@ export default function ServiceProcessingPage() {
                                     setCreatePrescriptionDialogOpen(true);
                                   } else {
                                     // If not found, create a minimal service object with queue data
-                                    const minimalService: PrescriptionService = {
+                                    const minimalService: ServiceWithPrescription = {
                                       id: service.id || undefined,
                                       prescriptionId: service.prescriptionId,
                                       serviceId: service.serviceId,
@@ -2192,7 +2326,7 @@ export default function ServiceProcessingPage() {
                         if (waitingResultServices.length === 1) {
                           const service = waitingResultServices[0];
                           return (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -2226,6 +2360,62 @@ export default function ServiceProcessingPage() {
                               >
                                 <Clock className="h-3 w-3" />
                                 Hẹn lại
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  // Find full service data from myServices or prescription
+                                  const fullService = myServices.find(s => 
+                                    s.prescriptionId === service.prescriptionId && 
+                                    s.serviceId === service.serviceId
+                                  ) || prescription?.services.find(s => 
+                                    s.serviceId === service.serviceId
+                                  );
+                                  
+                                  if (fullService) {
+                                    setSelectedServiceForPrescription(fullService);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  } else {
+                                    // If not found, create a minimal service object with queue data
+                                    const minimalService: ServiceWithPrescription = {
+                                      id: service.id || undefined,
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.serviceId,
+                                        serviceCode: '',
+                                        name: service.serviceName,
+                                        price: 0,
+                                        description: '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as ServiceStatus,
+                                      order: service.order || 1,
+                                      note: null,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: [],
+                                      prescription: {
+                                        id: service.prescriptionId,
+                                        prescriptionCode: p.prescriptionCode,
+                                        status: '',
+                                        patientProfile: {
+                                          id: p.patientProfileId,
+                                          name: p.patientName,
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    };
+                                    setSelectedServiceForPrescription(minimalService);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  }
+                                }}
+                                className="flex items-center gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Tạo phiếu chỉ định
                               </Button>
                             </div>
                           );
@@ -2266,7 +2456,7 @@ export default function ServiceProcessingPage() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -2316,6 +2506,70 @@ export default function ServiceProcessingPage() {
                               >
                                 <Clock className="h-3 w-3" />
                                 Hẹn lại
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const selected = selectedPatientForResults?.patientProfileId === p.patientProfileId
+                                    ? selectedPatientForResults.services[0]
+                                    : null;
+                                  if (selected) {
+                                    // Find full service data from myServices or prescription
+                                    const fullService = myServices.find(s => 
+                                      s.prescriptionId === selected.prescriptionId && 
+                                      s.serviceId === selected.serviceId
+                                    ) || prescription?.services.find(s => 
+                                      s.serviceId === selected.serviceId
+                                    );
+                                    
+                                    if (fullService) {
+                                      setSelectedServiceForPrescription(fullService);
+                                      setCreatePrescriptionDialogOpen(true);
+                                    } else {
+                                      // If not found, create a minimal service object with queue data
+                                      const minimalService: ServiceWithPrescription = {
+                                        id: undefined,
+                                        prescriptionId: selected.prescriptionId,
+                                        serviceId: selected.serviceId,
+                                        service: {
+                                          id: selected.serviceId,
+                                          serviceCode: '',
+                                          name: selected.serviceName,
+                                          price: 0,
+                                          description: '',
+                                          timePerPatient: 0
+                                        },
+                                        status: selected.status as ServiceStatus,
+                                        order: selected.order || 1,
+                                        note: null,
+                                        startedAt: null,
+                                        completedAt: null,
+                                        results: [],
+                                        prescription: {
+                                          id: selected.prescriptionId,
+                                          prescriptionCode: p.prescriptionCode,
+                                          status: '',
+                                          patientProfile: {
+                                            id: p.patientProfileId,
+                                            name: p.patientName,
+                                            dateOfBirth: '',
+                                            gender: 'OTHER'
+                                          }
+                                        }
+                                      };
+                                      setSelectedServiceForPrescription(minimalService);
+                                      setCreatePrescriptionDialogOpen(true);
+                                    }
+                                  } else {
+                                    toast.error('Vui lòng chọn dịch vụ cần tạo phiếu chỉ định');
+                                  }
+                                }}
+                                disabled={selectedPatientForResults?.patientProfileId !== p.patientProfileId}
+                                className="flex items-center gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Tạo phiếu chỉ định
                               </Button>
                             </div>
                           </div>

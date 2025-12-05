@@ -13,7 +13,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, X, Search, Settings } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import { specialtiesService, clinicRoomsService, boothsService, type Specialty, type ClinicRoom, type Booth, type ListResponse } from "@/lib/services/facilities.service"
+import { specialtiesService, clinicRoomsService, boothsService, type Specialty, type ClinicRoom, type Booth, type ListResponse, type CreateClinicRoomDto, type UpdateClinicRoomDto, type CreateBoothDto, type UpdateBoothDto } from "@/lib/services/facilities.service"
 import { servicesService, serviceSearchApi, type Service } from "@/lib/services/services.service"
 
 // MultiSelectCombobox Component
@@ -609,20 +609,7 @@ function ClinicRoomsTab() {
     }))
   }
 
-  const toggleBoothService = (boothIndex: number, serviceId: string) => {
-    setForm(f => {
-      const booth = f.booths?.[boothIndex]
-      if (!booth) return f
-      const serviceIds = booth.serviceIds || []
-      const newServiceIds = serviceIds.includes(serviceId)
-        ? serviceIds.filter(id => id !== serviceId)
-        : [...serviceIds, serviceId]
-      return {
-        ...f,
-        booths: f.booths?.map((b, i) => i === boothIndex ? { ...b, serviceIds: newServiceIds } : b) || []
-      }
-    })
-  }
+  // Removed unused function: toggleBoothService
 
   const onSubmit = async () => {
     if (!form.roomName || !form.specialtyId) {
@@ -631,26 +618,40 @@ function ClinicRoomsTab() {
     }
     setSubmitting(true)
     try {
-      const payload: any = {
-        roomName: form.roomName,
-        specialtyId: form.specialtyId,
-        description: form.description,
-        address: form.address,
-      }
-      if (form.booths && form.booths.length > 0) {
-        payload.booths = form.booths.map(b => ({
-          ...(b.id && { id: b.id }),
-          name: b.name,
-          description: b.description,
-          isActive: b.isActive,
-          serviceIds: b.serviceIds
-        }))
-      }
       if (editing) {
-        await clinicRoomsService.updateClinicRoom(editing.id, payload)
+        const updatePayload: UpdateClinicRoomDto = {
+          roomName: form.roomName,
+          specialtyId: form.specialtyId,
+          description: form.description,
+          address: form.address,
+        }
+        if (form.booths && form.booths.length > 0) {
+          updatePayload.booths = form.booths.map(b => ({
+            ...(b.id && { id: b.id }),
+            name: b.name,
+            description: b.description,
+            isActive: b.isActive,
+            serviceIds: b.serviceIds
+          }))
+        }
+        await clinicRoomsService.updateClinicRoom(editing.id, updatePayload)
         toast.success("Cập nhật phòng thành công")
       } else {
-        await clinicRoomsService.createClinicRoom(payload)
+        const createPayload: CreateClinicRoomDto = {
+          roomName: form.roomName,
+          specialtyId: form.specialtyId,
+          description: form.description,
+          address: form.address,
+        }
+        if (form.booths && form.booths.length > 0) {
+          createPayload.booths = form.booths.map(b => ({
+            name: b.name,
+            description: b.description,
+            isActive: b.isActive,
+            serviceIds: b.serviceIds
+          }))
+        }
+        await clinicRoomsService.createClinicRoom(createPayload)
         toast.success("Tạo phòng thành công")
       }
       setOpen(false)
@@ -787,7 +788,7 @@ function ClinicRoomsTab() {
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
-                    Chưa có buồng nào. Nhấn "Thêm buồng" để thêm buồng khám.
+                    Chưa có buồng nào. Nhấn &quot;Thêm buồng&quot; để thêm buồng khám.
                   </div>
                 )}
               </div>
@@ -927,18 +928,25 @@ function BoothsTab() {
     }
     setSubmitting(true)
     try {
-      const payload: any = {
-        name: form.name,
-        roomId: form.roomId,
-        description: form.description,
-        isActive: form.isActive,
-        serviceIds: form.serviceIds
-      }
       if (editing) {
-        await boothsService.updateBooth(editing.id, payload)
+        const updatePayload: UpdateBoothDto = {
+          name: form.name,
+          roomId: form.roomId,
+          description: form.description,
+          isActive: form.isActive,
+          serviceIds: form.serviceIds
+        }
+        await boothsService.updateBooth(editing.id, updatePayload)
         toast.success("Cập nhật buồng thành công")
       } else {
-        await boothsService.createBooth(payload)
+        const createPayload: CreateBoothDto = {
+          name: form.name,
+          roomId: form.roomId,
+          description: form.description,
+          isActive: form.isActive,
+          serviceIds: form.serviceIds
+        }
+        await boothsService.createBooth(createPayload)
         toast.success("Tạo buồng thành công")
       }
       setOpen(false)

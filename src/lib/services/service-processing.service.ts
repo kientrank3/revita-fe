@@ -152,7 +152,13 @@ class ServiceProcessingService {
   }
 
   // 10. CALL NEXT PATIENT
-  async callNextPatient(): Promise<unknown> {
+  async callNextPatient(): Promise<{
+    success: boolean;
+    currentPatient?: { patientProfileId: string; patientName: string; prescriptionCode: string; status: string };
+    nextPatient?: { patientProfileId: string; patientName: string; prescriptionCode: string; status: string };
+    preparingPatient?: { patientProfileId: string; patientName: string; prescriptionCode: string; status: string };
+    message: string;
+  }> {
     console.log('📞 Calling next patient');
     console.log('🔐 JWT Token should be in Authorization header automatically');
 

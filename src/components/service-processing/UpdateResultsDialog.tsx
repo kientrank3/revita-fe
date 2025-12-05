@@ -100,13 +100,8 @@ export function UpdateResultsDialog({
   };
 
   const handleSubmit = async () => {
-    // Filter out empty results
+    // Filter out empty results (but allow empty array)
     const filteredResults = results.filter(result => result.trim() !== '');
-
-    if (filteredResults.length === 0) {
-      toast.error('Vui lòng upload ít nhất một file kết quả');
-      return;
-    }
 
     setUpdating(true);
     try {
@@ -119,9 +114,10 @@ export function UpdateResultsDialog({
       }
 
       // Update results - ALWAYS include shouldReschedule field
+      // Allow empty results array if user only wants to add note or complete without files
       const updateData: UpdateServiceResultsRequest = {
         prescriptionServiceId,
-        results: filteredResults,
+        results: filteredResults, // Can be empty array
         shouldReschedule: shouldReschedule || false, // Explicitly set to false if not true
         ...(note.trim() && { note: note.trim() }),
       };
@@ -312,7 +308,7 @@ export function UpdateResultsDialog({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={updating || uploadingFiles || results.length === 0}
+            disabled={updating || uploadingFiles}
             className={`min-w-[150px] ${shouldReschedule ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             {updating ? (
