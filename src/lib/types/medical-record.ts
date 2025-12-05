@@ -2,12 +2,20 @@
 export interface FieldDefinition {
   name: string;
   label: string;
-  type: 'string' | 'text' | 'number' | 'boolean' | 'date' | 'object' | 'array';
+  type: 'string' | 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'object' | 'array' | 'select' | 'multiselect';
   required?: boolean;
-  properties?: Record<string, any>;
+  properties?: Record<string, { type: string }>;
   items?: {
     type: string;
-    properties?: Record<string, any>;
+    properties?: Record<string, { type: string }>;
+  };
+  options?: string[]; // For select/multiselect types
+  placeholder?: string;
+  defaultValue?: string | number | boolean;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
   };
 }
 

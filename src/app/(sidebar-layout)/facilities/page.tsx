@@ -13,7 +13,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, X, Search, Settings } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import { specialtiesService, clinicRoomsService, boothsService, type Specialty, type ClinicRoom, type Booth, type ListResponse, type CreateClinicRoomDto, type UpdateClinicRoomDto, type CreateBoothDto, type UpdateBoothDto } from "@/lib/services/facilities.service"
+import { specialtiesService, clinicRoomsService, boothsService, templatesService, type Specialty, type ClinicRoom, type Booth, type Template, type TemplateField, type CreateTemplateDto, type UpdateTemplateDto, type ListResponse, type CreateClinicRoomDto, type UpdateClinicRoomDto, type CreateBoothDto, type UpdateBoothDto } from "@/lib/services/facilities.service"
 import { servicesService, serviceSearchApi, type Service } from "@/lib/services/services.service"
 
 // MultiSelectCombobox Component
@@ -316,11 +316,12 @@ function usePaginatedList<T>(fetcher: (page: number, limit: number) => Promise<L
     setError(null)
     try {
       const res = await fetcher(page, limit)
-      setData(res.data)
-      setMeta(res.meta)
+      setData(Array.isArray(res.data) ? res.data : [])
+      setMeta(res.meta || { page: 1, limit: 10, total: 0, totalPages: 0 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error"
       setError(msg)
+      setData([]) // Reset data on error
     } finally {
       setLoading(false)
     }
@@ -331,6 +332,22 @@ function usePaginatedList<T>(fetcher: (page: number, limit: number) => Promise<L
   }, [reload])
 
   return { data, meta, loading, error, page, setPage, limit, reload }
+}
+
+function PaginationControls({ page, totalPages, onPrev, onNext }: { page: number; totalPages: number; onPrev: () => void; onNext: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm text-muted-foreground">Trang {page}/{totalPages || 1}</div>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={onPrev} disabled={page <= 1}>
+          <ChevronLeft className="size-4" /> Trước
+        </Button>
+        <Button variant="outline" size="sm" onClick={onNext} disabled={totalPages ? page >= totalPages : true}>
+          Sau <ChevronRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export default function FacilitiesPage() {
@@ -356,6 +373,9 @@ export default function FacilitiesPage() {
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
             data-[state=inactive]:text-muted-foreground" value="promotions">Khuyến mãi dịch vụ</TabsTrigger>
+            <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
+            data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
+            data-[state=inactive]:text-muted-foreground" value="templates">Mẫu bệnh án</TabsTrigger>
           </TabsList>
 
           <TabsContent value="specialties" className="mt-4">
@@ -369,6 +389,9 @@ export default function FacilitiesPage() {
           </TabsContent>
           <TabsContent value="promotions" className="mt-4">
             <PromotionsTab />
+          </TabsContent>
+          <TabsContent value="templates" className="mt-4">
+            <TemplatesTab />
           </TabsContent>
         </Tabs>
         <Toaster richColors position="top-right" />
@@ -478,20 +501,28 @@ function SpecialtiesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((s) => (
-            <TableRow key={s.id} className="px-4">
-              <TableCell className="px-4">{s.specialtyCode}</TableCell>
-              <TableCell className="px-4">{s.name}</TableCell>
-              <TableCell className="flex gap-2 px-4">
-                <Button variant="outline" size="sm" onClick={() => openEdit(s)}>
-                  <Pencil className="size-4" /> Sửa
-                </Button>
-                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(s)}>
-                  <Trash2 className="size-4"  color="red"/> Xóa
-                </Button>
+          {data && data.length > 0 ? (
+            data.map((s) => (
+              <TableRow key={s.id} className="px-4">
+                <TableCell className="px-4">{s.specialtyCode}</TableCell>
+                <TableCell className="px-4">{s.name}</TableCell>
+                <TableCell className="flex gap-2 px-4">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(s)}>
+                    <Pencil className="size-4" /> Sửa
+                  </Button>
+                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(s)}>
+                    <Trash2 className="size-4"  color="red"/> Xóa
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : !loading ? (
+            <TableRow>
+              <TableCell colSpan={3} className="text-center text-muted-foreground">
+                Không có dữ liệu
               </TableCell>
             </TableRow>
-          ))}
+          ) : null}
           {loading && (
             <TableRow>
               <TableCell colSpan={3}>
@@ -522,9 +553,10 @@ function ClinicRoomsTab() {
     void (async () => {
       try {
         const res = await specialtiesService.listSpecialties(1)
-        setSpecialties(res.data)
+        setSpecialties(Array.isArray(res.data) ? res.data : [])
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Không tải được danh sách khoa")
+        setSpecialties([]) // Reset to empty array on error
       }
     })()
   }, [])
@@ -681,9 +713,13 @@ function ClinicRoomsTab() {
           <Select value={specialtyFilter} onValueChange={(v) => { setSpecialtyFilter(v || undefined); }}>
             <SelectTrigger className="min-w-56"><SelectValue placeholder="Lọc theo khoa" /></SelectTrigger>
             <SelectContent>
-              {specialties.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{`${s.name} (${s.specialtyCode})`}</SelectItem>
-              ))}
+              {specialties && specialties.length > 0 ? (
+                specialties.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{`${s.name} (${s.specialtyCode})`}</SelectItem>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">Không có khoa nào</div>
+              )}
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={() => { setSpecialtyFilter(undefined); void reload() }} disabled={loading}>Bỏ lọc</Button>
@@ -710,9 +746,13 @@ function ClinicRoomsTab() {
                   <Select value={form.specialtyId} onValueChange={(v) => setForm((f) => ({ ...f, specialtyId: v }))}>
                     <SelectTrigger className="w-full"><SelectValue placeholder="Chọn khoa" /></SelectTrigger>
                     <SelectContent>
-                      {specialties.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{`${s.name} (${s.specialtyCode})`}</SelectItem>
-                      ))}
+                      {specialties && specialties.length > 0 ? (
+                        specialties.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{`${s.name} (${s.specialtyCode})`}</SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">Không có khoa nào</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -815,19 +855,27 @@ function ClinicRoomsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((r) => (
-            <TableRow key={r.id} className="px-4">
-              <TableCell className="px-4">{r.roomCode}</TableCell>
-              <TableCell className="px-4">{r.roomName}</TableCell>
-              <TableCell className="px-4">{r.specialty ? `${r.specialty.name} (${r.specialty.specialtyCode})` : ""}</TableCell>
-              <TableCell className="px-4">{r.description}</TableCell>
-              <TableCell className="px-4">{r.address}</TableCell>
-              <TableCell className="flex gap-2 px-4">
-                <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Pencil className="size-4" /> Sửa</Button>
-                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+          {data && data.length > 0 ? (
+            data.map((r) => (
+              <TableRow key={r.id} className="px-4">
+                <TableCell className="px-4">{r.roomCode}</TableCell>
+                <TableCell className="px-4">{r.roomName}</TableCell>
+                <TableCell className="px-4">{r.specialty ? `${r.specialty.name} (${r.specialty.specialtyCode})` : ""}</TableCell>
+                <TableCell className="px-4">{r.description}</TableCell>
+                <TableCell className="px-4">{r.address}</TableCell>
+                <TableCell className="flex gap-2 px-4">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Pencil className="size-4" /> Sửa</Button>
+                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : !loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                Không có dữ liệu
               </TableCell>
             </TableRow>
-          ))}
+          ) : null}
           {loading && (
             <TableRow>
               <TableCell colSpan={6}><div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Đang tải...</div></TableCell>
@@ -1098,20 +1146,28 @@ function BoothsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((b) => (
-            <TableRow key={b.id} className="px-4">
-              <TableCell className="px-4">{b.boothCode}</TableCell>
-              <TableCell className="px-4">{b.name}</TableCell>
-              <TableCell className="px-4">{b.room ? `${b.room.roomName} (${b.room.roomCode})` : ""}</TableCell>
-              <TableCell className="px-4">{b.description}</TableCell>
-              <TableCell className="px-4">{b.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</TableCell>
-              <TableCell className="flex gap-2 px-4">
-                <Button variant="outline" size="sm" onClick={() => openEdit(b)}><Pencil className="size-4" /> Sửa</Button>
-                <Button variant="outline" size="sm" onClick={() => openServicesDialog(b)}><Settings className="size-4" /> Dịch vụ</Button>
-                <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+          {data && data.length > 0 ? (
+            data.map((b) => (
+              <TableRow key={b.id} className="px-4">
+                <TableCell className="px-4">{b.boothCode}</TableCell>
+                <TableCell className="px-4">{b.name}</TableCell>
+                <TableCell className="px-4">{b.room ? `${b.room.roomName} (${b.room.roomCode})` : ""}</TableCell>
+                <TableCell className="px-4">{b.description}</TableCell>
+                <TableCell className="px-4">{b.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</TableCell>
+                <TableCell className="flex gap-2 px-4">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(b)}><Pencil className="size-4" /> Sửa</Button>
+                  <Button variant="outline" size="sm" onClick={() => openServicesDialog(b)}><Settings className="size-4" /> Dịch vụ</Button>
+                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : !loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                Không có dữ liệu
               </TableCell>
             </TableRow>
-          ))}
+          ) : null}
           {loading && (
             <TableRow>
               <TableCell colSpan={6}><div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Đang tải...</div></TableCell>
@@ -1733,20 +1789,1107 @@ function PromotionsTab() {
   )
 }
 
-function PaginationControls({ page, totalPages, onPrev, onNext }: { page: number; totalPages: number; onPrev: () => void; onNext: () => void }) {
+// Template mẫu có sẵn
+const TEMPLATE_SAMPLES = [
+  {
+    templateCode: 'NOI_KHOA',
+    name: 'Nội khoa',
+    specialtyName: 'Nội tổng quát',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Triệu chứng chính', type: 'string', required: true },
+        { name: 'hpi', label: 'Diễn tiến bệnh', type: 'text' },
+        { name: 'pmh', label: 'Tiền sử bệnh', type: 'text' },
+        { name: 'psh', label: 'Tiền sử phẫu thuật', type: 'text' },
+        { name: 'social_history', label: 'Tiền sử xã hội', type: 'text' },
+        { name: 'family_history', label: 'Tiền sử gia đình', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'allergies', label: 'Dị ứng', type: 'text' },
+        { name: 'ros', label: 'Review of Systems', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' }, o2_sat: { type: 'number' }, pain_score: { type: 'number' } } },
+        { name: 'physical_exam', label: 'Khám thực thể', type: 'text' },
+        { name: 'lab_results', label: 'Xét nghiệm / CLS', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text', required: true },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'RANG_HAM_MAT',
+    name: 'Răng hàm mặt',
+    specialtyName: 'Răng hàm mặt',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'medical_history', label: 'Tiền sử bệnh', type: 'text' },
+        { name: 'dental_history', label: 'Tiền sử nha khoa', type: 'text' },
+        { name: 'tooth_number', label: 'Số hiệu răng', type: 'string' },
+        { name: 'tooth_condition', label: 'Tình trạng răng', type: 'string' },
+        { name: 'gum_condition', label: 'Tình trạng nướu', type: 'string' },
+        { name: 'occlusion', label: 'Khớp cắn', type: 'string' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'xray_results', label: 'X‑quang', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text', required: true },
+        { name: 'procedures', label: 'Thủ thuật thực hiện', type: 'text' },
+        { name: 'consent', label: 'Consent', type: 'text' },
+        { name: 'procedure_date', label: 'Ngày thực hiện thủ thuật / điều trị', type: 'date' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'MAT',
+    name: 'Mắt',
+    specialtyName: 'Mắt',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'medical_history', label: 'Tiền sử bệnh', type: 'text' },
+        { name: 'ocular_history', label: 'Tiền sử mắt', type: 'text' },
+        { name: 'visual_acuity', label: 'Thị lực (OD/OS)', type: 'string' },
+        { name: 'refraction', label: 'Khúc xạ', type: 'string' },
+        { name: 'intraocular_pressure', label: 'IOP', type: 'number' },
+        { name: 'anterior_segment', label: 'Mắt trước', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'posterior_segment', label: 'Mắt sau', type: 'text' },
+        { name: 'imaging_results', label: 'Hình ảnh học', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text', required: true },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+      ],
+    },
+  },
+  {
+    templateCode: 'NGOAI_KHOA',
+    name: 'Ngoại khoa',
+    specialtyName: 'Ngoại khoa',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do nhập viện', type: 'string', required: true },
+        { name: 'history_of_present_illness', label: 'Diễn tiến bệnh', type: 'text' },
+        { name: 'trauma_history', label: 'Tiền sử chấn thương/phẫu thuật', type: 'text' },
+        { name: 'medical_history', label: 'Tiền sử bệnh nội khoa', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' } } },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'procedure_date', label: 'Ngày thực hiện thủ thuật / điều trị', type: 'date' },
+        { name: 'physical_exam', label: 'Khám lâm sàng', type: 'text' },
+        { name: 'surgical_assessment', label: 'Đánh giá phẫu thuật', type: 'text' },
+        { name: 'lab_results', label: 'Xét nghiệm cận lâm sàng', type: 'text' },
+        { name: 'imaging', label: 'Chẩn đoán hình ảnh', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'surgery_plan', label: 'Kế hoạch mổ', type: 'text' },
+        { name: 'treatment_plan', label: 'Điều trị nội khoa kèm theo', type: 'text' },
+        { name: 'post_op_care', label: 'Chăm sóc hậu phẫu', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'UNG_BUOU',
+    name: 'Ung bướu',
+    specialtyName: 'Ung bướu',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Triệu chứng chính', type: 'string', required: true },
+        { name: 'tumor_location', label: 'Vị trí khối u', type: 'string' },
+        { name: 'tumor_size', label: 'Kích thước u', type: 'string' },
+        { name: 'clinical_stage', label: 'Giai đoạn lâm sàng', type: 'string' },
+        { name: 'histopathology', label: 'Giải phẫu bệnh', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'immuno_results', label: 'Miễn dịch mô học', type: 'text' },
+        { name: 'lab_results', label: 'Xét nghiệm (máu, marker)', type: 'text' },
+        { name: 'imaging', label: 'Chẩn đoán hình ảnh (CT, MRI)', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán ung thư', type: 'string', required: true },
+        { name: 'tnm_classification', label: 'Phân loại TNM', type: 'string' },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text' },
+        { name: 'treatment_type', label: 'Loại điều trị (phẫu thuật, hóa xạ)', type: 'string' },
+        { name: 'follow_up', label: 'Theo dõi tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+      ],
+    },
+  },
+  {
+    templateCode: 'TRUYEN_NHIEM',
+    name: 'Truyền nhiễm',
+    specialtyName: 'Truyền nhiễm',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do vào viện', type: 'string', required: true },
+        { name: 'onset_date', label: 'Ngày khởi phát', type: 'date' },
+        { name: 'epidemiological_history', label: 'Tiền sử dịch tễ', type: 'text' },
+        { name: 'medical_history', label: 'Tiền sử bệnh lý', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'contact_history', label: 'Tiếp xúc với người bệnh', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' } } },
+        { name: 'physical_exam', label: 'Khám thực thể', type: 'text' },
+        { name: 'lab_results', label: 'Cận lâm sàng (HIV, vi sinh,...)', type: 'text' },
+        { name: 'infectious_diagnosis', label: 'Chẩn đoán truyền nhiễm', type: 'string', required: true },
+        { name: 'isolation_required', label: 'Yêu cầu cách ly', type: 'boolean' },
+        { name: 'treatment_plan', label: 'Điều trị (kháng sinh, theo phác đồ)', type: 'text' },
+        { name: 'notification_status', label: 'Khai báo dịch tễ', type: 'string' },
+        { name: 'follow_up', label: 'Tái khám theo dõi', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+      ],
+    },
+  },
+  {
+    templateCode: 'NHI_KHOA',
+    name: 'Nhi khoa',
+    specialtyName: 'Nhi khoa',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do nhập viện', type: 'string', required: true },
+        { name: 'onset_date', label: 'Ngày khởi phát triệu chứng', type: 'date' },
+        { name: 'birth_history', label: 'Tiền sử sinh (đủ/tháng, mổ/thường, cân nặng sinh)', type: 'text' },
+        { name: 'allergies', label: 'Dị ứng', type: 'text' },
+        { name: 'immunization_history', label: 'Tiêm chủng', type: 'text' },
+        { name: 'nutrition_history', label: 'Dinh dưỡng', type: 'text' },
+        { name: 'growth_chart', label: 'Biểu đồ tăng trưởng', type: 'text' },
+        { name: 'family_history', label: 'Tiền sử gia đình', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' }, weight: { type: 'number' }, height: { type: 'number' } } },
+        { name: 'physical_exam', label: 'Khám lâm sàng', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text', required: true },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú thêm', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'PHU_KHOA',
+    name: 'Phụ khoa',
+    specialtyName: 'Phụ khoa',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'menstrual_history', label: 'Kinh nguyệt', type: 'text' },
+        { name: 'allergies', label: 'Dị ứng', type: 'text' },
+        { name: 'obstetric_history', label: 'Tiền sử sản khoa (para, gravida, sảy thai,...)', type: 'text' },
+        { name: 'sexual_history', label: 'Tiền sử tình dục', type: 'text' },
+        { name: 'vaginal_discharge', label: 'Khí hư', type: 'text' },
+        { name: 'pelvic_exam', label: 'Khám phụ khoa', type: 'text' },
+        { name: 'ultrasound', label: 'Siêu âm phụ khoa', type: 'text' },
+        { name: 'lab_results', label: 'Xét nghiệm (Pap, nội tiết...)', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị', type: 'text', required: true },
+        { name: 'contraceptive_advice', label: 'Tư vấn tránh thai', type: 'text' },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+      ],
+    },
+  },
+  {
+    templateCode: 'DA_LIEU',
+    name: 'Da liễu',
+    specialtyName: 'Da liễu',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'onset_date', label: 'Thời gian xuất hiện triệu chứng', type: 'date' },
+        { name: 'rash_location', label: 'Vị trí tổn thương da', type: 'text' },
+        { name: 'rash_characteristics', label: 'Đặc điểm tổn thương (màu sắc, vảy, dạng,...)', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'itching', label: 'Ngứa', type: 'boolean' },
+        { name: 'exposure_history', label: 'Tiền sử tiếp xúc (dị nguyên, môi trường)', type: 'text' },
+        { name: 'medical_history', label: 'Tiền sử bệnh lý (dị ứng, cơ địa,...)', type: 'text' },
+        { name: 'lab_results', label: 'Xét nghiệm (HIV, nấm, test dị ứng)', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán da liễu', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Điều trị (thuốc bôi, uống, kháng sinh)', type: 'text', required: true },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'SAN_KHOA',
+    name: 'Sản khoa',
+    specialtyName: 'Sản khoa',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do nhập viện', type: 'string', required: true },
+        { name: 'gestational_age', label: 'Tuổi thai (tuần)', type: 'number' },
+        { name: 'obstetric_history', label: 'Tiền sử sản khoa (para, gravida, sảy thai)', type: 'text' },
+        { name: 'prenatal_care', label: 'Theo dõi thai kỳ', type: 'text' },
+        { name: 'fetal_heart_rate', label: 'Nhịp tim thai', type: 'number' },
+        { name: 'membranes_status', label: 'Tình trạng ối (vỡ ối, còn ối...)', type: 'string' },
+        { name: 'contractions', label: 'Cơn gò tử cung', type: 'string' },
+        { name: 'vaginal_exam', label: 'Khám âm đạo (cổ tử cung, ngôi, lọt)', type: 'text' },
+        { name: 'ultrasound', label: 'Siêu âm sản khoa', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'delivery_plan', label: 'Kế hoạch sinh (đẻ thường, mổ lấy thai)', type: 'string' },
+        { name: 'treatment_plan', label: 'Điều trị kèm theo', type: 'text' },
+        { name: 'follow_up', label: 'Theo dõi', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'procedure_date', label: 'Ngày thực hiện thủ thuật / điều trị', type: 'date' },
+      ],
+    },
+  },
+  {
+    templateCode: 'TAI_MUI_HONG',
+    name: 'Tai mũi họng',
+    specialtyName: 'Tai mũi họng',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'onset_date', label: 'Ngày khởi phát', type: 'date' },
+        { name: 'symptom_description', label: 'Mô tả triệu chứng (đau tai, nghẹt mũi,...)', type: 'text' },
+        { name: 'hearing_loss', label: 'Mức độ nghe giảm', type: 'string' },
+        { name: 'nasal_discharge', label: 'Dịch mũi', type: 'string' },
+        { name: 'throat_exam', label: 'Khám họng (amidan, họng đỏ...)', type: 'text' },
+        { name: 'otoscopy', label: 'Soi tai', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'audiometry', label: 'Đo thính lực', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Điều trị (thuốc, phẫu thuật, hút mủ...)', type: 'text', required: true },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+        { name: 'attachments', label: 'Tệp đính kèm (chẩn đoán hình ảnh, kết quả xét nghiệm...)', type: 'array', items: { type: 'object', properties: { filename: { type: 'string' }, filetype: { type: 'string' }, url: { type: 'string' } } } },
+      ],
+    },
+  },
+  {
+    templateCode: 'PHUC_HOI_CHUC_NANG',
+    name: 'Phục hồi chức năng',
+    specialtyName: 'Phục hồi chức năng',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do đến khám', type: 'string', required: true },
+        { name: 'onset_date', label: 'Ngày khởi phát', type: 'date' },
+        { name: 'medical_history', label: 'Tiền sử bệnh lý (tai biến, chấn thương)', type: 'text' },
+        { name: 'functional_status', label: 'Tình trạng chức năng hiện tại', type: 'text' },
+        { name: 'muscle_strength', label: 'Sức cơ', type: 'string' },
+        { name: 'range_of_motion', label: 'Tầm vận động', type: 'string' },
+        { name: 'neurological_exam', label: 'Thăm khám thần kinh', type: 'text' },
+        { name: 'rehabilitation_diagnosis', label: 'Chẩn đoán PHCN', type: 'string', required: true },
+        { name: 'rehab_goals', label: 'Mục tiêu phục hồi', type: 'text' },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị (VLTL, hoạt động trị liệu...)', type: 'text', required: true },
+        { name: 'therapy_schedule', label: 'Lịch trị liệu', type: 'text' },
+        { name: 'follow_up', label: 'Theo dõi tiến triển', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'BONG',
+    name: 'Bỏng',
+    specialtyName: 'Bỏng',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do nhập viện', type: 'string', required: true },
+        { name: 'burn_cause', label: 'Nguyên nhân bỏng (nhiệt, hóa chất...)', type: 'string' },
+        { name: 'burn_date', label: 'Thời điểm bị bỏng', type: 'date' },
+        { name: 'burn_depth', label: 'Độ sâu bỏng', type: 'string' },
+        { name: 'burn_area_percent', label: 'Diện tích bỏng (%)', type: 'number' },
+        { name: 'burn_location', label: 'Vị trí vùng bỏng', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' } } },
+        { name: 'infection_signs', label: 'Dấu hiệu nhiễm trùng', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Điều trị (dịch truyền, kháng sinh...)', type: 'text', required: true },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'wound_care', label: 'Chăm sóc vết bỏng', type: 'text' },
+        { name: 'follow_up', label: 'Tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'HUYET_HOC_TRUYEN_MAU',
+    name: 'Huyết học/truyền máu',
+    specialtyName: 'Huyết học/truyền máu',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'anemia_history', label: 'Tiền sử thiếu máu', type: 'text' },
+        { name: 'bleeding_symptoms', label: 'Triệu chứng xuất huyết', type: 'text' },
+        { name: 'transfusion_history', label: 'Lịch sử truyền máu', type: 'text' },
+        { name: 'family_history', label: 'Tiền sử gia đình', type: 'text' },
+        { name: 'lab_results', label: 'Kết quả xét nghiệm máu', type: 'text' },
+        { name: 'bone_marrow_exam', label: 'Xét nghiệm tủy xương', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán huyết học', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kế hoạch điều trị (truyền, hóa trị...)', type: 'text', required: true },
+        { name: 'monitoring', label: 'Theo dõi', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'TAM_THAN',
+    name: 'Tâm thần',
+    specialtyName: 'Tâm thần',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'psychiatric_history', label: 'Tiền sử tâm thần', type: 'text' },
+        { name: 'substance_use', label: 'Lạm dụng chất', type: 'text' },
+        { name: 'behavioral_observation', label: 'Quan sát hành vi', type: 'text' },
+        { name: 'mood_affect', label: 'Khí sắc / cảm xúc', type: 'string' },
+        { name: 'thought_content', label: 'Nội dung tư duy (hoang tưởng...)', type: 'text' },
+        { name: 'cognition_status', label: 'Tình trạng nhận thức', type: 'text' },
+        { name: 'mental_exam', label: 'Khám tâm thần', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán rối loạn', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Điều trị (thuốc an thần, tâm lý...)', type: 'text', required: true },
+        { name: 'risk_assessment', label: 'Đánh giá nguy cơ', type: 'text' },
+        { name: 'follow_up', label: 'Tái khám / giám sát', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+  {
+    templateCode: 'NGOAI_TRU_CHUNG',
+    name: 'Ngoại trú chung',
+    specialtyName: 'Ngoại trú chung',
+    fields: {
+      fields: [
+        { name: 'chief_complaint', label: 'Lý do khám', type: 'string', required: true },
+        { name: 'history_of_present_illness', label: 'Diễn tiến bệnh', type: 'text' },
+        { name: 'medical_history', label: 'Tiền sử bệnh', type: 'text' },
+        { name: 'medications', label: 'Thuốc dùng', type: 'text' },
+        { name: 'vital_signs', label: 'Dấu hiệu sinh tồn', type: 'object', properties: { temp: { type: 'number' }, bp: { type: 'string' }, hr: { type: 'number' }, rr: { type: 'number' } } },
+        { name: 'physical_exam', label: 'Khám lâm sàng', type: 'text' },
+        { name: 'diagnosis', label: 'Chẩn đoán sơ bộ', type: 'string', required: true },
+        { name: 'treatment_plan', label: 'Kê toa / hướng dẫn điều trị', type: 'text', required: true },
+        { name: 'follow_up', label: 'Dặn dò / tái khám', type: 'text' },
+        { name: 'notes', label: 'Ghi chú', type: 'text' },
+      ],
+    },
+  },
+] as const
+
+function TemplatesTab() {
+  const [templates, setTemplates] = React.useState<Template[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [open, setOpen] = React.useState(false)
+  const [editing, setEditing] = React.useState<Template | null>(null)
+  const [form, setForm] = React.useState<{
+    templateCode: string
+    name: string
+    specialtyId: string
+    isActive: boolean
+    fields: (TemplateField & {
+      properties?: Record<string, { type: string }>
+      items?: { type: string; properties?: Record<string, { type: string }> }
+    })[]
+  }>({
+    templateCode: "",
+    name: "",
+    specialtyId: "",
+    isActive: true,
+    fields: []
+  })
+  const [submitting, setSubmitting] = React.useState(false)
+  const [specialties, setSpecialties] = React.useState<Specialty[]>([])
+
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        const res = await specialtiesService.listSpecialties(1, 100)
+        setSpecialties(Array.isArray(res.data) ? res.data : [])
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Không tải được danh sách khoa")
+        setSpecialties([]) // Reset to empty array on error
+      }
+    })()
+  }, [])
+
+  const loadTemplates = React.useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await templatesService.listTemplates()
+      setTemplates(data)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error"
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void loadTemplates()
+  }, [loadTemplates])
+
+  const loadTemplateFromSample = (sample: typeof TEMPLATE_SAMPLES[number]) => {
+    // Tìm specialtyId từ specialtyName
+    const specialty = specialties.find(s => s.name === sample.specialtyName || s.specialtyCode === sample.specialtyName)
+    setForm({
+      templateCode: sample.templateCode,
+      name: sample.name,
+      specialtyId: specialty?.id || "",
+      isActive: true,
+      fields: sample.fields.fields.map(f => {
+        const field: TemplateField = {
+          name: f.name,
+          label: f.label,
+          type: f.type as TemplateField['type'],
+          required: ('required' in f && f.required) || false,
+        }
+        // Chỉ thêm properties/items nếu type là object hoặc array
+        if (f.type === 'object' && 'properties' in f) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (field as any).properties = f.properties
+        }
+        if (f.type === 'array' && 'items' in f) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (field as any).items = f.items
+        }
+        return field
+      })
+    })
+  }
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({
+      templateCode: "",
+      name: "",
+      specialtyId: "",
+      isActive: true,
+      fields: []
+    })
+    setOpen(true)
+  }
+
+  const openEdit = async (t: Template) => {
+    setEditing(t)
+    try {
+      const templateDetail = await templatesService.getTemplate(t.id)
+      setForm({
+        templateCode: templateDetail.templateCode,
+        name: templateDetail.name,
+        specialtyId: templateDetail.specialtyId || "",
+        isActive: templateDetail.isActive ?? true,
+        fields: templateDetail.fields?.fields || []
+      })
+      setOpen(true)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không tải được thông tin template")
+    }
+  }
+
+  const addField = () => {
+    setForm(f => ({
+      ...f,
+      fields: [...f.fields, {
+        name: "",
+        label: "",
+        type: "string" as const,
+        required: false
+      }]
+    }))
+  }
+
+  const removeField = (index: number) => {
+    setForm(f => ({
+      ...f,
+      fields: f.fields.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateField = (index: number, updates: Partial<TemplateField & { properties?: Record<string, { type: string }>; items?: { type: string; properties?: Record<string, { type: string }> } }>) => {
+    setForm(f => ({
+      ...f,
+      fields: f.fields.map((field, i) => i === index ? { ...field, ...updates } : field)
+    }))
+  }
+
+  const onSubmit = async () => {
+    if (!form.templateCode || !form.name || !form.specialtyId) {
+      toast.error("Vui lòng nhập đầy đủ thông tin")
+      return
+    }
+    if (form.fields.length === 0) {
+      toast.error("Vui lòng thêm ít nhất một trường")
+      return
+    }
+    
+    // Validate field names are unique and valid
+    const fieldNames = form.fields.map(f => f.name.trim()).filter(Boolean)
+    if (new Set(fieldNames).size !== fieldNames.length) {
+      toast.error("Tên các trường phải là duy nhất")
+      return
+    }
+
+    // Validate field name format (should be valid identifier: letters, numbers, underscore)
+    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+    for (const field of form.fields) {
+      if (!field.name.trim() || !field.label.trim()) {
+        toast.error("Tất cả các trường phải có tên và nhãn")
+        return
+      }
+      if (!namePattern.test(field.name.trim())) {
+        toast.error(`Tên trường "${field.name}" không hợp lệ. Chỉ được chứa chữ cái, số và dấu gạch dưới, bắt đầu bằng chữ cái hoặc dấu gạch dưới.`)
+        return
+      }
+    }
+
+    // Validate select/multiselect fields have options
+    for (const field of form.fields) {
+      if ((field.type === 'select' || field.type === 'multiselect') && (!field.options || field.options.length === 0)) {
+        toast.error(`Trường "${field.label}" (loại ${field.type === 'select' ? 'chọn một' : 'chọn nhiều'}) phải có ít nhất một tùy chọn`)
+        return
+      }
+    }
+
+    setSubmitting(true)
+    try {
+      if (editing) {
+        const updatePayload: UpdateTemplateDto = {
+          name: form.name,
+          isActive: form.isActive,
+          fields: {
+            fields: form.fields.map(f => ({
+              name: f.name.trim(),
+              label: f.label.trim(),
+              type: f.type,
+              required: f.required || false,
+              ...(f.type === 'select' || f.type === 'multiselect' ? { options: f.options || [] } : {}),
+              ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+              ...(f.defaultValue !== undefined ? { defaultValue: f.defaultValue } : {}),
+              ...(f.validation ? { validation: f.validation } : {}),
+              ...((f.type as string) === 'object' && f.properties ? { properties: f.properties } : {}),
+              ...((f.type as string) === 'array' && f.items ? { items: f.items } : {})
+            }))
+          }
+        }
+        await templatesService.updateTemplate(editing.id, updatePayload)
+        toast.success("Cập nhật template thành công")
+      } else {
+        const createPayload: CreateTemplateDto = {
+          templateCode: form.templateCode.trim(),
+          name: form.name.trim(),
+          specialtyId: form.specialtyId,
+          isActive: form.isActive,
+          fields: {
+            fields: form.fields.map(f => ({
+              name: f.name.trim(),
+              label: f.label.trim(),
+              type: f.type,
+              required: f.required || false,
+              ...(f.type === 'select' || f.type === 'multiselect' ? { options: f.options || [] } : {}),
+              ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+              ...(f.defaultValue !== undefined ? { defaultValue: f.defaultValue } : {}),
+              ...(f.validation ? { validation: f.validation } : {}),
+              ...((f.type as string) === 'object' && f.properties ? { properties: f.properties } : {}),
+              ...((f.type as string) === 'array' && f.items ? { items: f.items } : {})
+            })) as TemplateField[]
+          }
+        }
+        await templatesService.createTemplate(createPayload)
+        toast.success("Tạo template thành công")
+      }
+      setOpen(false)
+      await loadTemplates()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi không xác định")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const onDelete = async (t: Template) => {
+    toast.promise(
+      templatesService.deleteTemplate(t.id).then(() => {
+        loadTemplates()
+      }),
+      {
+        loading: `Đang xóa template "${t.name}"...`,
+        success: `Đã xóa template "${t.name}" thành công`,
+        error: (err) => err instanceof Error ? err.message : "Lỗi không xác định",
+      }
+    )
+  }
+
+  const fieldTypeOptions = [
+    { value: "string", label: "Văn bản ngắn" },
+    { value: "text", label: "Văn bản dài" },
+    { value: "number", label: "Số" },
+    { value: "boolean", label: "Có/Không" },
+    { value: "date", label: "Ngày" },
+    { value: "datetime", label: "Ngày giờ" },
+    { value: "select", label: "Chọn một" },
+    { value: "multiselect", label: "Chọn nhiều" },
+    { value: "object", label: "Đối tượng (Object)" },
+    { value: "array", label: "Mảng (Array)" },
+  ]
+
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="text-sm text-muted-foreground">Trang {page}/{totalPages || 1}</div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={onPrev} disabled={page <= 1}>
-          <ChevronLeft className="size-4" /> Trước
-        </Button>
-        <Button variant="outline" size="sm" onClick={onNext} disabled={totalPages ? page >= totalPages : true}>
-          Sau <ChevronRight className="size-4" />
-        </Button>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => loadTemplates()} disabled={loading}>
+            <RefreshCw className="size-4" /> Làm mới
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select onValueChange={(value) => {
+            const sample = TEMPLATE_SAMPLES.find(s => s.templateCode === value)
+            if (sample) {
+              openCreate()
+              setTimeout(() => loadTemplateFromSample(sample), 100)
+            }
+          }}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tạo từ mẫu..." />
+            </SelectTrigger>
+            <SelectContent>
+              {TEMPLATE_SAMPLES.map((sample) => (
+                <SelectItem key={sample.templateCode} value={sample.templateCode}>
+                  {sample.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreate}>
+                <Plus className="size-4" /> Thêm template
+              </Button>
+            </DialogTrigger>
+          <DialogContent className="w-[90vw] max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editing ? "Cập nhật template" : "Thêm template"}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-6">
+              {/* Cột trái: Thông tin cơ bản */}
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="templateCode">Mã template *</Label>
+                  <Input
+                    id="templateCode"
+                    value={form.templateCode}
+                    onChange={(e) => setForm((f) => ({ ...f, templateCode: e.target.value }))}
+                    disabled={!!editing}
+                    placeholder="VD: NOI_KHOA_V2"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="templateName">Tên template *</Label>
+                  <Input
+                    id="templateName"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="VD: Nội khoa (Phiên bản 2)"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Khoa *</Label>
+                  <Select value={form.specialtyId} onValueChange={(v) => setForm((f) => ({ ...f, specialtyId: v }))}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="Chọn khoa" /></SelectTrigger>
+                    <SelectContent>
+                      {specialties && specialties.length > 0 ? (
+                        specialties.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{`${s.name} (${s.specialtyCode})`}</SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">Không có khoa nào</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Trạng thái</Label>
+                  <Select value={String(form.isActive)} onValueChange={(v) => setForm((f) => ({ ...f, isActive: v === "true" }))}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Đang hoạt động</SelectItem>
+                      <SelectItem value="false">Ngừng hoạt động</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Cột phải: Quản lý fields */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <Label>Danh sách trường dữ liệu</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addField}>
+                    <Plus className="size-4" /> Thêm trường
+                  </Button>
+                </div>
+                {form.fields.length > 0 ? (
+                  <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {form.fields.map((field, fieldIndex) => (
+                      <div key={fieldIndex} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Trường {fieldIndex + 1}</Label>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeField(fieldIndex)}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Tên trường (name) *</Label>
+                          <Input
+                            value={field.name}
+                            onChange={(e) => updateField(fieldIndex, { name: e.target.value })}
+                            placeholder="VD: chief_complaint"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Nhãn hiển thị (label) *</Label>
+                          <Input
+                            value={field.label}
+                            onChange={(e) => updateField(fieldIndex, { label: e.target.value })}
+                            placeholder="VD: Triệu chứng chính"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Loại dữ liệu *</Label>
+                          <Select
+                            value={field.type}
+                            onValueChange={(v) => updateField(fieldIndex, { type: v as TemplateField['type'] })}
+                          >
+                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {fieldTypeOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={field.required || false}
+                            onCheckedChange={(checked) => updateField(fieldIndex, { required: checked === true })}
+                          />
+                          <Label className="text-sm">Bắt buộc</Label>
+                        </div>
+                        {(field.type === 'select' || field.type === 'multiselect') && (
+                          <div className="grid gap-2">
+                            <Label>Tùy chọn (mỗi dòng một giá trị)</Label>
+                            <Textarea
+                              value={field.options?.join('\n') || ''}
+                              onChange={(e) => {
+                                const options = e.target.value.split('\n').filter(Boolean).map(s => s.trim())
+                                updateField(fieldIndex, { options })
+                              }}
+                              placeholder="Giá trị 1&#10;Giá trị 2&#10;Giá trị 3"
+                              rows={3}
+                            />
+                          </div>
+                        )}
+                        <div className="grid gap-2">
+                          <Label>Placeholder (gợi ý)</Label>
+                          <Input
+                            value={field.placeholder || ''}
+                            onChange={(e) => updateField(fieldIndex, { placeholder: e.target.value })}
+                            placeholder="VD: Nhập triệu chứng..."
+                          />
+                        </div>
+                        {(field.type === 'number') && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="grid gap-2">
+                              <Label>Giá trị tối thiểu</Label>
+                              <Input
+                                type="number"
+                                value={field.validation?.min ?? ''}
+                                onChange={(e) => updateField(fieldIndex, {
+                                  validation: {
+                                    ...field.validation,
+                                    min: e.target.value ? Number(e.target.value) : undefined
+                                  }
+                                })}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Giá trị tối đa</Label>
+                              <Input
+                                type="number"
+                                value={field.validation?.max ?? ''}
+                                onChange={(e) => updateField(fieldIndex, {
+                                  validation: {
+                                    ...field.validation,
+                                    max: e.target.value ? Number(e.target.value) : undefined
+                                  }
+                                })}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {(field.type as string) === 'object' && (
+                          <div className="grid gap-2 border-t pt-3">
+                            <div className="flex items-center justify-between">
+                              <Label>Thuộc tính (Properties)</Label>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newPropName = `property_${Object.keys(field.properties || {}).length + 1}`
+                                  updateField(fieldIndex, {
+                                    properties: {
+                                      ...(field.properties || {}),
+                                      [newPropName]: { type: 'string' }
+                                    }
+                                  })
+                                }}
+                              >
+                                <Plus className="size-3" /> Thêm thuộc tính
+                              </Button>
+                            </div>
+                            {field.properties && Object.keys(field.properties).length > 0 ? (
+                              <div className="space-y-2">
+                                {Object.entries(field.properties).map(([propName, propValue], propIndex) => (
+                                  <div key={propIndex} className="flex items-center gap-2 p-2 border rounded">
+                                    <Input
+                                      placeholder="Tên thuộc tính"
+                                      value={propName}
+                                      onChange={(e) => {
+                                        const newProps = { ...field.properties }
+                                        delete newProps[propName]
+                                        newProps[e.target.value] = propValue
+                                        updateField(fieldIndex, { properties: newProps })
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <Select
+                                      value={propValue.type}
+                                      onValueChange={(v) => {
+                                        updateField(fieldIndex, {
+                                          properties: {
+                                            ...field.properties,
+                                            [propName]: { type: v }
+                                          }
+                                        })
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="string">string</SelectItem>
+                                        <SelectItem value="number">number</SelectItem>
+                                        <SelectItem value="boolean">boolean</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newProps = { ...field.properties }
+                                        delete newProps[propName]
+                                        updateField(fieldIndex, { properties: newProps })
+                                      }}
+                                    >
+                                      <Trash2 className="size-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground text-center py-2 border rounded">
+                                Chưa có thuộc tính nào
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {(field.type as string) === 'array' && (
+                          <div className="grid gap-2 border-t pt-3">
+                            <Label>Kiểu phần tử (Items)</Label>
+                            <Select
+                              value={field.items?.type || 'string'}
+                              onValueChange={(v) => {
+                                if (v === 'object') {
+                                  updateField(fieldIndex, {
+                                    items: {
+                                      type: 'object',
+                                      properties: {}
+                                    }
+                                  })
+                                } else {
+                                  updateField(fieldIndex, {
+                                    items: { type: v }
+                                  })
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="string">string</SelectItem>
+                                <SelectItem value="number">number</SelectItem>
+                                <SelectItem value="boolean">boolean</SelectItem>
+                                <SelectItem value="object">object</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {field.items?.type === 'object' && field.items.properties && (
+                              <div className="grid gap-2 mt-2">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-sm">Thuộc tính của object</Label>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const newPropName = `property_${Object.keys(field.items?.properties || {}).length + 1}`
+                                      updateField(fieldIndex, {
+                                        items: {
+                                          type: 'object',
+                                          properties: {
+                                            ...(field.items?.properties || {}),
+                                            [newPropName]: { type: 'string' }
+                                          }
+                                        }
+                                      })
+                                    }}
+                                  >
+                                    <Plus className="size-3" /> Thêm thuộc tính
+                                  </Button>
+                                </div>
+                                {Object.keys(field.items.properties).length > 0 ? (
+                                  <div className="space-y-2">
+                                    {Object.entries(field.items.properties).map(([propName, propValue], propIndex) => (
+                                      <div key={propIndex} className="flex items-center gap-2 p-2 border rounded">
+                                        <Input
+                                          placeholder="Tên thuộc tính"
+                                          value={propName}
+                                          onChange={(e) => {
+                                            const newProps = { ...field.items?.properties }
+                                            delete newProps[propName]
+                                            newProps[e.target.value] = propValue
+                                            updateField(fieldIndex, {
+                                              items: {
+                                                type: 'object',
+                                                properties: newProps
+                                              }
+                                            })
+                                          }}
+                                          className="flex-1"
+                                        />
+                                        <Select
+                                          value={propValue.type}
+                                          onValueChange={(v) => {
+                                            updateField(fieldIndex, {
+                                              items: {
+                                                type: 'object',
+                                                properties: {
+                                                  ...field.items?.properties,
+                                                  [propName]: { type: v }
+                                                }
+                                              }
+                                            })
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-[120px]">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="string">string</SelectItem>
+                                            <SelectItem value="number">number</SelectItem>
+                                            <SelectItem value="boolean">boolean</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            const newProps = { ...field.items?.properties }
+                                            delete newProps[propName]
+                                            updateField(fieldIndex, {
+                                              items: {
+                                                type: 'object',
+                                                properties: newProps
+                                              }
+                                            })
+                                          }}
+                                        >
+                                          <Trash2 className="size-4 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-muted-foreground text-center py-2 border rounded">
+                                    Chưa có thuộc tính nào
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+                    Chưa có trường nào. Nhấn &quot;Thêm trường&quot; để thêm trường dữ liệu.
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Hủy</Button>
+              <Button onClick={onSubmit} disabled={submitting}>{submitting && <Loader2 className="size-4 animate-spin" />} Lưu</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        </div>
       </div>
+
+      {error && <div className="text-destructive">{error}</div>}
+
+      <Table className="rounded-lg">
+        <TableHeader>
+          <TableRow className="bg-muted px-8">
+            <TableHead className="px-4">Mã template</TableHead>
+            <TableHead className="px-4">Tên template</TableHead>
+            <TableHead className="px-4">Khoa</TableHead>
+            <TableHead className="px-4">Số trường</TableHead>
+            <TableHead className="px-4">Trạng thái</TableHead>
+            <TableHead className="px-4">Hành động</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {templates.map((t) => (
+            <TableRow key={t.id} className="px-4">
+              <TableCell className="px-4">{t.templateCode}</TableCell>
+              <TableCell className="px-4">{t.name}</TableCell>
+              <TableCell className="px-4">{t.specialty ? `${t.specialty.name} (${t.specialty.specialtyCode})` : "—"}</TableCell>
+              <TableCell className="px-4">{t.fields?.fields?.length || 0}</TableCell>
+              <TableCell className="px-4">
+                <span className={`text-sm font-medium ${t.isActive ? "text-emerald-600" : "text-muted-foreground"}`}>
+                  {t.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
+                </span>
+              </TableCell>
+              <TableCell className="flex gap-2 px-4">
+                <Button variant="outline" size="sm" onClick={() => openEdit(t)}>
+                  <Pencil className="size-4" /> Sửa
+                </Button>
+                <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(t)}>
+                  <Trash2 className="size-4" color="red" /> Xóa
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          {loading && (
+            <TableRow>
+              <TableCell colSpan={6}>
+                <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>
+              </TableCell>
+            </TableRow>
+          )}
+          {!loading && templates.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={6}>
+                <div className="py-6 text-center text-muted-foreground">Chưa có template nào</div>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }
-
-

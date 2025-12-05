@@ -121,19 +121,11 @@ export function DynamicMedicalRecordForm({
     return codes;
   }, []);
 
-  const clinicalStages = ['I', 'II', 'III', 'IV'];
-  const treatmentTypes = ['Phẫu thuật', 'Hoá trị', 'Xạ trị', 'Theo dõi'];
-  const burnDepthOptions = ['I', 'II nông', 'II sâu', 'III'];
-  const notificationStatusOptions = ['Đã khai báo', 'Chưa'];
-  const deliveryPlans = ['Theo dõi', 'Mổ lấy thai', 'Sinh thường'];
-  const muscleStrengthOptions = ['0/5', '1/5', '2/5', '3/5', '4/5', '5/5', 'MRC 0', 'MRC 1', 'MRC 2', 'MRC 3', 'MRC 4', 'MRC 5'];
-
   // Local UI adapters for special composed fields
   const [bpUi, setBpUi] = useState<{ sys: string; dia: string }>({ sys: '', dia: '' });
   const [vaUi, setVaUi] = useState<{ od: string; os: string }>({ od: '', os: '' });
   const [tnmUi, setTnmUi] = useState<{ t: string; n: string; m: string }>({ t: '', n: '', m: '' });
   const [tumorSizeNumber, setTumorSizeNumber] = useState<string>('');
-
 
   // Use useMemo to create formData from initialData
   const initialFormData = useMemo(() => {
@@ -256,142 +248,112 @@ export function DynamicMedicalRecordForm({
     return !!field.required;
   }, [isEditing]);
 
+  // Helper function to render field wrapper
+  const renderFieldWrapper = (
+    field: FieldDefinition,
+    children: React.ReactNode,
+    colSpan?: number
+  ) => {
+    const isRequired = isFieldRequired(field);
+    return (
+      <div 
+        key={field.name} 
+        className={`bg-white rounded-lg p-4 border border-gray-200 shadow-sm ${colSpan === 2 ? 'md:col-span-2' : ''}`}
+      >
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full"></div>
+            <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              {field.label}
+              {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+            </Label>
+          </div>
+          {children}
+        </div>
+      </div>
+    );
+  };
 
   const renderField = (field: FieldDefinition) => {
     const value = formData[field.name];
     const isRequired = isFieldRequired(field);
     
-    // console.log(`Rendering field ${field.name}:`, value, 'formData keys:', Object.keys(formData));
+    // Special handling for attachments field (handled by MedicalRecordFileUpload component)
+    if (field.name === 'attachments' && field.type === 'array') {
+      return null;
+    }
 
     switch (field.type) {
       case 'string':
         {
-          // Select adapters for certain string fields
+          // Special case: diagnosis field uses Textarea
           if (field.name === 'diagnosis') {
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm md:col-span-2">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      {field.label}
-                      {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                    </Label>
-                  </div>
-                  <Textarea
-                    id={field.name}
-                    value={value !== undefined && value !== null ? value : ''}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    placeholder="Nhập chẩn đoán"
-                    rows={6}
-                    required={isRequired}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                  />
-                  <datalist id="diagnosis-list">
-                    {diagnosisOptions.map((opt) => (
-                      <option key={opt} value={opt} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
+            return renderFieldWrapper(
+              field,
+              <>
+                <Textarea
+                  id={field.name}
+                  value={value !== undefined && value !== null ? value : ''}
+                  onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  placeholder="Nhập chẩn đoán"
+                  rows={6}
+                  required={isRequired}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
+                />
+                <datalist id="diagnosis-list">
+                  {diagnosisOptions.map((opt) => (
+                    <option key={opt} value={opt} />
+                  ))}
+                </datalist>
+              </>,
+              2
             );
           }
 
+          // Special case: chief_complaint with datalist
           if (field.name === 'chief_complaint') {
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      {field.label}
-                      {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                    </Label>
-                  </div>
-                  <Input
-                    id={field.name}
-                    list="cc-list"
-                    value={value !== undefined && value !== null ? value : ''}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    placeholder="Nhập hoặc chọn triệu chứng chính"
-                    required={isRequired}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
-                  />
-                  <datalist id="cc-list">
-                    {chiefComplaintOptions.map((opt) => (
-                      <option key={opt} value={opt} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
+            return renderFieldWrapper(
+              field,
+              <>
+                <Input
+                  id={field.name}
+                  list="cc-list"
+                  value={value !== undefined && value !== null ? value : ''}
+                  onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  placeholder="Nhập hoặc chọn triệu chứng chính"
+                  required={isRequired}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
+                />
+                <datalist id="cc-list">
+                  {chiefComplaintOptions.map((opt) => (
+                    <option key={opt} value={opt} />
+                  ))}
+                </datalist>
+              </>
             );
           }
 
+          // Special case: tooth_number with FDI codes
           if (field.name === 'tooth_number') {
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      {field.label}
-                    </Label>
-                  </div>
-                  <Select
-                    value={(value as string) || ''}
-                    onValueChange={(v) => handleInputChange(field.name, v)}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Chọn mã răng (FDI)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {toothFDICodes.map((code) => (
-                        <SelectItem key={code} value={code}>{code}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            return renderFieldWrapper(
+              field,
+              <Select
+                value={(value as string) || ''}
+                onValueChange={(v) => handleInputChange(field.name, v)}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Chọn mã răng (FDI)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {toothFDICodes.map((code) => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             );
           }
 
-          if (['clinical_stage', 'treatment_type', 'burn_depth', 'notification_status', 'delivery_plan', 'muscle_strength'].includes(field.name)) {
-            const options = field.name === 'clinical_stage'
-              ? clinicalStages
-              : field.name === 'treatment_type'
-              ? treatmentTypes
-              : field.name === 'burn_depth'
-              ? burnDepthOptions
-              : field.name === 'notification_status'
-              ? notificationStatusOptions
-              : field.name === 'delivery_plan'
-              ? deliveryPlans
-              : muscleStrengthOptions;
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                      {field.label}
-                      {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                    </Label>
-                  </div>
-                  <Select value={(value as string) || ''} onValueChange={(v) => handleInputChange(field.name, v)}>
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Chọn" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {options.map((opt) => (
-                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            );
-          }
-
+          // Special case: tnm_classification with composed select
           if (field.name === 'tnm_classification') {
             const tOptions = ['Tis', 'T0', 'T1', 'T2', 'T3', 'T4'];
             const nOptions = ['N0', 'N1', 'N2', 'N3'];
@@ -402,68 +364,56 @@ export function DynamicMedicalRecordForm({
               const composed = `${next.t}${next.n}${next.m}`.trim();
               handleInputChange(field.name, composed);
             };
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">{field.label}</Label>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Select value={tnmUi.t} onValueChange={(v) => onChange('t', v)}>
-                      <SelectTrigger className="text-sm"><SelectValue placeholder="T" /></SelectTrigger>
-                      <SelectContent>
-                        {tOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={tnmUi.n} onValueChange={(v) => onChange('n', v)}>
-                      <SelectTrigger className="text-sm"><SelectValue placeholder="N" /></SelectTrigger>
-                      <SelectContent>
-                        {nOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={tnmUi.m} onValueChange={(v) => onChange('m', v)}>
-                      <SelectTrigger className="text-sm"><SelectValue placeholder="M" /></SelectTrigger>
-                      <SelectContent>
-                        {mOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+            return renderFieldWrapper(
+              field,
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={tnmUi.t} onValueChange={(v) => onChange('t', v)}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="T" /></SelectTrigger>
+                  <SelectContent>
+                    {tOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+                <Select value={tnmUi.n} onValueChange={(v) => onChange('n', v)}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="N" /></SelectTrigger>
+                  <SelectContent>
+                    {nOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+                <Select value={tnmUi.m} onValueChange={(v) => onChange('m', v)}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="M" /></SelectTrigger>
+                  <SelectContent>
+                    {mOptions.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                  </SelectContent>
+                </Select>
               </div>
             );
           }
 
+          // Special case: tumor_size with unit
           if (field.name === 'tumor_size') {
             const onNumChange = (v: string) => {
               setTumorSizeNumber(v);
               const composed = v ? `${v} cm` : '';
               handleInputChange(field.name, composed);
             };
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">{field.label}</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={tumorSizeNumber}
-                      onChange={(e) => onNumChange(e.target.value)}
-                      className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
-                      placeholder="0"
-                    />
-                    <span className="text-sm text-gray-600">cm</span>
-                  </div>
-                </div>
+            return renderFieldWrapper(
+              field,
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={tumorSizeNumber}
+                  onChange={(e) => onNumChange(e.target.value)}
+                  className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
+                  placeholder="0"
+                />
+                <span className="text-sm text-gray-600">cm</span>
               </div>
             );
           }
 
+          // Special case: visual_acuity with OD/OS
           if (field.name === 'visual_acuity') {
             const onChange = (key: 'od' | 'os', v: string) => {
               const next = { ...vaUi, [key]: v };
@@ -473,245 +423,388 @@ export function DynamicMedicalRecordForm({
                 .join(', ');
               handleInputChange(field.name, composed);
             };
-            return (
-              <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">{field.label}</Label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="OD" value={vaUi.od} onChange={(e) => onChange('od', e.target.value)} className="text-sm" />
-                    <Input placeholder="OS" value={vaUi.os} onChange={(e) => onChange('os', e.target.value)} className="text-sm" />
-                  </div>
-                </div>
+            return renderFieldWrapper(
+              field,
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="OD" value={vaUi.od} onChange={(e) => onChange('od', e.target.value)} className="text-sm" />
+                <Input placeholder="OS" value={vaUi.os} onChange={(e) => onChange('os', e.target.value)} className="text-sm" />
               </div>
             );
           }
+
+          // Default string field
+          return renderFieldWrapper(
+            field,
+            <Input
+              id={field.name}
+              value={value !== undefined && value !== null ? value : ''}
+              onChange={(e) => handleInputChange(field.name, e.target.value)}
+              placeholder={field.placeholder || `Nhập ${field.label.toLowerCase()}`}
+              required={isRequired}
+              className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
+            />
+          );
         }
-        return (
-          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </Label>
-              </div>
-              <Input
-                id={field.name}
-                value={value !== undefined && value !== null ? value : ''}
-                onChange={(e) => handleInputChange(field.name, e.target.value)}
-                placeholder={`Nhập ${field.label.toLowerCase()}`}
-                required={isRequired}
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-400 text-sm"
-              />
-            </div>
-          </div>
-        );
 
       case 'text':
-        return (
-          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </Label>
-              </div>
-              <Textarea
-                id={field.name}
-                value={value !== undefined && value !== null ? value : ''}
-                onChange={(e) => handleInputChange(field.name, e.target.value)}
-                placeholder={`Nhập ${field.label.toLowerCase()}`}
-                rows={4}
-                required={isRequired}
-                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
-              />
-            </div>
-          </div>
+        return renderFieldWrapper(
+          field,
+          <Textarea
+            id={field.name}
+            value={value !== undefined && value !== null ? value : ''}
+            onChange={(e) => handleInputChange(field.name, e.target.value)}
+            placeholder={field.placeholder || `Nhập ${field.label.toLowerCase()}`}
+            rows={4}
+            required={isRequired}
+            className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
+          />,
+          2
         );
 
       case 'number':
-        return (
-          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </Label>
-              </div>
-              <Input
-                id={field.name}
-                type="number"
-                min={field.name === 'gestational_age' ? 0 : undefined}
-                max={field.name === 'intraocular_pressure' ? 60 : field.name === 'burn_area_percent' ? 100 : undefined}
-                step={field.name === 'temp' ? 0.1 : 1}
-                value={value !== undefined && value !== null ? value : ''}
-                onChange={(e) => handleInputChange(field.name, e.target.value === '' ? '' : parseFloat(e.target.value))}
-                placeholder={`Nhập ${field.label.toLowerCase()}`}
-                required={isRequired}
-                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
-              />
-            </div>
-          </div>
+        return renderFieldWrapper(
+          field,
+          <Input
+            id={field.name}
+            type="number"
+            min={field.validation?.min}
+            max={field.validation?.max}
+            step={field.name === 'temp' || field.name?.includes('temp') ? 0.1 : 1}
+            value={value !== undefined && value !== null ? value : ''}
+            onChange={(e) => handleInputChange(field.name, e.target.value === '' ? '' : parseFloat(e.target.value))}
+            placeholder={field.placeholder || `Nhập ${field.label.toLowerCase()}`}
+            required={isRequired}
+            className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
+          />
         );
 
       case 'boolean':
-        if (field.name === 'isolation_required' || field.name === 'itching') {
-          return (
-            <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    {field.label}
-                    {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                  </Label>
-                </div>
-                <Switch id={field.name} checked={value === true} onCheckedChange={(checked) => handleInputChange(field.name, !!checked)} />
-              </div>
+        // Use Switch for certain fields, Checkbox for others
+        const useSwitch = field.name === 'isolation_required' || field.name === 'itching';
+        return renderFieldWrapper(
+          field,
+          useSwitch ? (
+            <div className="flex items-center justify-between">
+              <Switch 
+                id={field.name} 
+                checked={value === true} 
+                onCheckedChange={(checked) => handleInputChange(field.name, !!checked)} 
+              />
             </div>
-          );
-        }
-        return (
-          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          ) : (
             <div className="flex items-center space-x-3">
               <Checkbox
                 id={field.name}
                 checked={value === true}
                 onCheckedChange={(checked) => handleInputChange(field.name, checked)}
               />
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                </Label>
-              </div>
             </div>
-          </div>
+          )
         );
 
       case 'date':
-        return (
-          <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <Label htmlFor={field.name} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  {field.label}
-                  {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
+      case 'datetime':
+        return renderFieldWrapper(
+          field,
+          <Input
+            id={field.name}
+            type={field.type === 'datetime' ? 'datetime-local' : 'date'}
+            value={value !== undefined && value !== null ? value : ''}
+            onChange={(e) => handleInputChange(field.name, e.target.value)}
+            required={isRequired}
+            className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
+          />
+        );
+
+      case 'select':
+        if (!field.options || field.options.length === 0) {
+          return renderFieldWrapper(
+            field,
+            <div className="text-sm text-muted-foreground">Chưa có tùy chọn</div>
+          );
+        }
+        return renderFieldWrapper(
+          field,
+          <Select value={(value as string) || ''} onValueChange={(v) => handleInputChange(field.name, v)}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder={field.placeholder || 'Chọn'} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options.map((opt) => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+
+      case 'multiselect':
+        if (!field.options || field.options.length === 0) {
+          return renderFieldWrapper(
+            field,
+            <div className="text-sm text-muted-foreground">Chưa có tùy chọn</div>
+          );
+        }
+        const selectedValues = Array.isArray(value) ? value : [];
+        return renderFieldWrapper(
+          field,
+          <div className="space-y-2">
+            {field.options.map((opt) => (
+              <div key={opt} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${field.name}_${opt}`}
+                  checked={selectedValues.includes(opt)}
+                  onCheckedChange={(checked) => {
+                    const newValues = checked
+                      ? [...selectedValues, opt]
+                      : selectedValues.filter(v => v !== opt);
+                    handleInputChange(field.name, newValues);
+                  }}
+                />
+                <Label htmlFor={`${field.name}_${opt}`} className="text-sm cursor-pointer">
+                  {opt}
                 </Label>
               </div>
-              <Input
-                id={field.name}
-                type="date"
-                value={value !== undefined && value !== null ? value : ''}
-                onChange={(e) => handleInputChange(field.name, e.target.value)}
-                required={isRequired}
-                className="border-gray-300 focus:border-primary focus:ring-primary text-sm"
-              />
-            </div>
+            ))}
           </div>
         );
 
       case 'object':
+        if (!field.properties) {
+          return null;
+        }
+        
+        // Special handling for vital_signs with bp field
         if (field.name === 'vital_signs') {
-          return (
-            <div key={field.name} className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2 shadow-sm">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    {field.label}
-                    {isRequired && <Badge variant="destructive" className="text-xs">Bắt buộc</Badge>}
-                  </h4>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {field.properties && Object.entries(field.properties).map(([key, prop]: [string, any]) => (
-                    <div key={key} className="space-y-2">
-                      <Label htmlFor={`${field.name}_${key}`} className="text-xs font-medium">
-                        {key === 'temp' ? 'Nhiệt độ (°C)' :
-                         key === 'bp' ? 'Huyết áp' :
-                         key === 'hr' ? 'Nhịp tim (lần/phút)' :
-                         key === 'rr' ? 'Nhịp thở (lần/phút)' :
-                         key === 'o2_sat' ? 'SpO2 (%)' :
-                         key === 'pain_score' ? 'Điểm đau (0-10)' :
-                         key === 'weight' ? 'Cân nặng (kg)' :
-                         key === 'height' ? 'Chiều cao (cm)' : key}
-                      </Label>
-                      {key === 'bp' ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id={`${field.name}_${key}_sys`}
-                            type="number"
-                            min={50}
-                            max={300}
-                            placeholder="SYS"
-                            value={bpUi.sys}
-                            onChange={(e) => {
-                              const next = { sys: e.target.value, dia: bpUi.dia };
-                              setBpUi(next);
-                              const bpStr = next.sys && next.dia ? `${next.sys}/${next.dia}` : '';
-                              handleObjectFieldChange(field.name, 'bp', bpStr);
-                            }}
-                            className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
-                          />
-                          <span className="text-xs text-gray-600">/</span>
-                          <Input
-                            id={`${field.name}_${key}_dia`}
-                            type="number"
-                            min={30}
-                            max={200}
-                            placeholder="DIA"
-                            value={bpUi.dia}
-                            onChange={(e) => {
-                              const next = { sys: bpUi.sys, dia: e.target.value };
-                              setBpUi(next);
-                              const bpStr = next.sys && next.dia ? `${next.sys}/${next.dia}` : '';
-                              handleObjectFieldChange(field.name, 'bp', bpStr);
-                            }}
-                            className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
-                          />
-                        </div>
-                      ) : (
-                        <Input
-                          id={`${field.name}_${key}`}
-                          type={prop.type === 'number' ? 'number' : 'text'}
-                          min={key === 'temp' ? 30 : key === 'o2_sat' ? 0 : key === 'hr' || key === 'rr' ? 0 : key === 'pain_score' ? 0 : undefined}
-                          max={key === 'temp' ? 43 : key === 'o2_sat' ? 100 : key === 'pain_score' ? 10 : undefined}
-                          step={key === 'temp' ? 0.1 : 1}
-                          value={value?.[key] !== undefined && value?.[key] !== null ? value[key] : ''}
-                          onChange={(e) => handleObjectFieldChange(
-                            field.name, 
-                            key, 
-                            prop.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value
-                          )}
-                          placeholder={prop.type === 'number' ? '0' : ''}
-                          className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
-                        />
-                      )}
+          return renderFieldWrapper(
+            field,
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {Object.entries(field.properties).map(([key, prop]: [string, any]) => (
+                <div key={key} className="space-y-2">
+                  <Label htmlFor={`${field.name}_${key}`} className="text-xs font-medium">
+                    {key === 'temp' ? 'Nhiệt độ (°C)' :
+                     key === 'bp' ? 'Huyết áp' :
+                     key === 'hr' ? 'Nhịp tim (lần/phút)' :
+                     key === 'rr' ? 'Nhịp thở (lần/phút)' :
+                     key === 'o2_sat' ? 'SpO2 (%)' :
+                     key === 'pain_score' ? 'Điểm đau (0-10)' :
+                     key === 'weight' ? 'Cân nặng (kg)' :
+                     key === 'height' ? 'Chiều cao (cm)' : key}
+                  </Label>
+                  {key === 'bp' ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={`${field.name}_${key}_sys`}
+                        type="number"
+                        min={50}
+                        max={300}
+                        placeholder="SYS"
+                        value={bpUi.sys}
+                        onChange={(e) => {
+                          const next = { sys: e.target.value, dia: bpUi.dia };
+                          setBpUi(next);
+                          const bpStr = next.sys && next.dia ? `${next.sys}/${next.dia}` : '';
+                          handleObjectFieldChange(field.name, 'bp', bpStr);
+                        }}
+                        className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
+                      />
+                      <span className="text-xs text-gray-600">/</span>
+                      <Input
+                        id={`${field.name}_${key}_dia`}
+                        type="number"
+                        min={30}
+                        max={200}
+                        placeholder="DIA"
+                        value={bpUi.dia}
+                        onChange={(e) => {
+                          const next = { sys: bpUi.sys, dia: e.target.value };
+                          setBpUi(next);
+                          const bpStr = next.sys && next.dia ? `${next.sys}/${next.dia}` : '';
+                          handleObjectFieldChange(field.name, 'bp', bpStr);
+                        }}
+                        className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
+                      />
                     </div>
-                  ))}
+                  ) : (
+                    <Input
+                      id={`${field.name}_${key}`}
+                      type={prop.type === 'number' ? 'number' : 'text'}
+                      min={prop.type === 'number' ? (key === 'temp' ? 30 : key === 'o2_sat' ? 0 : key === 'hr' || key === 'rr' ? 0 : key === 'pain_score' ? 0 : undefined) : undefined}
+                      max={prop.type === 'number' ? (key === 'temp' ? 43 : key === 'o2_sat' ? 100 : key === 'pain_score' ? 10 : undefined) : undefined}
+                      step={prop.type === 'number' ? (key === 'temp' ? 0.1 : 1) : undefined}
+                      value={value?.[key] !== undefined && value?.[key] !== null ? value[key] : ''}
+                      onChange={(e) => handleObjectFieldChange(
+                        field.name, 
+                        key, 
+                        prop.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value
+                      )}
+                      placeholder={prop.type === 'number' ? '0' : ''}
+                      className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
+                    />
+                  )}
                 </div>
+              ))}
+            </div>,
+            2
+          );
+        }
+
+        // Generic object field renderer
+        return renderFieldWrapper(
+          field,
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {Object.entries(field.properties).map(([key, prop]: [string, any]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={`${field.name}_${key}`} className="text-xs font-medium">
+                  {key}
+                </Label>
+                <Input
+                  id={`${field.name}_${key}`}
+                  type={prop.type === 'number' ? 'number' : 'text'}
+                  value={value?.[key] !== undefined && value?.[key] !== null ? value[key] : ''}
+                  onChange={(e) => handleObjectFieldChange(
+                    field.name, 
+                    key, 
+                    prop.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value
+                  )}
+                  placeholder={prop.type === 'number' ? '0' : ''}
+                  className="text-sm border-gray-300 focus:border-primary focus:ring-primary"
+                />
               </div>
+            ))}
+          </div>,
+          2
+        );
+
+      case 'array':
+        if (!field.items) {
+          return null;
+        }
+
+        // Array of strings/numbers/booleans
+        if (field.items.type !== 'object') {
+          const arrayValue = Array.isArray(value) ? value : [];
+          return renderFieldWrapper(
+            field,
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Danh sách {field.label.toLowerCase()}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const defaultValue = field.items?.type === 'number' ? 0 : field.items?.type === 'boolean' ? false : '';
+                    handleInputChange(field.name, [...arrayValue, defaultValue]);
+                  }}
+                >
+                  + Thêm
+                </Button>
+              </div>
+              {arrayValue.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    type={field.items?.type === 'number' ? 'number' : 'text'}
+                    value={item}
+                    onChange={(e) => {
+                      const newArray = [...arrayValue];
+                      newArray[index] = field.items?.type === 'number' 
+                        ? (e.target.value === '' ? '' : parseFloat(e.target.value))
+                        : e.target.value;
+                      handleInputChange(field.name, newArray);
+                    }}
+                    className="text-sm flex-1"
+                    placeholder={`Nhập ${field.label.toLowerCase()}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newArray = arrayValue.filter((_, i) => i !== index);
+                      handleInputChange(field.name, newArray);
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
             </div>
           );
         }
-        return null;
 
-      case 'array':
-        if (field.name === 'attachments') {
-          // Don't render attachments field in form - it's handled by MedicalRecordFileUpload component
-          return null;
-        }
-        return null;
+        // Array of objects
+        const arrayOfObjects = Array.isArray(value) ? value : [];
+        return renderFieldWrapper(
+          field,
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Danh sách {field.label.toLowerCase()}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const newObj: Record<string, any> = {};
+                  if (field.items?.properties) {
+                    Object.keys(field.items.properties).forEach(key => {
+                      const propType = field.items?.properties?.[key]?.type;
+                      newObj[key] = propType === 'number' ? 0 : propType === 'boolean' ? false : '';
+                    });
+                  }
+                  handleInputChange(field.name, [...arrayOfObjects, newObj]);
+                }}
+              >
+                + Thêm
+              </Button>
+            </div>
+            {arrayOfObjects.map((obj, objIndex) => (
+              <div key={objIndex} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium">Mục {objIndex + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newArray = arrayOfObjects.filter((_, i) => i !== objIndex);
+                      handleInputChange(field.name, newArray);
+                    }}
+                  >
+                    × Xóa
+                  </Button>
+                </div>
+                {field.items?.properties && Object.entries(field.items.properties).map(([key, prop]: [string, any]) => (
+                  <div key={key} className="space-y-1">
+                    <Label htmlFor={`${field.name}_${objIndex}_${key}`} className="text-xs">
+                      {key}
+                    </Label>
+                    <Input
+                      id={`${field.name}_${objIndex}_${key}`}
+                      type={prop.type === 'number' ? 'number' : prop.type === 'boolean' ? 'checkbox' : 'text'}
+                      value={prop.type === 'boolean' ? undefined : (obj?.[key] !== undefined && obj?.[key] !== null ? obj[key] : '')}
+                      checked={prop.type === 'boolean' ? obj?.[key] === true : undefined}
+                      onChange={(e) => {
+                        const newArray = [...arrayOfObjects];
+                        if (!newArray[objIndex]) {
+                          newArray[objIndex] = {};
+                        }
+                        newArray[objIndex][key] = prop.type === 'number' 
+                          ? (e.target.value === '' ? '' : parseFloat(e.target.value))
+                          : prop.type === 'boolean'
+                          ? e.target.checked
+                          : e.target.value;
+                        handleInputChange(field.name, newArray);
+                      }}
+                      className="text-sm"
+                      placeholder={prop.type === 'number' ? '0' : ''}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>,
+          2
+        );
 
       default:
         return null;

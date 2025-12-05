@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api"
+import api from '../config'
 
 // Types
 export type Specialty = {
@@ -127,156 +127,229 @@ export type UpdateBoothServicesDto = {
   serviceIds: string[]
 }
 
-// Helper function
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE_URL}${path}`
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  })
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`
-    try {
-      const body = await response.json()
-      message = body?.message || JSON.stringify(body)
-    } catch {
-      // ignore parse error
+// Helper function to unwrap response data
+function unwrapResponse<T>(response: { data: T | { data?: T } }): T {
+  if (!response || !response.data) {
+    throw new Error('Invalid API response: missing data')
+  }
+  if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+    const nestedData = (response.data as { data?: T }).data
+    if (nestedData === undefined) {
+      throw new Error('Invalid API response: nested data is undefined')
     }
-    throw new Error(message)
+    return nestedData
   }
-  // Some DELETEs may return 204 with body per guide; still try json
-  try {
-    return (await response.json()) as T
-  } catch {
-    return {} as T
-  }
+  return response.data as T
 }
 
 // Specialties API
 export const specialtiesService = {
   async listSpecialties(page = 1, limit?: number): Promise<ListResponse<Specialty>> {
-    const params = new URLSearchParams({ page: String(page) })
-    if (limit !== undefined) params.set("limit", String(limit))
-    return apiFetch<ListResponse<Specialty>>(`/specialties?${params.toString()}`)
+    const params: Record<string, string> = { page: String(page) }
+    if (limit !== undefined) params.limit = String(limit)
+    const response = await api.get<ListResponse<Specialty>>('/specialties', { params })
+    // For ListResponse, axios wraps it as { data: { data: [...], meta: {...} } }
+    // So we need to return response.data directly, not unwrap it
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
+      return response.data as ListResponse<Specialty>
+    }
+    // Fallback: if response structure is different
+    return unwrapResponse(response) as ListResponse<Specialty>
   },
 
   async getSpecialty(id: string): Promise<Specialty> {
-    return apiFetch<Specialty>(`/specialties/${id}`)
+    const response = await api.get<Specialty>(`/specialties/${id}`)
+    return unwrapResponse(response)
   },
 
   async createSpecialty(data: CreateSpecialtyDto): Promise<Specialty> {
-    return apiFetch<Specialty>(`/specialties`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const response = await api.post<Specialty>('/specialties', data)
+    return unwrapResponse(response)
   },
 
   async updateSpecialty(id: string, data: UpdateSpecialtyDto): Promise<Specialty> {
-    return apiFetch<Specialty>(`/specialties/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await api.put<Specialty>(`/specialties/${id}`, data)
+    return unwrapResponse(response)
   },
 
   async deleteSpecialty(id: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>(`/specialties/${id}`, {
-      method: "DELETE",
-    })
+    const response = await api.delete<{ message: string }>(`/specialties/${id}`)
+    return unwrapResponse(response)
   },
 }
 
 // Clinic Rooms API
 export const clinicRoomsService = {
   async listClinicRooms(page = 1, limit?: number, specialtyId?: string): Promise<ListResponse<ClinicRoom>> {
-    const params = new URLSearchParams({ page: String(page) })
-    if (limit !== undefined) params.set("limit", String(limit))
-    if (specialtyId) params.set("specialtyId", specialtyId)
-    return apiFetch<ListResponse<ClinicRoom>>(`/clinic-rooms?${params.toString()}`)
+    const params: Record<string, string> = { page: String(page) }
+    if (limit !== undefined) params.limit = String(limit)
+    if (specialtyId) params.specialtyId = specialtyId
+    const response = await api.get<ListResponse<ClinicRoom>>('/clinic-rooms', { params })
+    // For ListResponse, axios wraps it as { data: { data: [...], meta: {...} } }
+    // So we need to return response.data directly, not unwrap it
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
+      return response.data as ListResponse<ClinicRoom>
+    }
+    // Fallback: if response structure is different
+    return unwrapResponse(response) as ListResponse<ClinicRoom>
   },
 
   async getClinicRoom(id: string): Promise<ClinicRoom> {
-    return apiFetch<ClinicRoom>(`/clinic-rooms/${id}`)
+    const response = await api.get<ClinicRoom>(`/clinic-rooms/${id}`)
+    return unwrapResponse(response)
   },
 
   async createClinicRoom(data: CreateClinicRoomDto): Promise<ClinicRoom> {
-    return apiFetch<ClinicRoom>(`/clinic-rooms`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const response = await api.post<ClinicRoom>('/clinic-rooms', data)
+    return unwrapResponse(response)
   },
 
   async updateClinicRoom(id: string, data: UpdateClinicRoomDto): Promise<ClinicRoom> {
-    return apiFetch<ClinicRoom>(`/clinic-rooms/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await api.put<ClinicRoom>(`/clinic-rooms/${id}`, data)
+    return unwrapResponse(response)
   },
 
   async deleteClinicRoom(id: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>(`/clinic-rooms/${id}`, {
-      method: "DELETE",
-    })
+    const response = await api.delete<{ message: string }>(`/clinic-rooms/${id}`)
+    return unwrapResponse(response)
   },
 
   async getCommonServices(roomId: string): Promise<CommonServicesResponse> {
-    return apiFetch<CommonServicesResponse>(`/clinic-rooms/${roomId}/common-services`)
+    const response = await api.get<CommonServicesResponse>(`/clinic-rooms/${roomId}/common-services`)
+    return unwrapResponse(response)
   },
 
   async updateCommonServices(roomId: string, data: UpdateCommonServicesDto): Promise<{ message: string; updatedBooths: number }> {
-    return apiFetch<{ message: string; updatedBooths: number }>(`/clinic-rooms/${roomId}/common-services`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await api.put<{ message: string; updatedBooths: number }>(`/clinic-rooms/${roomId}/common-services`, data)
+    return unwrapResponse(response)
   },
 }
 
 // Booths API
 export const boothsService = {
   async listBooths(page = 1, limit?: number, roomId?: string, isActive?: boolean): Promise<ListResponse<Booth>> {
-    const params = new URLSearchParams({ page: String(page) })
-    if (limit !== undefined) params.set("limit", String(limit))
-    if (roomId) params.set("roomId", roomId)
-    if (isActive !== undefined) params.set("isActive", String(isActive))
-    return apiFetch<ListResponse<Booth>>(`/booths?${params.toString()}`)
+    const params: Record<string, string> = { page: String(page) }
+    if (limit !== undefined) params.limit = String(limit)
+    if (roomId) params.roomId = roomId
+    if (isActive !== undefined) params.isActive = String(isActive)
+    const response = await api.get<ListResponse<Booth>>('/booths', { params })
+    // For ListResponse, axios wraps it as { data: { data: [...], meta: {...} } }
+    // So we need to return response.data directly, not unwrap it
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
+      return response.data as ListResponse<Booth>
+    }
+    // Fallback: if response structure is different
+    return unwrapResponse(response) as ListResponse<Booth>
   },
 
   async getBooth(id: string): Promise<Booth> {
-    return apiFetch<Booth>(`/booths/${id}`)
+    const response = await api.get<Booth>(`/booths/${id}`)
+    return unwrapResponse(response)
   },
 
   async createBooth(data: CreateBoothDto): Promise<Booth> {
-    return apiFetch<Booth>(`/booths`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const response = await api.post<Booth>('/booths', data)
+    return unwrapResponse(response)
   },
 
   async updateBooth(id: string, data: UpdateBoothDto): Promise<Booth> {
-    return apiFetch<Booth>(`/booths/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await api.put<Booth>(`/booths/${id}`, data)
+    return unwrapResponse(response)
   },
 
   async deleteBooth(id: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>(`/booths/${id}`, {
-      method: "DELETE",
-    })
+    const response = await api.delete<{ message: string }>(`/booths/${id}`)
+    return unwrapResponse(response)
   },
 
   async getBoothServices(boothId: string): Promise<BoothServicesResponse> {
-    return apiFetch<BoothServicesResponse>(`/booths/${boothId}/services`)
+    const response = await api.get<BoothServicesResponse>(`/booths/${boothId}/services`)
+    return unwrapResponse(response)
   },
 
   async updateBoothServices(boothId: string, data: UpdateBoothServicesDto): Promise<{ message: string; booth: Booth }> {
-    return apiFetch<{ message: string; booth: Booth }>(`/booths/${boothId}/services`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await api.put<{ message: string; booth: Booth }>(`/booths/${boothId}/services`, data)
+    return unwrapResponse(response)
+  },
+}
+
+// Template Types
+export type TemplateField = {
+  name: string
+  label: string
+  type: 'string' | 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'select' | 'multiselect'
+  required?: boolean
+  options?: string[] // For select/multiselect types
+  placeholder?: string
+  defaultValue?: string | number | boolean
+  validation?: {
+    min?: number
+    max?: number
+    pattern?: string
+  }
+}
+
+export type Template = {
+  id: string
+  templateCode: string
+  name: string
+  specialtyId?: string
+  specialty?: { id: string; name: string; specialtyCode: string }
+  fields: {
+    fields: TemplateField[]
+  }
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type CreateTemplateDto = {
+  templateCode: string
+  name: string
+  fields: {
+    fields: TemplateField[]
+  }
+  specialtyId: string
+  isActive?: boolean
+}
+
+export type UpdateTemplateDto = {
+  name?: string
+  fields?: {
+    fields: TemplateField[]
+  }
+  isActive?: boolean
+}
+
+// Templates API
+export const templatesService = {
+  async listTemplates(): Promise<Template[]> {
+    const response = await api.get<Template[] | { data?: Template[] }>('/medical-records/templates')
+    const data = unwrapResponse(response)
+    if (Array.isArray(data)) {
+      return data
+    }
+    return (data as { data?: Template[] }).data || []
+  },
+
+  async getTemplate(id: string): Promise<Template> {
+    const response = await api.get<Template>(`/medical-records/templates/${id}`)
+    return unwrapResponse(response)
+  },
+
+  async createTemplate(data: CreateTemplateDto): Promise<Template> {
+    const response = await api.post<Template>('/templates', data)
+    return unwrapResponse(response)
+  },
+
+  async updateTemplate(id: string, data: UpdateTemplateDto): Promise<Template> {
+    const response = await api.put<Template>(`/templates/${id}`, data)
+    return unwrapResponse(response)
+  },
+
+  async deleteTemplate(id: string): Promise<{ message: string }> {
+    const response = await api.delete<{ message: string }>(`/templates/${id}`)
+    return unwrapResponse(response)
   },
 }
 
