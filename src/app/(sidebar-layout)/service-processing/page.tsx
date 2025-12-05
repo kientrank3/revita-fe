@@ -43,6 +43,7 @@ import {
   GetMyServicesResponse
 } from '@/lib/types/service-processing';
 import { UpdateResultsDialog } from '@/components/service-processing/UpdateResultsDialog';
+import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
 
 // Helper function to format UTC time directly (no timezone conversion)
 // This ensures consistent display: send 08:00 UTC → store 08:00 UTC → display 08:00
@@ -87,6 +88,8 @@ export default function ServiceProcessingPage() {
     services: Array<{ prescriptionId: string; serviceId: string; serviceName: string; order: number; status: string }>;
   } | null>(null);
   const [shouldReschedule, setShouldReschedule] = useState(false);
+  const [createPrescriptionDialogOpen, setCreatePrescriptionDialogOpen] = useState(false);
+  const [selectedServiceForPrescription, setSelectedServiceForPrescription] = useState<PrescriptionService | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
@@ -1536,6 +1539,22 @@ export default function ServiceProcessingPage() {
                     </div>
                   )}
 
+                  {/* Button to create new prescription for this service */}
+                  {(service.status === 'WAITING' || service.status === 'SERVING') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedServiceForPrescription(service);
+                        setCreatePrescriptionDialogOpen(true);
+                      }}
+                      className="flex items-center gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Tạo phiếu chỉ định
+                    </Button>
+                  )}
+
         </div>
               </div>
             );
@@ -1871,6 +1890,23 @@ export default function ServiceProcessingPage() {
                                 </Button>
                               </div>
                             )}
+
+                            {/* Button to create new prescription for this service */}
+                            {(service.status === 'WAITING' || service.status === 'SERVING') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedServiceForPrescription(service);
+                                  setCreatePrescriptionDialogOpen(true);
+                                }}
+                                disabled={updatingService === getPrescriptionServiceId(service)}
+                                className="flex items-center gap-1 h-8 border-blue-300 text-blue-700 hover:bg-blue-50"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Tạo phiếu chỉ định
+                              </Button>
+                            )}
                           </>
                         );
                       })()}
@@ -2024,7 +2060,7 @@ export default function ServiceProcessingPage() {
                   
                   {/* Action buttons for SERVING patients */}
                   {p.overallStatus === 'SERVING' && p.services.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2">
+                    <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2 flex-wrap">
                       {p.services
                         .filter(s => s.status === 'SERVING')
                         .map((service) => {
@@ -2083,6 +2119,62 @@ export default function ServiceProcessingPage() {
                                     Hoàn thành
                                   </>
                                 )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  // Find full service data from myServices or prescription
+                                  const fullService = myServices.find(s => 
+                                    s.prescriptionId === service.prescriptionId && 
+                                    s.serviceId === service.serviceId
+                                  ) || prescription?.services.find(s => 
+                                    s.serviceId === service.serviceId
+                                  );
+                                  
+                                  if (fullService) {
+                                    setSelectedServiceForPrescription(fullService);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  } else {
+                                    // If not found, create a minimal service object with queue data
+                                    const minimalService: PrescriptionService = {
+                                      id: service.id || undefined,
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.serviceId,
+                                        serviceCode: '',
+                                        name: service.serviceName,
+                                        price: 0,
+                                        description: '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as ServiceStatus,
+                                      order: service.order || 1,
+                                      note: null,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: [],
+                                      prescription: {
+                                        id: service.prescriptionId,
+                                        prescriptionCode: p.prescriptionCode,
+                                        status: '',
+                                        patientProfile: {
+                                          id: p.patientProfileId,
+                                          name: p.patientName,
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    };
+                                    setSelectedServiceForPrescription(minimalService);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  }
+                                }}
+                                className="flex items-center gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                              >
+                                <FileText className="h-3 w-3" />
+                                Tạo phiếu chỉ định
                               </Button>
                             </div>
                           );
@@ -2284,6 +2376,60 @@ export default function ServiceProcessingPage() {
           shouldReschedule={shouldReschedule}
         />
       )}
+
+      {/* Create Prescription Dialog */}
+      {selectedServiceForPrescription && (() => {
+        // Get patientProfileId from multiple sources
+        const serviceFromMyServices = myServices.find(s => 
+          s.id === selectedServiceForPrescription.id || 
+          (s.prescriptionId === selectedServiceForPrescription.prescriptionId && 
+           s.serviceId === selectedServiceForPrescription.serviceId)
+        );
+        
+        // Try to get from queue if not found in myServices
+        let resolvedPatientProfileId = serviceFromMyServices?.prescription?.patientProfile?.id || 
+                                       selectedServiceForPrescription.prescription?.patientProfile?.id ||
+                                       (prescription?.patientProfile?.id);
+        
+        // If still not found, try to get from queue
+        if (!resolvedPatientProfileId && queue) {
+          const queuePatient = queue.patients.find(p => 
+            p.services.some(s => 
+              s.prescriptionId === selectedServiceForPrescription.prescriptionId &&
+              s.serviceId === selectedServiceForPrescription.serviceId
+            )
+          );
+          if (queuePatient) {
+            resolvedPatientProfileId = queuePatient.patientProfileId;
+          }
+        }
+        
+        return (
+          <CreatePrescriptionDialog
+            open={createPrescriptionDialogOpen}
+            onOpenChange={(open) => {
+              setCreatePrescriptionDialogOpen(open);
+              if (!open) {
+                setSelectedServiceForPrescription(null);
+              }
+            }}
+            service={selectedServiceForPrescription}
+            patientProfileId={resolvedPatientProfileId || ''}
+            onSuccess={() => {
+              // Reload services after creating prescription
+              loadMyServices();
+              // Reload queue
+              serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
+              // Reload prescription if currently viewing one
+              if (prescription) {
+                serviceProcessingService.scanPrescription(prescription.prescriptionCode)
+                  .then(res => setPrescription(res.prescription))
+                  .catch(console.error);
+              }
+            }}
+          />
+        );
+      })()}
 
       {/* QR Scanner Dialog */}
       <Dialog open={isQrScannerOpen} onOpenChange={setIsQrScannerOpen}>
