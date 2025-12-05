@@ -1454,17 +1454,26 @@ export default function InvoicesPage() {
     });
 
     // When payment succeeded (webhook processed), get invoice details and download PDF
+    // NOTE: Only handle TRANSFER payments here. CASH payments are handled in finalizePaidInvoice
     socket.on('invoice_payment_success', async (payload: any) => {
       try {
         const invoiceId = payload?.data?.invoiceId || payload?.invoiceId;
         const invoiceCode = payload?.data?.invoiceCode || payload?.invoiceCode;
         const targetCashier = payload?.data?.cashierId || payload?.cashierId;
+        const paymentMethod = payload?.data?.paymentMethod || payload?.paymentMethod;
         
         if (!invoiceId) {
           console.log('No invoiceId in payload, trying invoiceCode:', invoiceCode);
           return;
         }
         if (targetCashier && targetCashier !== cashierId) return;
+        
+        // Chỉ xử lý socket event cho TRANSFER payments (webhook từ PayOS)
+        // CASH payments đã được xử lý trong finalizePaidInvoice và không cần export PDF lại
+        if (paymentMethod !== 'TRANSFER') {
+          console.log('[SOCKET] Ignoring invoice_payment_success for non-TRANSFER payment:', paymentMethod);
+          return;
+        }
 
         // Call new API to get invoice details using cashierApi
         try {
@@ -1499,13 +1508,22 @@ export default function InvoicesPage() {
               transaction: invoiceData.paymentTransactions?.[0] || null,
             };
 
-            // Auto download PDF immediately with correct payment data
-            setTimeout(() => {
-              exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
-            }, 500);
+            // Chỉ export PDF nếu chưa được export (kiểm tra xem confirmResult đã có chưa)
+            // Nếu confirmResult đã có invoiceCode này thì không export lại
+            if (!confirmResult || confirmResult.invoiceCode !== invoiceData.invoiceCode) {
+              // Auto download PDF immediately with correct payment data
+              setTimeout(() => {
+                exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
+              }, 500);
 
-            // Show success message
-            toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+              // Show success message
+              toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+              
+              // Cập nhật state để tránh export lại
+              setConfirmResult(transformedData as InvoicePaymentSummary);
+            } else {
+              console.log('[SOCKET] Invoice already finalized, skipping PDF export');
+            }
           }
         } catch (error) {
           console.error('Error fetching invoice details:', error);
@@ -1532,7 +1550,7 @@ export default function InvoicesPage() {
       }
       socketRef.current = null;
     };
-  }, [user?.id, finalizePaidInvoice]);
+  }, [user?.id, finalizePaidInvoice, confirmResult, exportSectionAsPdf]);
 
   return (
     <div className="container mx-auto py-6 px-8 space-y-6">
