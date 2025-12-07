@@ -53,7 +53,6 @@ import {
   FileTextIcon,
   BookOpen,
   ChartBarStacked,
-  Hash,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";

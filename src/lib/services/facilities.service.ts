@@ -153,8 +153,22 @@ export const specialtiesService = {
     if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
       return response.data as ListResponse<Specialty>
     }
-    // Fallback: if response structure is different
-    return unwrapResponse(response) as ListResponse<Specialty>
+    // Fallback: if response structure is different (e.g., just an array)
+    const unwrapped = unwrapResponse(response)
+    if (Array.isArray(unwrapped)) {
+      // If it's an array, wrap it in ListResponse format
+      return {
+        data: unwrapped,
+        meta: {
+          page,
+          limit: limit || unwrapped.length,
+          total: unwrapped.length,
+          totalPages: 1
+        }
+      }
+    }
+    // If it's already a ListResponse structure, return it
+    return unwrapped as unknown as ListResponse<Specialty>
   },
 
   async getSpecialty(id: string): Promise<Specialty> {
@@ -190,8 +204,22 @@ export const clinicRoomsService = {
     if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
       return response.data as ListResponse<ClinicRoom>
     }
-    // Fallback: if response structure is different
-    return unwrapResponse(response) as ListResponse<ClinicRoom>
+    // Fallback: if response structure is different (e.g., just an array)
+    const unwrapped = unwrapResponse(response)
+    if (Array.isArray(unwrapped)) {
+      // If it's an array, wrap it in ListResponse format
+      return {
+        data: unwrapped,
+        meta: {
+          page,
+          limit: limit || unwrapped.length,
+          total: unwrapped.length,
+          totalPages: 1
+        }
+      }
+    }
+    // If it's already a ListResponse structure, return it
+    return unwrapped as unknown as ListResponse<ClinicRoom>
   },
 
   async getClinicRoom(id: string): Promise<ClinicRoom> {
@@ -238,8 +266,22 @@ export const boothsService = {
     if (response.data && typeof response.data === 'object' && 'data' in response.data && 'meta' in response.data) {
       return response.data as ListResponse<Booth>
     }
-    // Fallback: if response structure is different
-    return unwrapResponse(response) as ListResponse<Booth>
+    // Fallback: if response structure is different (e.g., just an array)
+    const unwrapped = unwrapResponse(response)
+    if (Array.isArray(unwrapped)) {
+      // If it's an array, wrap it in ListResponse format
+      return {
+        data: unwrapped,
+        meta: {
+          page,
+          limit: limit || unwrapped.length,
+          total: unwrapped.length,
+          totalPages: 1
+        }
+      }
+    }
+    // If it's already a ListResponse structure, return it
+    return unwrapped as unknown as ListResponse<Booth>
   },
 
   async getBooth(id: string): Promise<Booth> {
