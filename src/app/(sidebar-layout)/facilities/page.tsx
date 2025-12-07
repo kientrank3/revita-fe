@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
-import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, X, Search, Settings } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, X, Search, Settings, ScrollText, TicketPercent, Stethoscope, Brain, Building, Eye } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { specialtiesService, clinicRoomsService, boothsService, templatesService, type Specialty, type ClinicRoom, type Booth, type Template, type TemplateField, type CreateTemplateDto, type UpdateTemplateDto, type ListResponse, type CreateClinicRoomDto, type UpdateClinicRoomDto, type CreateBoothDto, type UpdateBoothDto } from "@/lib/services/facilities.service"
 import { servicesService, serviceSearchApi, type Service } from "@/lib/services/services.service"
@@ -340,10 +340,10 @@ function PaginationControls({ page, totalPages, onPrev, onNext }: { page: number
       <div className="text-sm text-muted-foreground">Trang {page}/{totalPages || 1}</div>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onPrev} disabled={page <= 1}>
-          <ChevronLeft className="size-4" /> Trước
+          <ChevronLeft className="size-4" />
         </Button>
         <Button variant="outline" size="sm" onClick={onNext} disabled={totalPages ? page >= totalPages : true}>
-          Sau <ChevronRight className="size-4" />
+          <ChevronRight className="size-4" />
         </Button>
       </div>
     </div>
@@ -363,19 +363,19 @@ export default function FacilitiesPage() {
           <TabsList>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="specialties">Khoa chuyên môn</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="specialties"><Brain className="size-4" />Khoa chuyên môn</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="rooms">Phòng chức năng</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="rooms"><Building className="size-4" />Phòng chức năng</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="booths">Buồng khám</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="booths"><Stethoscope className="size-4" />Buồng khám</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="promotions">Khuyến mãi dịch vụ</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="promotions"><TicketPercent className="size-4" />Khuyến mãi</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="templates">Mẫu bệnh án</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="templates"><ScrollText className="size-4" />Mẫu bệnh án</TabsTrigger>
           </TabsList>
 
           <TabsContent value="specialties" className="mt-4">
@@ -508,10 +508,10 @@ function SpecialtiesTab() {
                 <TableCell className="px-4">{s.name}</TableCell>
                 <TableCell className="flex gap-2 px-4">
                   <Button variant="outline" size="sm" onClick={() => openEdit(s)}>
-                    <Pencil className="size-4" /> Sửa
+                    <Pencil className="size-4" />
                   </Button>
                   <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(s)}>
-                    <Trash2 className="size-4"  color="red"/> Xóa
+                    <Trash2 className="size-4"  color="red"/>
                   </Button>
                 </TableCell>
               </TableRow>
@@ -864,8 +864,8 @@ function ClinicRoomsTab() {
                 <TableCell className="px-4">{r.description}</TableCell>
                 <TableCell className="px-4">{r.address}</TableCell>
                 <TableCell className="flex gap-2 px-4">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Pencil className="size-4" /> Sửa</Button>
-                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+                  <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Pencil className="size-4" /></Button>
+                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(r)}><Trash2 className="size-4"  color="red"/></Button>
                 </TableCell>
               </TableRow>
             ))
@@ -1155,9 +1155,9 @@ function BoothsTab() {
                 <TableCell className="px-4">{b.description}</TableCell>
                 <TableCell className="px-4">{b.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</TableCell>
                 <TableCell className="flex gap-2 px-4">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(b)}><Pencil className="size-4" /> Sửa</Button>
+                  <Button variant="outline" size="sm" onClick={() => openEdit(b)}><Pencil className="size-4" /></Button>
                   <Button variant="outline" size="sm" onClick={() => openServicesDialog(b)}><Settings className="size-4" /> Dịch vụ</Button>
-                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4"  color="red"/> Xóa</Button>
+                  <Button variant="outline"  className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(b)}><Trash2 className="size-4"  color="red"/></Button>
                 </TableCell>
               </TableRow>
             ))
@@ -1248,6 +1248,8 @@ function PromotionsTab() {
   const [serviceSearchResults, setServiceSearchResults] = React.useState<ServiceSummary[]>([])
   const [serviceSearchLoading, setServiceSearchLoading] = React.useState(false)
   const [serviceSearchError, setServiceSearchError] = React.useState<string | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = React.useState(false)
+  const [viewingPromotion, setViewingPromotion] = React.useState<ServicePromotion | null>(null)
 
   const totalPages = React.useMemo(() => {
     if (total === 0) return 1
@@ -1470,6 +1472,11 @@ function PromotionsTab() {
     } finally {
       setDeletingId(null)
     }
+  }
+
+  const openDetailDialog = (promotion: ServicePromotion) => {
+    setViewingPromotion(promotion)
+    setDetailDialogOpen(true)
   }
 
   return (
@@ -1699,10 +1706,6 @@ function PromotionsTab() {
           <TableRow className="bg-muted px-8">
             <TableHead className="px-4">Dịch vụ</TableHead>
             <TableHead className="px-4">Chương trình</TableHead>
-            <TableHead className="px-4">Loyalty</TableHead>
-            <TableHead className="px-4">Giảm tối đa (%)</TableHead>
-            <TableHead className="px-4">Giảm tối đa (VNĐ)</TableHead>
-            <TableHead className="px-4">Thời gian áp dụng</TableHead>
             <TableHead className="px-4">Trạng thái</TableHead>
             <TableHead className="px-4">Hành động</TableHead>
           </TableRow>
@@ -1720,30 +1723,21 @@ function PromotionsTab() {
                 <div className="flex flex-col">
                   <span className="font-medium">{promotion.name}</span>
                   {promotion.description && (
-                    <span className="text-sm text-muted-foreground line-clamp-2">{promotion.description}</span>
+                    <span className="text-sm text-muted-foreground line-clamp-1">{promotion.description}</span>
                   )}
                 </div>
               </TableCell>
-              <TableCell className="px-4">
-                <span className={promotion.allowLoyaltyDiscount ? "text-emerald-600" : "text-muted-foreground"}>
-                  {promotion.allowLoyaltyDiscount ? "Cho phép" : "Không"}
-                </span>
-              </TableCell>
-              <TableCell className="px-4">
-                {promotion.maxDiscountPercent !== null && promotion.maxDiscountPercent !== undefined
-                  ? `${promotion.maxDiscountPercent}%`
-                  : "—"}
-              </TableCell>
-              <TableCell className="px-4">{formatCurrency(promotion.maxDiscountAmount)}</TableCell>
-              <TableCell className="px-4">{formatDateRange(promotion.startDate, promotion.endDate)}</TableCell>
               <TableCell className="px-4">
                 <span className={`text-sm font-medium ${promotion.isActive ? "text-emerald-600" : "text-muted-foreground"}`}>
                   {promotion.isActive ? "Đang hoạt động" : "Ngừng"}
                 </span>
               </TableCell>
               <TableCell className="flex gap-2 px-4">
-                <Button variant="outline" size="sm" onClick={() => openEdit(promotion)}>
-                  <Pencil className="size-4" /> Sửa
+                <Button variant="outline" size="sm" onClick={() => openDetailDialog(promotion)} title="Xem chi tiết">
+                  <Eye className="size-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => openEdit(promotion)} title="Chỉnh sửa">
+                  <Pencil className="size-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -1751,27 +1745,27 @@ function PromotionsTab() {
                   size="sm"
                   onClick={() => void handleDelete(promotion)}
                   disabled={deletingId === promotion.serviceId}
+                  title="Xóa"
                 >
                   {deletingId === promotion.serviceId ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <Trash2 className="size-4" color="red" />
-                  )}{" "}
-                  Xóa
+                  )}
                 </Button>
               </TableCell>
             </TableRow>
           ))}
           {!loading && promotions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8}>
+              <TableCell colSpan={4}>
                 <div className="py-6 text-center text-muted-foreground">Chưa có chương trình khuyến mãi nào</div>
               </TableCell>
             </TableRow>
           )}
           {loading && (
             <TableRow>
-              <TableCell colSpan={8}>
+              <TableCell colSpan={4}>
                 <div className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>
               </TableCell>
             </TableRow>
@@ -1785,6 +1779,120 @@ function PromotionsTab() {
         onPrev={() => setPage(Math.max(1, page - 1))}
         onNext={() => setPage(Math.min(totalPages, page + 1))}
       />
+
+      {/* Dialog xem chi tiết khuyến mãi */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chi tiết chương trình khuyến mãi</DialogTitle>
+          </DialogHeader>
+          {viewingPromotion && (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label className="text-sm font-semibold">Dịch vụ áp dụng</Label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="font-medium">{viewingPromotion.service?.name ?? "—"}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Mã dịch vụ: {viewingPromotion.service?.serviceCode ?? viewingPromotion.serviceId}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-sm font-semibold">Tên chương trình</Label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="font-medium">{viewingPromotion.name}</div>
+                </div>
+              </div>
+
+              {viewingPromotion.description && (
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold">Mô tả</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="text-sm whitespace-pre-wrap">{viewingPromotion.description}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold">Giảm tối đa (%)</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    {viewingPromotion.maxDiscountPercent !== null && viewingPromotion.maxDiscountPercent !== undefined
+                      ? `${viewingPromotion.maxDiscountPercent}%`
+                      : "—"}
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold">Giảm tối đa (VNĐ)</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    {formatCurrency(viewingPromotion.maxDiscountAmount)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-sm font-semibold">Thời gian áp dụng</Label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm">{formatDateRange(viewingPromotion.startDate, viewingPromotion.endDate)}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold">Cho phép tích điểm Loyalty</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <span className={viewingPromotion.allowLoyaltyDiscount ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                      {viewingPromotion.allowLoyaltyDiscount ? "Cho phép" : "Không"}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-sm font-semibold">Trạng thái</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <span className={`text-sm font-medium ${viewingPromotion.isActive ? "text-emerald-600" : "text-muted-foreground"}`}>
+                      {viewingPromotion.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {(viewingPromotion.createdAt || viewingPromotion.updatedAt) && (
+                <div className="grid gap-2 border-t pt-4">
+                  <Label className="text-sm font-semibold">Thông tin hệ thống</Label>
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    {viewingPromotion.createdAt && (
+                      <div>
+                        <span className="font-medium">Ngày tạo: </span>
+                        {new Date(viewingPromotion.createdAt).toLocaleString("vi-VN")}
+                      </div>
+                    )}
+                    {viewingPromotion.updatedAt && (
+                      <div>
+                        <span className="font-medium">Cập nhật lần cuối: </span>
+                        {new Date(viewingPromotion.updatedAt).toLocaleString("vi-VN")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              Đóng
+            </Button>
+            {viewingPromotion && (
+              <Button onClick={() => {
+                setDetailDialogOpen(false)
+                openEdit(viewingPromotion)
+              }}>
+                <Pencil className="size-4 mr-2" /> Chỉnh sửa
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2866,10 +2974,10 @@ function TemplatesTab() {
               </TableCell>
               <TableCell className="flex gap-2 px-4">
                 <Button variant="outline" size="sm" onClick={() => openEdit(t)}>
-                  <Pencil className="size-4" /> Sửa
+                  <Pencil className="size-4" /> 
                 </Button>
                 <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300" size="sm" onClick={() => onDelete(t)}>
-                  <Trash2 className="size-4" color="red" /> Xóa
+                  <Trash2 className="size-4" color="red" /> 
                 </Button>
               </TableCell>
             </TableRow>

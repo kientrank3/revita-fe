@@ -1691,7 +1691,7 @@ export default function ServiceProcessingPage() {
   // };
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
+    <div className="container mx-auto  py-6 space-y-6 bg-white">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -1823,10 +1823,9 @@ export default function ServiceProcessingPage() {
               onClick={() => setIsQrScannerOpen(true)}
               variant="outline"
               className="flex items-center gap-2"
-              title="Quét QR code"
+              title=""
             >
               <QrCode className="h-4 w-4" />
-              Quét QR
             </Button>
             <Button
               onClick={() => handleScanPrescription()}

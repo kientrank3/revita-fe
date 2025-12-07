@@ -23,7 +23,9 @@ import {
   Calendar,
   User,
   // ExternalLink,
-  FileText
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   MedicalRecord, 
@@ -466,7 +468,7 @@ export function MedicalRecordList({
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
               >
-                Trước
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
@@ -487,7 +489,7 @@ export function MedicalRecordList({
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
               >
-                Sau
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>

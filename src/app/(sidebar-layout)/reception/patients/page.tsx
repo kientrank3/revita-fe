@@ -234,16 +234,13 @@ export default function ReceptionPatientProfilesPage() {
   }
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
+    <div className="container mx-auto  py-6 space-y-6 bg-white">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">
               Quản lý hồ sơ bệnh nhân
             </h2>
-            <p className="text-gray-600">
-              Chào mừng, {user?.name || user?.email}! Tìm kiếm, xem chi tiết và quản lý hồ sơ bệnh nhân
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="flex items-center gap-1">
@@ -268,7 +265,7 @@ export default function ReceptionPatientProfilesPage() {
             <div className="flex items-center gap-2"></div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleCreateNewProfile}>
-                {selectedPatient ? 'Tạo hồ sơ cho bệnh nhân này' : 'Tạo hồ sơ độc lập'}
+                {selectedPatient ? 'Tạo hồ sơ cho bệnh nhân này' : 'Tạo hồ sơ'}
               </Button>
               <Button variant="outline" size="sm" onClick={() => {
                 setSelectedPatientProfile(null);
@@ -710,7 +707,7 @@ export default function ReceptionPatientProfilesPage() {
                   toast.success(
                     patientId 
                       ? `Tạo hồ sơ liên kết với bệnh nhân ${selectedPatient?.name} thành công`
-                      : 'Tạo hồ sơ độc lập thành công'
+                      : 'Tạo hồ sơ thành công'
                   );
                   setIsCreateProfileOpen(false);
                   
@@ -740,7 +737,7 @@ export default function ReceptionPatientProfilesPage() {
               }}
               disabled={isSubmittingCreate}
             >
-              {isSubmittingCreate ? 'Đang lưu...' : (selectedPatient ? 'Tạo hồ sơ liên kết' : 'Tạo hồ sơ độc lập')}
+              {isSubmittingCreate ? 'Đang lưu...' : (selectedPatient ? 'Tạo hồ sơ liên kết' : 'Tạo hồ sơ')}
             </Button>
           </DialogFooter>
         </DialogContent>

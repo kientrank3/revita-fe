@@ -1365,10 +1365,10 @@ function PaginationControls({
       </div>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onPrev} disabled={page <= 1}>
-          <ChevronLeft className="size-4" /> Trước
+          <ChevronLeft className="size-4" />
         </Button>
         <Button variant="outline" size="sm" onClick={onNext} disabled={!hasMore}>
-          Sau <ChevronRight className="size-4" />
+          <ChevronRight className="size-4" />
         </Button>
       </div>
     </div>

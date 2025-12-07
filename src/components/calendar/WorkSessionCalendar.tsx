@@ -471,7 +471,7 @@ export function WorkSessionCalendar({
               <h2 className="text-xl font-semibold text-gray-900">
                 Lịch làm việc
               </h2>
-              <p className="text-sm text-gray-600">Quản lý ca làm việc hiệu quả</p>
+              
             </div>
           </CardTitle>
           

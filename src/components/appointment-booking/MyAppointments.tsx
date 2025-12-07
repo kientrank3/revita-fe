@@ -313,7 +313,6 @@ export function MyAppointments() {
                 className="flex items-center space-x-1"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Trước</span>
               </Button>
               
               <div className="flex items-center space-x-1">
@@ -337,7 +336,6 @@ export function MyAppointments() {
                 disabled={currentPage === totalPages}
                 className="flex items-center space-x-1"
               >
-                <span>Sau</span>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>

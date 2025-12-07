@@ -272,22 +272,17 @@ export default function MedicalRecordsPage() {
   }
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
+    <div className="container mx-auto  py-6 space-y-6 bg-white">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-2xl font-semibold text-gray-900 ">
               Quản lý bệnh án & Đơn thuốc
             </h2>
-            <p className="text-gray-600">
-              Chào mừng, Bác sĩ {user?.name || user?.email}! Quản lý bệnh án, hồ sơ bệnh nhân và tạo đơn thuốc
-            </p>
+           
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <User className="h-3 w-3" />
-              {user?.role}
-            </Badge>
+            
             <Badge variant="secondary" className="flex items-center gap-1">
               <Stethoscope className="h-3 w-3" />
               Bác sĩ
@@ -363,7 +358,7 @@ export default function MedicalRecordsPage() {
                 <div className="flex items-center gap-2"></div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" onClick={handleCreateNewProfile}>
-                    {selectedPatient ? 'Tạo hồ sơ cho bệnh nhân này' : 'Tạo hồ sơ độc lập'}
+                    {selectedPatient ? 'Tạo hồ sơ cho bệnh nhân này' : 'Tạo hồ sơ'}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => {
                     setSelectedPatientProfile(null);
@@ -896,7 +891,7 @@ export default function MedicalRecordsPage() {
                   toast.success(
                     patientId 
                       ? `Tạo hồ sơ liên kết với bệnh nhân ${selectedPatient?.name} thành công`
-                      : 'Tạo hồ sơ độc lập thành công'
+                      : 'Tạo hồ sơ thành công'
                   );
                   setIsCreateProfileOpen(false);
                   
@@ -926,7 +921,7 @@ export default function MedicalRecordsPage() {
               }}
               disabled={isSubmittingCreate}
             >
-              {isSubmittingCreate ? 'Đang lưu...' : (selectedPatient ? 'Tạo hồ sơ liên kết' : 'Tạo hồ sơ độc lập')}
+              {isSubmittingCreate ? 'Đang lưu...' : (selectedPatient ? 'Tạo hồ sơ liên kết' : 'Tạo hồ sơ')}
             </Button>
           </DialogFooter>
         </DialogContent>

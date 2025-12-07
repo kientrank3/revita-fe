@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { drugSearchApi } from '@/lib/api';
 import { DrugSearchResult } from '@/lib/types/medication-prescription';
-import { Search, Pill } from 'lucide-react';
+import { Search, Pill, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DrugSearchProps {
   onSelectDrug?: (drug: DrugSearchResult) => void;
@@ -394,10 +394,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
                     disabled={currentPage === 1 || loading}
                     className="flex items-center gap-1"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Trước
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
                   
                   <div className="flex items-center space-x-1">
@@ -436,10 +433,7 @@ export function DrugSearch({ onSelectDrug, showSelectButton = false }: DrugSearc
                     disabled={currentPage === totalPages || loading}
                     className="flex items-center gap-1"
                   >
-                    Sau
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               )}

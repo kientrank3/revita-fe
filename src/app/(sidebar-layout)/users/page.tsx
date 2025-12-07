@@ -67,7 +67,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="container mx-auto px-8 py-6 space-y-6 bg-white">
+    <div className="container mx-auto py-6 space-y-6 bg-white">
  
       <UserManagement />
     </div>

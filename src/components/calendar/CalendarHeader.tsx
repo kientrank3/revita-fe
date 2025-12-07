@@ -23,14 +23,9 @@ export function CalendarHeader({
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight text-[#35b8cf]">
-          Lịch làm việc
+          Quản lý lịch làm việc
         </h1>
-        <p className="text-gray-600">
-          {isAdmin 
-            ? 'Quản lý lịch làm việc cho tất cả bác sĩ và kỹ thuật viên'
-            : 'Quản lý và đăng ký lịch làm việc'
-          }
-        </p>
+        
         {isAdmin && selectedDoctorId && (
           <p className="text-sm text-[#35b8cf] font-medium">
             Đang xem lịch của bác sĩ đã chọn

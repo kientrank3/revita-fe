@@ -1168,7 +1168,7 @@ export default function ReceptionCreatePrescriptionPage() {
   const prescriptionsTotalPages = Math.max(1, Math.ceil(prescriptionsTotal / prescriptionsLimit));
 
   return (
-    <div className="container mx-auto py-6 px-8">
+    <div className="container mx-auto py-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
@@ -1183,11 +1183,7 @@ export default function ReceptionCreatePrescriptionPage() {
           <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">Phiếu chỉ định</h1>
-            <p className="text-sm text-gray-600">
-              {activeTab === 'create' 
-                ? 'Chọn hồ sơ bệnh nhân, dịch vụ và bác sĩ phụ trách'
-                : 'Xem danh sách phiếu chỉ định'}
-            </p>
+            
           </div>
         </div>
       </div>
@@ -1228,7 +1224,7 @@ export default function ReceptionCreatePrescriptionPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-3">
-              <Label htmlFor="appointmentCode" className="text-sm">Mã lịch hẹn</Label>
+              
               <div className="relative mt-1 flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1252,12 +1248,12 @@ export default function ReceptionCreatePrescriptionPage() {
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-1"
-                  title="Quét QR code"
+                  title=""
                 >
                   <QrCode className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Gợi ý: Quét mã/nhập mã từ lịch hẹn để tự động lấy thông tin.</p>
+              
             </div>
             <div className="flex md:hidden gap-2 items-end">
               <Button variant="outline" className="flex-1" onClick={onLookupAppointment} disabled={appointmentLoading}>
@@ -1330,7 +1326,7 @@ export default function ReceptionCreatePrescriptionPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Tìm hồ sơ bệnh nhân *</Label>
+            
             <PatientSearch
               compact
               selectedPatientProfile={selectedPatientProfile}

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Calendar, Clock, Edit, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Edit, Trash2, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DoctorAppointmentsPanel } from '@/components/calendar/DoctorAppointmentsPanel';
 import { WorkSession, WorkSessionStatus } from '@/lib/types/work-session';
 import { workSessionApi } from '@/lib/api';
@@ -187,9 +187,7 @@ export function DoctorWorkSessionManager({
               </div>
               <div>
                 <div className="font-semibold">Lịch làm việc của tôi</div>
-                <div className="text-sm font-normal text-gray-600 mt-1">
-                  Quản lý và theo dõi lịch làm việc cá nhân
-                </div>
+                
               </div>
             </SheetTitle>
           </SheetHeader>
@@ -431,7 +429,7 @@ export function DoctorWorkSessionManager({
                   disabled={currentPage <= 1} 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                 >
-                  Trước
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <Button 
                   variant="outline" 
@@ -439,7 +437,7 @@ export function DoctorWorkSessionManager({
                   disabled={currentPage >= totalPages} 
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 >
-                  Sau
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -457,9 +455,7 @@ export function DoctorWorkSessionManager({
               </div>
               <div>
                 <div className="font-semibold">Lịch hẹn của tôi</div>
-                <div className="text-sm font-normal text-gray-600 mt-1">
-                  Xem và xác thực slot lịch hẹn bệnh nhân
-                </div>
+                
               </div>
             </SheetTitle>
           </SheetHeader>

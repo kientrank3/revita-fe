@@ -90,9 +90,9 @@ function AppointmentBookingInner() {
       {/* Booking Flow Selection */}
       {currentStep === 1 && (
         <Card className="mb-6 border border-gray-200 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900">Chọn cách đặt lịch</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Chọn phương thức đặt lịch phù hợp với bạn</p>
+          <CardHeader className="">
+              <CardTitle className="text-xl font-semibold text-gray-900">Chọn cách đặt lịch</CardTitle>
+             
           </CardHeader>
           <CardContent>
             <Tabs value={bookingFlow} onValueChange={(value) => setBookingFlowType(value as BookingFlow)}>

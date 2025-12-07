@@ -11,7 +11,10 @@ import {
   PieChart,
   Clock,
   TrendingUp,
-  UserCheck
+  UserCheck,
+  Stethoscope,
+  Calendar,
+  Pill
 } from "lucide-react";
 import { 
   WorkSessionData, 
@@ -127,13 +130,13 @@ export function ChartAdvancedStatistics({
       <Tabs defaultValue="work-sessions" className="space-y-6">
         <TabsList className={`grid w-full ${getTabCount() === 3 ? 'grid-cols-3' : getTabCount() === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {['ADMIN', 'RECEPTIONIST', 'DOCTOR', 'TECHNICIAN'].includes(userRole || '') && (
-            <TabsTrigger value="work-sessions">Ca làm việc</TabsTrigger>
+            <TabsTrigger value="work-sessions"><Calendar className="h-4 w-4" /> Ca làm việc</TabsTrigger>
           )}
           {['ADMIN', 'RECEPTIONIST', 'DOCTOR'].includes(userRole || '') && (
-            <TabsTrigger value="examination">Khám bệnh</TabsTrigger>
+            <TabsTrigger value="examination"><Stethoscope className="h-4 w-4" /> Khám bệnh</TabsTrigger>
           )}
           {['ADMIN', 'RECEPTIONIST'].includes(userRole || '') && (
-            <TabsTrigger value="services">Dịch vụ</TabsTrigger>
+            <TabsTrigger value="services"><Pill className="h-4 w-4" /> Dịch vụ</TabsTrigger>
           )}
         </TabsList>
 

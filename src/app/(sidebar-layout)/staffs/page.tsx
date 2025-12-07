@@ -26,7 +26,9 @@ import {
   FileText,
   Eye,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -599,9 +601,7 @@ export default function StaffManagementPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-gray-900">Quản lý nhân viên</h2>
-          <p className="text-gray-600 mt-1">
-            Quản lý thông tin nhân viên phòng khám
-          </p>
+          
         </div>
         <Button onClick={() => {
           resetCreateForm();
@@ -792,7 +792,7 @@ export default function StaffManagementPage() {
                   disabled={page <= 1} 
                   onClick={() => setPage(p => p - 1)}
                 >
-                  Trước
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="px-4 text-sm text-gray-600">
                   Trang {page} / {totalPages} (Tổng: {total})
@@ -803,7 +803,7 @@ export default function StaffManagementPage() {
                   disabled={page >= totalPages} 
                   onClick={() => setPage(p => p + 1)}
                 >
-                  Sau
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </>

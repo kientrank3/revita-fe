@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, User, Edit, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, User, Edit, Trash2, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WorkSession, WorkSessionStatus } from '@/lib/types/work-session';
 import { adminApi, workSessionApi } from '@/lib/api';
 import { format } from 'date-fns';
@@ -544,8 +544,12 @@ export function AdminWorkSessionManager({
                     <SelectItem value="100">100 / trang</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Trước</Button>
-                <Button variant="outline" size="sm" disabled={currentPage>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Sau</Button>
+                <Button variant="outline" size="sm" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
               </>

@@ -50,6 +50,10 @@ import {
   GripVertical,
   X,
   Upload,
+  FileTextIcon,
+  BookOpen,
+  ChartBarStacked,
+  Hash,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -92,13 +96,13 @@ export default function PostsManagementPage() {
           <TabsList>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="posts">Bài viết</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="posts"> <FileTextIcon className="h-4 w-4" /> Bài viết</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="categories">Danh mục</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="categories"> <ChartBarStacked className="h-4 w-4" /> Danh mục</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="series">Series</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="series"> <BookOpen className="h-4 w-4" /> Series</TabsTrigger>
           </TabsList>
 
           <TabsContent value="posts" className="mt-4">
@@ -302,7 +306,7 @@ function PostsTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted px-8">
-                  <TableHead className="w-12 px-4">#</TableHead>
+                  <TableHead className="w-12 px-4">ID</TableHead>
                   <TableHead className="px-4">Tiêu đề</TableHead>
                   <TableHead className="px-4">Trạng thái</TableHead>
                   <TableHead className="px-4">Danh mục</TableHead>
@@ -805,7 +809,7 @@ function CategoriesTab() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted px-8">
-                <TableHead className="w-12 px-4">#</TableHead>
+                <TableHead className="w-12 px-4">ID</TableHead>
                 <TableHead className="px-4">Tên</TableHead>
                 <TableHead className="px-4">Slug</TableHead>
                 <TableHead className="px-4">Mô tả</TableHead>
@@ -1563,7 +1567,7 @@ function SeriesTab() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted px-8">
-                <TableHead className="w-12 px-4">#</TableHead>
+                <TableHead className="w-12 px-4">ID</TableHead>
                 <TableHead className="px-4">Tên</TableHead>
                 <TableHead className="px-4">Slug</TableHead>
                 <TableHead className="px-4">Trạng thái</TableHead>

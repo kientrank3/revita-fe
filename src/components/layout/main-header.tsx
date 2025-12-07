@@ -59,8 +59,8 @@ export function MainHeader() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     // Redirect to homepage after logout
     window.location.href = '/';
   };

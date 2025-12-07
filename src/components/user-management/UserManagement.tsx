@@ -22,7 +22,9 @@ import {
   Phone,
   Mail,
   MapPin,
-  IdCard
+  IdCard,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { adminApi, receptionistApi } from '@/lib/api';
@@ -478,7 +480,7 @@ export function UserManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -545,9 +547,13 @@ export function UserManagement() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Trang</span>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
                 <span className="px-2">{page}</span>
-                <Button variant="outline" size="sm" disabled={(page * limit) >= total} onClick={() => setPage((p) => p + 1)}>Sau</Button>
+                <Button variant="outline" size="sm" disabled={(page * limit) >= total} onClick={() => setPage((p) => p + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
               <Select value={String(limit)} onValueChange={(v) => { setPage(1); setLimit(Number(v)); }}>
                 <SelectTrigger className="w-20 h-8"><SelectValue placeholder="10" /></SelectTrigger>

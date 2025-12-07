@@ -43,8 +43,8 @@ export function AppHeader() {
     console.log("user",user);
   }, [user, isAuthenticated, isLoading]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     // Redirect to homepage after logout
     window.location.href = '/';
   };

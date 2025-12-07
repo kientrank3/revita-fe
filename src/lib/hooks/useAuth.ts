@@ -54,7 +54,7 @@ const safeLocalStorage = {
 
 interface AuthContextValue extends MiddlewareAuthContext {
   login: (credentials: LoginCredentials) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
   updateProfile: (data: Partial<AuthUser>) => Promise<boolean>;
   updateAvatar: (avatarUrl: string) => Promise<boolean>;
@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   });
   const [error, setError] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const initializeAuth = useCallback(async () => {
     try {
@@ -242,21 +243,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
+    // Prevent multiple simultaneous logout calls
+    if (isLoggingOut) {
+      console.warn('Logout already in progress');
+      return;
+    }
+
+    setIsLoggingOut(true);
+    
     try {
-      // Call logout API
-      await authApi.logout();
-    } catch (error) {
-      console.error('Error calling logout API:', error);
-      // Continue with logout even if API call fails
-    } finally {
-      // Always clear local storage items, regardless of API call success/failure
+      // First, try to call logout API with timeout to prevent hanging
+      // This must be done BEFORE clearing the token, so the API call has the Authorization header
+      try {
+        const logoutPromise = authApi.logout();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Logout timeout')), 5000)
+        );
+        
+        await Promise.race([logoutPromise, timeoutPromise]);
+      } catch (apiError) {
+        // Log error but continue with local cleanup even if API call fails
+        console.error('Error calling logout API (non-blocking):', apiError);
+      }
+      
+      // After API call (success or failure), clear local state
+      // Clear local storage items
       safeLocalStorage.removeItem('auth_token');
       safeLocalStorage.removeItem('auth_user');
       safeLocalStorage.removeItem('refresh_token');
       
       // Clear middleware cache
       authMiddleware.logout();
+      
+      // Remove default Authorization header
+      delete api.defaults.headers.common.Authorization;
       
       // Clear state
       setState({
@@ -265,10 +286,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: false,
         isLoading: false,
       });
-      setError(null);
       
-      // Remove default Authorization header
+      setError(null);
+    } catch (error) {
+      console.error('Unexpected error during logout:', error);
+      // Ensure cleanup even if something unexpected happens
+      safeLocalStorage.removeItem('auth_token');
+      safeLocalStorage.removeItem('auth_user');
+      safeLocalStorage.removeItem('refresh_token');
+      authMiddleware.logout();
       delete api.defaults.headers.common.Authorization;
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 

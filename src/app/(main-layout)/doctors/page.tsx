@@ -20,7 +20,9 @@ import {
   Sparkles,
   Activity,
   Shield,
-  MessageSquare
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -318,7 +320,7 @@ export default function DoctorsPage() {
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Trước
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Button
@@ -337,7 +339,7 @@ export default function DoctorsPage() {
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Sau
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}

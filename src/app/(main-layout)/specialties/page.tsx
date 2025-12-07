@@ -11,7 +11,9 @@ import {
   Award, 
   TrendingUp, 
   Shield,
-  Star
+  Star,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 type PublicSpecialty = {
@@ -175,7 +177,7 @@ export default function SpecialtiesPage() {
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Trước
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Button
@@ -194,7 +196,7 @@ export default function SpecialtiesPage() {
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Sau
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}

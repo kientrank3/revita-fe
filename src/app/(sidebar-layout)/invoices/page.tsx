@@ -1611,9 +1611,9 @@ export default function InvoicesPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsQrScannerOpen(true)}
-                title="Quét QR code"
+              title=""
               >
-                <QrCode className="h-4 w-4 mr-2" /> Quét QR
+                <QrCode className="h-4 w-4 mr-2" /> 
               </Button>
             </div>
           </div>
