@@ -96,12 +96,16 @@ interface UpdateUserForm {
   adminCode: string;
 }
 
-export function UserManagement() {
+interface UserManagementProps {
+  onlyPatients?: boolean;
+}
+
+export function UserManagement({ onlyPatients = false }: UserManagementProps = {}) {
   const { hasRole } = useAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState(onlyPatients ? 'PATIENT' : '');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
@@ -252,6 +256,11 @@ export function UserManagement() {
   const filterUsers = useCallback(() => {
     let filtered = users;
     
+    // If onlyPatients is true, always filter by PATIENT
+    if (onlyPatients) {
+      filtered = filtered.filter(user => user.role === 'PATIENT');
+    }
+    
     if (searchTerm) {
       filtered = filtered.filter(user => 
         (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -261,12 +270,12 @@ export function UserManagement() {
       );
     }
     
-    if (roleFilter) {
+    if (roleFilter && !onlyPatients) {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
     
     setFilteredUsers(filtered);
-  }, [users, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter, onlyPatients]);
 
   useEffect(() => {
     const id = setTimeout(() => filterUsers(), 300);
@@ -278,11 +287,14 @@ export function UserManagement() {
       setIsLoading(true);
       let response;
       
+      // If onlyPatients is true, always filter by PATIENT
+      const effectiveRoleFilter = onlyPatients ? 'PATIENT' : (roleFilter || undefined);
+      
       if (isAdmin) {
-        response = await adminApi.getAllUsers({ role: roleFilter || undefined, page, limit });
+        response = await adminApi.getAllUsers({ role: effectiveRoleFilter, page, limit });
       } else if (isReceptionist) {
         // Receptionist: use own endpoint to list users/patients with pagination
-        response = await receptionistApi.getUsers({ role: roleFilter || undefined, page, limit });
+        response = await receptionistApi.getUsers({ role: effectiveRoleFilter, page, limit });
       } else if (isCashier) {
         // Cashier: only view patients, use receptionist endpoint for now
         response = await receptionistApi.getUsers({ role: 'PATIENT', page, limit });
@@ -302,7 +314,7 @@ export function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, isReceptionist, isCashier, roleFilter, page, limit]);
+  }, [isAdmin, isReceptionist, isCashier, roleFilter, page, limit, onlyPatients]);
 
   useEffect(() => {
     if (isAdmin || isReceptionist || isCashier) {
@@ -514,7 +526,7 @@ export function UserManagement() {
                 />
               </div>
             </div>
-            {isAdmin && (
+            {isAdmin && !onlyPatients && (
               <div className="w-full sm:w-48">
                 <Label htmlFor="role-filter" className="mb-2.5">Chức vụ</Label>
                 <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value === 'ALL' ? '' : value)}>

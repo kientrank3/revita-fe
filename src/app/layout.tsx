@@ -11,6 +11,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Revita - Hệ thống quản lý y tế",
   description: "Hệ thống quản lý y tế toàn diện cho bệnh viện và phòng khám",
+  icons: {
+    icon: '/logos/LogoRevita-v1-noneBG.png',
+    apple: '/logos/LogoRevita-v1-noneBG.png',
+  },
 };
 
 export default function RootLayout({

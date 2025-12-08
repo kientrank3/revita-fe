@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
-import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Settings } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Settings, ChartBarStacked, FileTextIcon, Package as PackageIcon } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -38,13 +38,13 @@ export default function ServicesPage() {
           <TabsList className="flex items-center gap-2  bg-muted p-1 rounded-lg">
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="categories">Danh mục dịch vụ</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="categories"> <ChartBarStacked className="h-4 w-4" /> Danh mục dịch vụ</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="services">Dịch vụ</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="services"> <FileTextIcon className="h-4 w-4" /> Dịch vụ</TabsTrigger>
             <TabsTrigger className="flex items-center min-w-40 gap-2 rounded-md transition
             data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground
-            data-[state=inactive]:text-muted-foreground" value="packages">Gói dịch vụ</TabsTrigger>
+            data-[state=inactive]:text-muted-foreground" value="packages"> <PackageIcon className="h-4 w-4" /> Gói dịch vụ</TabsTrigger>
           </TabsList>
 
           <TabsContent value="categories" className="mt-4">
