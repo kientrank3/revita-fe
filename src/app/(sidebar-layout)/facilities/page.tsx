@@ -652,20 +652,20 @@ function ClinicRoomsTab() {
     try {
       if (editing) {
         const updatePayload: UpdateClinicRoomDto = {
-          roomName: form.roomName,
-          specialtyId: form.specialtyId,
-          description: form.description,
-          address: form.address,
-        }
-        if (form.booths && form.booths.length > 0) {
+        roomName: form.roomName,
+        specialtyId: form.specialtyId,
+        description: form.description,
+        address: form.address,
+      }
+      if (form.booths && form.booths.length > 0) {
           updatePayload.booths = form.booths.map(b => ({
-            ...(b.id && { id: b.id }),
-            name: b.name,
-            description: b.description,
-            isActive: b.isActive,
-            serviceIds: b.serviceIds
-          }))
-        }
+          ...(b.id && { id: b.id }),
+          name: b.name,
+          description: b.description,
+          isActive: b.isActive,
+          serviceIds: b.serviceIds
+        }))
+      }
         await clinicRoomsService.updateClinicRoom(editing.id, updatePayload)
         toast.success("Cập nhật phòng thành công")
       } else {
@@ -978,12 +978,12 @@ function BoothsTab() {
     try {
       if (editing) {
         const updatePayload: UpdateBoothDto = {
-          name: form.name,
-          roomId: form.roomId,
-          description: form.description,
-          isActive: form.isActive,
-          serviceIds: form.serviceIds
-        }
+        name: form.name,
+        roomId: form.roomId,
+        description: form.description,
+        isActive: form.isActive,
+        serviceIds: form.serviceIds
+      }
         await boothsService.updateBooth(editing.id, updatePayload)
         toast.success("Cập nhật buồng thành công")
       } else {

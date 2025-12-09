@@ -481,7 +481,7 @@ export default function ServiceProcessingPage() {
           toast.warning(response.message || 'Không thể gọi bệnh nhân tiếp theo');
         }
       } else {
-        toast.success('Đã gọi bệnh nhân tiếp theo');
+      toast.success('Đã gọi bệnh nhân tiếp theo');
       }
       
       // Small delay to ensure backend has processed the update
@@ -1294,9 +1294,9 @@ export default function ServiceProcessingPage() {
       }
     } else {
       // Service is already WAITING_RESULT or other status, open dialog directly
-      setSelectedService(service);
-      setShouldReschedule(reschedule);
-      setResultsDialogOpen(true);
+    setSelectedService(service);
+    setShouldReschedule(reschedule);
+    setResultsDialogOpen(true);
     }
   };
 

@@ -1511,13 +1511,13 @@ export default function InvoicesPage() {
             // Chỉ export PDF nếu chưa được export (kiểm tra xem confirmResult đã có chưa)
             // Nếu confirmResult đã có invoiceCode này thì không export lại
             if (!confirmResult || confirmResult.invoiceCode !== invoiceData.invoiceCode) {
-              // Auto download PDF immediately with correct payment data
-              setTimeout(() => {
-                exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
-              }, 500);
+            // Auto download PDF immediately with correct payment data
+            setTimeout(() => {
+              exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
+            }, 500);
 
-              // Show success message
-              toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+            // Show success message
+            toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
               
               // Cập nhật state để tránh export lại
               setConfirmResult(transformedData as InvoicePaymentSummary);

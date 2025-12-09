@@ -788,23 +788,23 @@ export default function MedicalRecordDetailPage() {
                             className="space-y-2"
                           >
                             <div className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
-                              <Badge variant="outline" className="text-xs">
-                                {service.order}
-                              </Badge>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {service.service.name}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  {service.service.serviceCode}
-                                </p>
-                              </div>
+                            <Badge variant="outline" className="text-xs">
+                              {service.order}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {service.service.name}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {service.service.serviceCode}
+                              </p>
+                            </div>
                               <div className="flex items-center gap-2">
-                                <Badge
-                                  className={`${getStatusColor(service.status)} text-xs`}
-                                >
-                                  {getStatusText(service.status, service.order, prescription.services)}
-                                </Badge>
+                            <Badge
+                              className={`${getStatusColor(service.status)} text-xs`}
+                            >
+                              {getStatusText(service.status, service.order, prescription.services)}
+                            </Badge>
                                 {/* Button to create new prescription for this service */}
                                 {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
                                   <Button
@@ -850,7 +850,7 @@ export default function MedicalRecordDetailPage() {
                                     <FileText className="h-3 w-3" />
                                   </Button>
                                 )}
-                              </div>
+                          </div>
                             </div>
                             
                             {/* Hiển thị kết quả và note nếu service đã Complete */}
@@ -1157,15 +1157,15 @@ export default function MedicalRecordDetailPage() {
                   {selectedPrescription.services.map((service) => (
                     <div key={service.serviceId} className="space-y-2">
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
-                        <Badge variant="outline" className="text-xs">{service.order}</Badge>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
-                          <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
-                        </div>
+                      <Badge variant="outline" className="text-xs">{service.order}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{service.service.name}</p>
+                        <p className="text-xs text-gray-600">{service.service.serviceCode}</p>
+                      </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={`${getStatusColor(service.status)} text-xs`}>
-                            {getStatusText(service.status, service.order, selectedPrescription.services)}
-                          </Badge>
+                      <Badge className={`${getStatusColor(service.status)} text-xs`}>
+                        {getStatusText(service.status, service.order, selectedPrescription.services)}
+                      </Badge>
                           {/* Button to create new prescription for this service */}
                           {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
                             <Button

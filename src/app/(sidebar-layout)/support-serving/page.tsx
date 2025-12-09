@@ -73,7 +73,7 @@ export default function SupportServingPage() {
           toast.error(rawMessage);
         }
       } else {
-        setPendingData(null);
+      setPendingData(null);
         setError(rawMessage);
         toast.error(rawMessage);
       }
