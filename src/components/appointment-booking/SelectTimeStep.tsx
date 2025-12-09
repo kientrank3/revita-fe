@@ -33,6 +33,18 @@ export function SelectTimeStep() {
     return `${hours}:${minutes}`;
   };
 
+  // Chỉ hiển thị các slot bắt đầu sau thời gian hiện tại 1 giờ (áp dụng cho ngày hôm nay)
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + 60 * 60 * 1000);
+  const todayStr = now.toISOString().slice(0, 10);
+  const filteredSlots =
+    selectedDate === todayStr
+      ? availableSlots.filter((slot) => {
+          const slotStart = new Date(`${selectedDate}T${slot.startTime}`);
+          return slotStart.getTime() > cutoff.getTime();
+        })
+      : availableSlots;
+
   const groupSlotsByTime = (slots: TimeSlot[]) => {
     const grouped: { [key: string]: TimeSlot[] } = {};
 
@@ -47,7 +59,7 @@ export function SelectTimeStep() {
     return grouped;
   };
 
-  const groupedSlots = groupSlotsByTime(availableSlots);
+  const groupedFilteredSlots = groupSlotsByTime(filteredSlots);
 
   if (loading) {
     return (
@@ -65,7 +77,7 @@ export function SelectTimeStep() {
     <div className="space-y-4">
       {/* Available Time Slots */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {Object.entries(groupedSlots).map(([timeKey, slots]) => {
+        {Object.entries(groupedFilteredSlots).map(([timeKey, slots]) => {
           const slot = slots[0]; // All slots in a group should have the same availability
           const isAvailable = slot.isAvailable;
           
@@ -103,7 +115,7 @@ export function SelectTimeStep() {
         })}
       </div>
 
-      {availableSlots.length === 0 && !loading && (
+      {(filteredSlots.length === 0 || availableSlots.length === 0) && !loading && (
         <div className="text-center py-8">
           <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">Không có giờ khám nào khả dụng</p>
