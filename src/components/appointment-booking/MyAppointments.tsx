@@ -20,26 +20,14 @@ import { useAppointmentBookingContext } from '@/lib/contexts/AppointmentBookingC
 import { Appointment } from '@/lib/types/appointment-booking';
 
 const buildAppointmentQrInfo = (appointment: Appointment) => {
-  const descriptors = [
-    { label: 'Mã lịch hẹn', value: appointment.appointmentCode, prefix: 'APT' },
-    { label: 'Hồ sơ bệnh nhân', value: appointment.patientProfileId, prefix: 'PFP' },
-    { label: 'Bác sĩ', value: appointment.doctorId, prefix: 'DOC' },
-    { label: 'Dịch vụ', value: appointment.serviceId, prefix: 'SER' },
-    { label: 'Ngày khám', value: appointment.date, prefix: 'DATE' },
-    { label: 'Khung giờ', value: `${appointment.startTime}-${appointment.endTime}`, prefix: 'TIME' },
-  ].filter(({ value }) => Boolean(value && String(value).trim())) as Array<{
-    label: string;
-    value: string;
-    prefix: string;
-  }>;
-
-  const payload = descriptors
-    .map(({ prefix, value }) => `${prefix}:${String(value).trim()}`)
-    .join('|');
+  // Chỉ hiển thị mã appointment code đơn giản: APT-xxx
+  const payload = appointment.appointmentCode || '';
 
   return {
     payload,
-    descriptors,
+    descriptors: [
+      { label: 'Mã lịch hẹn', value: appointment.appointmentCode, prefix: 'APT' },
+    ],
   };
 };
 
