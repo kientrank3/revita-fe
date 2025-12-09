@@ -1691,7 +1691,7 @@ export default function ServiceProcessingPage() {
   // };
 
   return (
-    <div className="container mx-auto  py-6 space-y-6 bg-white">
+    <div className="container mx-auto px-8  py-6 space-y-6 bg-white">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

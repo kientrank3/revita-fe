@@ -1168,7 +1168,7 @@ export default function ReceptionCreatePrescriptionPage() {
   const prescriptionsTotalPages = Math.max(1, Math.ceil(prescriptionsTotal / prescriptionsLimit));
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 px-8">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
