@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, Camera, CameraOff, AlertTriangle, User, Stethoscope } from 'lucide-react';
+import { QrCode, Camera, CameraOff, AlertTriangle, User, Stethoscope, Download, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -150,6 +150,98 @@ export default function SupportServingPage() {
       setLoadingAssign(false);
     }
   }, [pendingData, selectedServiceIds]);
+
+  // Handle PDF download
+  const handleDownloadPDF = useCallback(async (result: AssignNextServiceResponse) => {
+    if (!result.assignedServices || result.assignedServices.length === 0) return;
+
+    try {
+      const { default: pdfMake } = await import('pdfmake/build/pdfmake');
+      const { default: pdfFonts } = await import('pdfmake/build/vfs_fonts');
+      pdfMake.vfs = pdfFonts.vfs;
+
+      const session = result.assignedServices[0]?.chosenSession;
+      if (!session) return;
+
+      const docDefinition = {
+        pageMargins: [40, 40, 40, 40],
+        content: [
+          {
+            text: 'THÔNG TIN GÁN DỊCH VỤ',
+            style: 'title',
+            alignment: 'center',
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: `Mã phiếu: ${pendingData?.prescriptionCode || 'N/A'}`,
+            fontSize: 12,
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Dịch vụ đã gán:',
+            style: 'sectionHeader',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            ul: result.assignedServices.map((s) => `${s.serviceName || s.serviceId} - ${s.newStatus}`),
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Thông tin phục vụ:',
+            style: 'sectionHeader',
+            margin: [0, 0, 0, 10]
+          },
+          {
+            table: {
+              widths: [120, '*'],
+              body: [
+                ...(session.doctorName ? [
+                  ['Bác sĩ:', session.doctorName]
+                ] : []),
+                ...(session.technicianName ? [
+                  ['Kỹ thuật viên:', session.technicianName]
+                ] : []),
+                ...(session.clinicRoomName ? [
+                  ['Phòng khám:', `${session.clinicRoomName}${session.clinicRoomCode ? ` (${session.clinicRoomCode})` : ''}`]
+                ] : []),
+                ...(session.boothName ? [
+                  ['Buồng khám:', `${session.boothName}${session.boothCode ? ` (${session.boothCode})` : ''}`]
+                ] : []),
+                ['Thời gian bắt đầu:', new Date(session.startTime).toLocaleString('vi-VN')],
+                ['Thời gian kết thúc:', new Date(session.endTime).toLocaleString('vi-VN')]
+              ]
+            },
+            layout: {
+              fillColor: (rowIndex: number) => (rowIndex % 2 === 0 ? '#f9fafb' : null),
+              hLineColor: () => '#e5e7eb',
+              vLineColor: () => '#e5e7eb'
+            },
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: `In từ hệ thống Revita\nNgày in: ${new Date().toLocaleString('vi-VN')}`,
+            fontSize: 9,
+            color: '#6b7280',
+            alignment: 'center',
+            margin: [0, 20, 0, 0]
+          }
+        ],
+        styles: {
+          title: { fontSize: 18, bold: true, color: '#111827' },
+          sectionHeader: { fontSize: 14, bold: true, color: '#111827' }
+        },
+        defaultStyle: { fontSize: 11, color: '#111827' }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      pdfDoc.download(`Thong-tin-gan-dich-vu-${pendingData?.prescriptionCode || 'N/A'}.pdf`);
+      toast.success('Đã tải PDF thành công');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Không thể tạo PDF');
+    }
+  }, [pendingData]);
 
   // QR Scanner handlers
   const stopQrScanner = useCallback(async () => {
@@ -672,66 +764,110 @@ export default function SupportServingPage() {
                 </span>
               </div>
 
-              {assignResult && (
-                <Card>
+              {assignResult && assignResult.assignedServices && assignResult.assignedServices.length > 0 && (
+                <Card className="border-green-200 bg-green-50/50">
                   <CardHeader>
-                    <CardTitle className="text-base">Kết quả gán</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Single service result */}
-                    {assignResult.assignedService && (
-                      <>
-                        <div className="text-sm">
-                          Đã chuyển dịch vụ <span className="font-medium">{assignResult.assignedService.serviceId}</span> sang trạng thái <span className="font-medium">{assignResult.assignedService.status}</span>
-                        </div>
-                        <Separator />
-                      </>
-                    )}
-                    
-                    {/* Multiple services result */}
-                    {assignResult.assignedServices && assignResult.assignedServices.length > 0 && (
-                      <>
-                        <div className="text-sm">
-                          Đã chuyển <span className="font-medium">{assignResult.assignedServices.length}</span> dịch vụ:
-                        </div>
-                        <ul className="list-disc list-inside text-sm space-y-1 ml-2">
-                          {assignResult.assignedServices.map((service, idx) => (
-                            <li key={idx}>
-                              <span className="font-medium">{service.serviceId}</span> - Trạng thái: <span className="font-medium">{service.status}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <Separator />
-                      </>
-                    )}
-                    
-                    {/* Session info */}
-                    {assignResult.chosenSession && (
-                      <>
-                        <div className="text-sm">
-                          Phiên được chọn: <span className="font-medium">{assignResult.chosenSession.id}</span>
-                          {assignResult.chosenSession.doctorId ? (
-                            <>
-                              {' '}· Bác sĩ: <span className="font-medium">{assignResult.chosenSession.doctorId}</span>
-                            </>
-                          ) : null}
-                          {assignResult.chosenSession.technicianId ? (
-                            <>
-                              {' '}· Kỹ thuật viên: <span className="font-medium">{assignResult.chosenSession.technicianId}</span>
-                            </>
-                          ) : null}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Thời gian: {new Date(assignResult.chosenSession.startTime).toLocaleString()} - {new Date(assignResult.chosenSession.endTime).toLocaleString()}
-                        </div>
-                      </>
-                    )}
-                    
-                    {/* Queue preview */}
-                    {assignResult.queuePreview && (
-                      <div className="text-sm text-muted-foreground">
-                        Ảnh chụp hàng đợi: {assignResult.queuePreview.totalCount} bệnh nhân
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <CardTitle className="text-lg text-green-900">Gán dịch vụ thành công</CardTitle>
                       </div>
+                      <Button
+                        onClick={() => handleDownloadPDF(assignResult)}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Tải PDF
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Services assigned */}
+                    <div>
+                      <h3 className="font-semibold text-sm text-gray-700 mb-2">Dịch vụ đã gán:</h3>
+                      <div className="space-y-2">
+                        {assignResult.assignedServices.map((service, idx) => (
+                          <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">{service.serviceName || service.serviceId}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Trạng thái: <Badge variant="outline" className="ml-1">{service.newStatus}</Badge>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Session info */}
+                    {assignResult.assignedServices[0]?.chosenSession && (
+                      <>
+                        <Separator />
+                        <div>
+                          <h3 className="font-semibold text-sm text-gray-700 mb-3">Thông tin phục vụ:</h3>
+                          <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+                            {assignResult.assignedServices[0].chosenSession.doctorName && (
+                              <div className="flex items-start gap-3">
+                                <Stethoscope className="h-4 w-4 text-gray-500 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Bác sĩ</p>
+                                  <p className="font-medium text-gray-900">{assignResult.assignedServices[0].chosenSession.doctorName}</p>
+                                </div>
+                              </div>
+                            )}
+                            {assignResult.assignedServices[0].chosenSession.technicianName && (
+                              <div className="flex items-start gap-3">
+                                <User className="h-4 w-4 text-gray-500 mt-0.5" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Kỹ thuật viên</p>
+                                  <p className="font-medium text-gray-900">{assignResult.assignedServices[0].chosenSession.technicianName}</p>
+                                </div>
+                              </div>
+                            )}
+                            {assignResult.assignedServices[0].chosenSession.clinicRoomName && (
+                              <div className="flex items-start gap-3">
+                                <div className="h-4 w-4 text-gray-500 mt-0.5 flex items-center justify-center">🏥</div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Phòng khám</p>
+                                  <p className="font-medium text-gray-900">
+                                    {assignResult.assignedServices[0].chosenSession.clinicRoomName}
+                                    {assignResult.assignedServices[0].chosenSession.clinicRoomCode && (
+                                      <span className="text-gray-500 ml-2">({assignResult.assignedServices[0].chosenSession.clinicRoomCode})</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            {assignResult.assignedServices[0].chosenSession.boothName && (
+                              <div className="flex items-start gap-3">
+                                <div className="h-4 w-4 text-gray-500 mt-0.5 flex items-center justify-center">🚪</div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Buồng khám</p>
+                                  <p className="font-medium text-gray-900">
+                                    {assignResult.assignedServices[0].chosenSession.boothName}
+                                    {assignResult.assignedServices[0].chosenSession.boothCode && (
+                                      <span className="text-gray-500 ml-2">({assignResult.assignedServices[0].chosenSession.boothCode})</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-start gap-3 pt-2 border-t border-gray-200">
+                              <div className="h-4 w-4 text-gray-500 mt-0.5 flex items-center justify-center">⏰</div>
+                              <div>
+                                <p className="text-xs text-gray-500">Thời gian phục vụ</p>
+                                <p className="font-medium text-gray-900 text-sm">
+                                  {new Date(assignResult.assignedServices[0].chosenSession.startTime).toLocaleString('vi-VN')} - {new Date(assignResult.assignedServices[0].chosenSession.endTime).toLocaleString('vi-VN')}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
