@@ -82,6 +82,32 @@ export function ConfirmBookingStep() {
         router.push('/my-appointments');
       }
     } catch (error) {
+      // Handle conflict error when slot already booked
+      const axiosError = error as any;
+      const data = axiosError?.response?.data;
+      const status = axiosError?.response?.status;
+      const conflict = data?.conflict;
+      const apiMessage =
+        data?.message ||
+        data?.error ||
+        data?.errorMessage ||
+        data?.detail ||
+        (Array.isArray(data?.errors) ? data.errors[0]?.message : undefined) ||
+        (typeof data === 'string' ? data : undefined);
+      if (conflict) {
+        const { date, startTime, endTime } = conflict;
+        toast.error(
+          `${apiMessage || 'Khung giờ đã được đặt'}: ${date} ${startTime}-${endTime}`,
+        );
+      } else if (apiMessage) {
+        toast.error(apiMessage);
+      } else if (typeof data === 'string') {
+        toast.error(data);
+      } else if (status) {
+        toast.error(`Không thể đặt lịch (mã ${status}), vui lòng thử lại`);
+      } else {
+        toast.error('Không thể đặt lịch, vui lòng thử lại');
+      }
       console.error('Error booking appointment:', error);
     } finally {
       setIsBooking(false);

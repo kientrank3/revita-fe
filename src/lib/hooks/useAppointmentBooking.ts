@@ -294,12 +294,11 @@ export const useAppointmentBooking = () => {
 
       // Reset state after successful booking
       setState(initialState);
-      console.log('[API] bookAppointment payload →', data, 'response →', response.data as BookAppointmentResponse);
+     
       return response.data as BookAppointmentResponse;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Không thể đặt lịch khám';
-      setError(errorMessage);
-      return null;
+      // Không setError tại đây để tránh toasts chung chung; để UI hiển thị thông điệp chi tiết từ API
+      throw error;
     }
   }, [state.selectedDoctor, state.selectedService, state.selectedDate, state.selectedTimeSlot, setLoading, setError, setSuccess]);
 

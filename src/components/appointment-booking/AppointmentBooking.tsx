@@ -14,6 +14,7 @@ import { SelectTimeStep } from '@/components/appointment-booking/SelectTimeStep'
 import { ConfirmBookingStep } from '@/components/appointment-booking/ConfirmBookingStep';
 import { ChevronLeft, CheckCircle, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 function AppointmentBookingInner() {
   const {
@@ -29,15 +30,24 @@ function AppointmentBookingInner() {
     selectedDate,
     selectedService,
     selectedTimeSlot,
+    setError,
+    setSuccess,
   } = useAppointmentBookingContext();
 
   // Show success/error messages
-  if (success) {
-    toast.success(success);
-  }
-  if (error) {
-    toast.error(error);
-  }
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess(null);
+    }
+  }, [success, setSuccess]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError(null);
+    }
+  }, [error, setError]);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -109,7 +119,7 @@ function AppointmentBookingInner() {
               <TabsContent value="BY_DATE" className="mt-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
                       <Calendar className="w-4 h-4 text-blue-500" />
                     </div>
                     <div>
@@ -127,7 +137,7 @@ function AppointmentBookingInner() {
               <TabsContent value="BY_DOCTOR" className="mt-6">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-green-600" />
                     </div>
                     <div>
@@ -157,7 +167,7 @@ function AppointmentBookingInner() {
               const isAccessible = step.id <= currentStep + 1;
 
               return (
-                <div key={step.id} className="flex items-center min-w-0 flex-shrink-0">
+                  <div key={step.id} className="flex items-center min-w-0 shrink-0">
                   <div className="flex flex-col items-center">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
