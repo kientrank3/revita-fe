@@ -51,19 +51,45 @@ export interface AssignNextServiceResponse {
     workSessionId: string;
   };
   assignedServices?: Array<{
+    prescriptionServiceId: string;
     prescriptionId: string;
     serviceId: string;
-    status: string;
+    serviceName?: string;
+    oldStatus: string;
+    newStatus: string;
     doctorId?: string | null;
     technicianId?: string | null;
     workSessionId: string;
+    chosenSession?: {
+      id: string;
+      doctorId?: string | null;
+      doctorName?: string | null;
+      technicianId?: string | null;
+      technicianName?: string | null;
+      startTime: string;
+      endTime: string;
+      boothId?: string | null;
+      boothCode?: string | null;
+      boothName?: string | null;
+      clinicRoomId?: string | null;
+      clinicRoomCode?: string | null;
+      clinicRoomName?: string | null;
+    };
   }>;
   chosenSession: {
     id: string;
     doctorId?: string | null;
+    doctorName?: string | null;
     technicianId?: string | null;
+    technicianName?: string | null;
     startTime: string;
     endTime: string;
+    boothId?: string | null;
+    boothCode?: string | null;
+    boothName?: string | null;
+    clinicRoomId?: string | null;
+    clinicRoomCode?: string | null;
+    clinicRoomName?: string | null;
   };
   queuePreview?: {
     patients: unknown[];
