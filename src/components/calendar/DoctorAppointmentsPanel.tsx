@@ -92,7 +92,7 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
       ) : appointments.length === 0 ? (
         <div className="text-sm text-center text-gray-600 py-4">Không có lịch hẹn</div>
       ) : (
-        <div className="space-y-2 max-h-96 overflow-auto pr-1">
+        <div className="space-y-2 max-h-[70vh] overflow-auto pr-1">
           {appointments.map((a) => (
             <div key={a.appointmentId} className="border rounded px-3 py-2 text-sm flex items-center justify-between">
               <div className="flex flex-col">

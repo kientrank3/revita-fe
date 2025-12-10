@@ -98,7 +98,7 @@ export function MyAppointments() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'Chờ xác nhận';
+        return 'Đã đặt';
       case 'CONFIRMED':
         return 'Đã xác nhận';
       case 'CANCELLED':
@@ -196,7 +196,7 @@ export function MyAppointments() {
         </Card>
       ) : (
         <>
-          <div className="space-y-4">
+          <div className="space-y-4 ">
             {currentAppointments.map((appointment) => (
               <Card key={appointment.appointmentId} className="hover:shadow-md transition-shadow border border-gray-200">
                 {(() => {

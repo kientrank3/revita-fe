@@ -181,6 +181,8 @@ export const useWorkSessionManagement = () => {
     excludeId?: string
   ): ConflictValidationResult => {
     const conflicts = existingSessions
+      // Ignore sessions that are already canceled
+      .filter(session => session.status !== 'CANCELED')
       .filter(session => session.id !== excludeId)
       .filter(session => {
         const existingStart = new Date(session.startTime);

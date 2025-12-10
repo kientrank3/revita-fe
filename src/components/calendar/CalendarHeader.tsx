@@ -10,6 +10,7 @@ interface CalendarHeaderProps {
   isAdmin?: boolean;
   selectedDoctorId?: string | null;
   onShowDoctorList?: () => void;
+  onShowAdminAppointments?: () => void;
 }
 
 export function CalendarHeader({ 
@@ -18,6 +19,7 @@ export function CalendarHeader({
   onCreateNew, 
   isAdmin = false, 
   selectedDoctorId,
+  onShowAdminAppointments,
 }: CalendarHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -34,6 +36,16 @@ export function CalendarHeader({
       </div>
       
       <div className="flex items-center gap-3">
+        {isAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onShowAdminAppointments}
+            className="border-gray-300"
+          >
+            Lịch đã đặt
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"

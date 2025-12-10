@@ -616,6 +616,14 @@ export const appointmentBookingApi = {
   // Get appointment by code
   getAppointmentByCode: (code: string) =>
     api.get(`/appointment-booking/appointments/code/${encodeURIComponent(code)}`),
+
+  // Admin: Get all appointments with optional filters
+  getAllAppointments: (params?: { doctorId?: string; date?: string }) =>
+    api.get('/appointment-booking/appointments', { params }),
+
+  // Cancel appointment (doctor/admin)
+  cancelAppointment: (appointmentId: string) =>
+    api.patch(`/appointment-booking/appointments/${appointmentId}/cancel`, {}),
 };
 
 // AI Chatbot API

@@ -36,6 +36,7 @@ import { formatDateForInput } from '@/lib/utils';
 export default function MedicalRecordsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [selectedPatientProfile, setSelectedPatientProfile] = useState<PatientProfile | null>(null);
+  const todayStr = new Date().toISOString().split('T')[0];
   const [selectedPatient, setSelectedPatient] = useState<UserType | null>(null);
   const [availablePatientProfiles, setAvailablePatientProfiles] = useState<PatientProfile[]>([]);
   const [showProfileSelection, setShowProfileSelection] = useState(false);
@@ -167,12 +168,11 @@ export default function MedicalRecordsPage() {
   };
 
   const handleCreateNewProfile = () => {
-    const today = new Date().toISOString().split('T')[0];
     
     // Pre-fill form with patient data if available
     let initialForm = {
       name: '', 
-      dateOfBirth: today, 
+      dateOfBirth: todayStr, 
       gender: '', 
       address: '', 
       occupation: '', 
@@ -185,7 +185,7 @@ export default function MedicalRecordsPage() {
     if (selectedPatient) {
       initialForm = {
         name: selectedPatient.name || '', 
-        dateOfBirth: selectedPatient.dateOfBirth ? formatDateForInput(selectedPatient.dateOfBirth) : today, 
+        dateOfBirth: selectedPatient.dateOfBirth ? formatDateForInput(selectedPatient.dateOfBirth) : todayStr, 
         gender: selectedPatient.gender || '', 
         address: selectedPatient.address || '', 
         occupation: '', 
@@ -608,6 +608,7 @@ export default function MedicalRecordsPage() {
                 <Input 
                   type="date" 
                   value={editForm.dateOfBirth} 
+                  max={todayStr}
                   onChange={(e)=>setEditForm({...editForm, dateOfBirth: e.target.value})} 
                   required
                 />
@@ -684,6 +685,10 @@ export default function MedicalRecordsPage() {
                 }
                 if (!editForm.dateOfBirth) {
                   toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (new Date(editForm.dateOfBirth) > new Date(todayStr)) {
+                  toast.error('Ngày sinh không được ở tương lai');
                   return;
                 }
                 if (!editForm.gender) {
@@ -777,6 +782,7 @@ export default function MedicalRecordsPage() {
                 <Input 
                   type="date" 
                   value={createForm.dateOfBirth} 
+                  max={todayStr}
                   onChange={(e)=>setCreateForm({...createForm, dateOfBirth: e.target.value})} 
                   required
                 />
@@ -853,6 +859,10 @@ export default function MedicalRecordsPage() {
                 }
                 if (!createForm.dateOfBirth) {
                   toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (new Date(createForm.dateOfBirth) > new Date(todayStr)) {
+                  toast.error('Ngày sinh không được ở tương lai');
                   return;
                 }
                 if (!createForm.gender) {

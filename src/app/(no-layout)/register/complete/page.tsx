@@ -14,6 +14,7 @@ function CompleteRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId") || "";
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -61,6 +62,11 @@ function CompleteRegistrationContent() {
         setLoading(false);
         return;
       }
+      if (new Date(form.dateOfBirth) > new Date(todayStr)) {
+        setError("Ngày sinh không được ở tương lai");
+        setLoading(false);
+        return;
+      }
       
       if (!form.address.trim()) {
         setError("Vui lòng nhập địa chỉ");
@@ -96,7 +102,7 @@ function CompleteRegistrationContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -115,7 +121,7 @@ function CompleteRegistrationContent() {
 
         {/* Form Card */}
         <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary"></div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/80 to-primary"></div>
 
           <CardHeader className="space-y-1 pb-6 pt-8">
             <CardTitle className="text-2xl font-semibold text-center text-gray-800">Thông tin cá nhân</CardTitle>
@@ -156,6 +162,7 @@ function CompleteRegistrationContent() {
                       name="dateOfBirth"
                       type="date"
                       value={form.dateOfBirth}
+                      max={todayStr}
                       onChange={handleChange}
                       required
                       className="h-12 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"

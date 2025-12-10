@@ -75,6 +75,7 @@ export default function StaffManagementPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Form states
+  const todayStr = new Date().toISOString().split('T')[0];
   const [createForm, setCreateForm] = useState<CreateStaffDto>({
     name: '',
     dateOfBirth: '',
@@ -207,6 +208,10 @@ export default function StaffManagementPage() {
     }
     if (!createForm.dateOfBirth) {
       toast.error('Vui lòng chọn ngày sinh');
+      return false;
+    }
+    if (new Date(createForm.dateOfBirth) > new Date(todayStr)) {
+      toast.error('Ngày sinh không được ở tương lai');
       return false;
     }
     if (!createForm.gender) {
@@ -348,6 +353,10 @@ export default function StaffManagementPage() {
     if (!selectedStaff) return;
 
     try {
+      if (editForm.dateOfBirth && new Date(editForm.dateOfBirth) > new Date(todayStr)) {
+        toast.error('Ngày sinh không được ở tương lai');
+        return;
+      }
       setIsLoading(true);
 
       // Upload avatar if changed
@@ -434,7 +443,7 @@ export default function StaffManagementPage() {
   const resetCreateForm = () => {
     setCreateForm({
       name: '',
-      dateOfBirth: '',
+      dateOfBirth: todayStr,
       gender: '',
       address: '',
       role: 'RECEPTIONIST',
@@ -842,6 +851,7 @@ export default function StaffManagementPage() {
                     id="create-dateOfBirth"
                     type="date"
                     value={createForm.dateOfBirth}
+                    max={todayStr}
                     onChange={(e) => setCreateForm({ ...createForm, dateOfBirth: e.target.value })}
                     required
                   />
@@ -1231,6 +1241,7 @@ export default function StaffManagementPage() {
                   <Input
                     type="date"
                     value={editForm.dateOfBirth || ''}
+                    max={todayStr}
                     onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
                   />
                 </div>

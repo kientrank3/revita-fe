@@ -39,6 +39,7 @@ interface WorkSessionDetailsProps {
   canDelete?: boolean;
   canChangeStatus?: boolean;
   isAdmin?: boolean;
+  isDoctor?: boolean;
 }
 
 export function WorkSessionDetails({
@@ -46,14 +47,13 @@ export function WorkSessionDetails({
   onClose,
   workSession,
   onEdit,
-  onDelete,
   onStatusUpdate,
   loading = false,
   canEdit = true,
   canDelete = true,
   canChangeStatus = false,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isAdmin = false,
+  isDoctor = false,
 }: WorkSessionDetailsProps) {
   // Local state to ensure component updates when workSession prop changes
   const [currentSession, setCurrentSession] = useState(workSession);
@@ -112,12 +112,18 @@ export function WorkSessionDetails({
     return statusMap[status as keyof typeof statusMap] || status;
   };
 
+  const canCancelSession =
+    canDelete &&
+    currentSession.status !== 'COMPLETED' &&
+    currentSession.status !== 'CANCELED' &&
+    (isAdmin || (isDoctor && currentSession.status === 'PENDING'));
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto border-0 shadow-2xl bg-white">
-        <DialogHeader className="pb-2.5 border-b bg-gradient-to-r from-blue-50 to-purple-50 -m-6 p-4 mb-4">
+      <DialogContent className="max-w-[45vw] max-h-[95vh] overflow-y-auto border-0 shadow-2xl bg-white">
+        <DialogHeader className="pb-2.5 border-b bg-linear-to-r from-blue-50 to-purple-50 -m-6 p-4 mb-4">
           <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 rounded-full bg-gradient-to-r bg-primary text-white">
+            <div className="p-2 rounded-full bg-linear-to-r bg-primary text-white">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
@@ -308,7 +314,7 @@ export function WorkSessionDetails({
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Duyệt
               </Button>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onStatusUpdate?.(currentSession.id, 'CANCELED')}
@@ -317,7 +323,7 @@ export function WorkSessionDetails({
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Hủy
-              </Button>
+              </Button> */}
             </div>
           )}
 
@@ -334,15 +340,15 @@ export function WorkSessionDetails({
               </Button>
             )}
             
-            {canDelete && (
+            {canCancelSession && (
               <Button
                 variant="destructive"
-                onClick={() => onDelete?.(currentSession.id)}
+                onClick={() => onStatusUpdate?.(currentSession.id, 'CANCELED')}
                 disabled={loading}
-                className="flex-1 sm:flex-none"
+                className="flex-1 sm:flex-none disabled:opacity-60"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Xóa
+                Hủy lịch
               </Button>
             )}
             

@@ -14,6 +14,7 @@ import { useAuth, useIsAdmin, useIsDoctor, useIsTechnician } from '@/lib/hooks/u
 import { AdminWorkSessionManager } from '@/components/calendar/AdminWorkSessionManager';
 import { DoctorWorkSessionManager } from '@/components/calendar/DoctorWorkSessionManager';
 import { DoctorAppointmentsPanel } from '@/components/calendar/DoctorAppointmentsPanel';
+import { AdminAppointmentsSheet } from '@/components/calendar/AdminAppointmentsSheet';
 
 export default function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
@@ -25,6 +26,7 @@ export default function CalendarPage() {
   const [, setShowDoctorList] = useState(false);
   // Filtered events from WorkSessionCalendar (for stats)
   const [filteredCalendarEvents, setFilteredCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [showAdminAppointments, setShowAdminAppointments] = useState(false);
 
   // Auth hooks
   const { isLoading: authLoading, user } = useAuth();
@@ -195,7 +197,12 @@ export default function CalendarPage() {
       toast.success('Cập nhật trạng thái thành công!');
       // selectedSession will be auto-updated via useEffect when workSessions refreshes
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật trạng thái');
+      const message =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (err as any)?.response?.data?.message ||
+        (err instanceof Error ? err.message : null) ||
+        'Có lỗi xảy ra khi cập nhật trạng thái';
+      toast.error(message);
     }
   };
 
@@ -229,6 +236,7 @@ export default function CalendarPage() {
           onCreateNew={handleCreateNew}
           isAdmin={isAdmin}
           selectedDoctorId={selectedDoctorId}
+          onShowAdminAppointments={() => setShowAdminAppointments(true)}
           onShowDoctorList={() => setShowDoctorList(true)}
         />
 
@@ -305,6 +313,7 @@ export default function CalendarPage() {
         canDelete={true}
         canChangeStatus={isAdmin} // Only admin can change status
         isAdmin={isAdmin}
+        isDoctor={isDoctor}
       />
 
       {/* Admin-specific modals */}
@@ -316,6 +325,10 @@ export default function CalendarPage() {
             onEdit={handleEditSession}
             onDelete={handleDeleteSession}
             loading={loading}
+          />
+          <AdminAppointmentsSheet
+            open={showAdminAppointments}
+            onOpenChange={setShowAdminAppointments}
           />
         </>
       )}

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, User, Edit, Trash2, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, User, Edit, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WorkSession, WorkSessionStatus } from '@/lib/types/work-session';
 import { adminApi, workSessionApi } from '@/lib/api';
 import { format } from 'date-fns';
@@ -58,7 +58,6 @@ export function AdminWorkSessionManager({
   workSessions,
   onUpdateStatus,
   onEdit,
-  onDelete,
   loading = false,
   selectedDoctorId: controlledDoctorId,
   onSelectDoctor,
@@ -504,16 +503,6 @@ export function AdminWorkSessionManager({
                                       title="Chỉnh sửa"
                                     >
                                       <Edit className="h-4 w-4" />
-                                    </Button>
-                                    
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => onDelete(session.id)}
-                                      className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
-                                      title="Xóa"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>

@@ -102,6 +102,7 @@ interface UserManagementProps {
 
 export function UserManagement({ onlyPatients = false }: UserManagementProps = {}) {
   const { hasRole } = useAuth();
+  const todayStr = new Date().toISOString().split('T')[0];
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -328,6 +329,10 @@ export function UserManagement({ onlyPatients = false }: UserManagementProps = {
 
 
   const handleCreateUser = async () => {
+    if (createForm.dateOfBirth && new Date(createForm.dateOfBirth) > new Date(todayStr)) {
+      toast.error('Ngày sinh không được ở tương lai');
+      return;
+    }
     try {
       setIsLoading(true);
       if (isAdmin) {
@@ -357,6 +362,10 @@ export function UserManagement({ onlyPatients = false }: UserManagementProps = {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     try {
+      if (editForm.dateOfBirth && new Date(editForm.dateOfBirth) > new Date(todayStr)) {
+        toast.error('Ngày sinh không được ở tương lai');
+        return;
+      }
       setIsLoading(true);
       if (isAdmin) {
         const updateData = buildUpdateDto() as Parameters<typeof adminApi.updateUser>[1];
@@ -809,6 +818,7 @@ export function UserManagement({ onlyPatients = false }: UserManagementProps = {
                   id="create-dateOfBirth"
                   type="date"
                   value={createForm.dateOfBirth}
+                  max={todayStr}
                   onChange={(e) => setCreateForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                   required
                 />
@@ -1021,6 +1031,7 @@ export function UserManagement({ onlyPatients = false }: UserManagementProps = {
                   id="edit-dateOfBirth"
                   type="date"
                   value={editForm.dateOfBirth}
+                  max={todayStr}
                   onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
                   required
                 />

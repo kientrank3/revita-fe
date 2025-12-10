@@ -37,6 +37,7 @@ export function PatientProfileForm({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [submitting, setSubmitting] = useState(false);
   const [values, setValues] = useState<FormValues>({
     name: initialValues?.name || '',
@@ -87,6 +88,10 @@ export function PatientProfileForm({
       toast.error('Không tìm thấy ID bệnh nhân. Vui lòng đăng nhập lại.');
       return;
     }
+    if (values.dateOfBirth && new Date(values.dateOfBirth) > new Date(todayStr)) {
+      toast.error('Ngày sinh không được ở tương lai');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -132,7 +137,14 @@ export function PatientProfileForm({
           </div>
           <div>
             <Label htmlFor="dateOfBirth" className='pb-2'>Ngày sinh</Label>
-            <Input id="dateOfBirth" type="date" value={toDateInputValue(values.dateOfBirth) ?? ''} onChange={(e) => handleChange('dateOfBirth', e.target.value)} required />
+            <Input
+              id="dateOfBirth"
+              type="date"
+              max={todayStr}
+              value={toDateInputValue(values.dateOfBirth) ?? ''}
+              onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+              required
+            />
           </div>
           <div>
             <Label htmlFor="gender" className='pb-2'>Giới tính</Label>

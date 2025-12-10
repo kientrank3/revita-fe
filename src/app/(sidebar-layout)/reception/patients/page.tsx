@@ -36,6 +36,7 @@ export default function ReceptionPatientProfilesPage() {
     relationship: string;
     emergencyContact: { name: string; phone: string; relationship: string };
   };
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [editForm, setEditForm] = useState<PatientProfileForm>({
     name: '',
     dateOfBirth: '',
@@ -428,6 +429,7 @@ export default function ReceptionPatientProfilesPage() {
                 <Input 
                   type="date" 
                   value={editForm.dateOfBirth} 
+                  max={todayStr}
                   onChange={(e)=>setEditForm({...editForm, dateOfBirth: e.target.value})} 
                   required
                 />
@@ -504,6 +506,10 @@ export default function ReceptionPatientProfilesPage() {
                 }
                 if (!editForm.dateOfBirth) {
                   toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (new Date(editForm.dateOfBirth) > new Date(todayStr)) {
+                  toast.error('Ngày sinh không được ở tương lai');
                   return;
                 }
                 if (!editForm.gender) {
@@ -594,6 +600,7 @@ export default function ReceptionPatientProfilesPage() {
                 <Input 
                   type="date" 
                   value={createForm.dateOfBirth} 
+                  max={todayStr}
                   onChange={(e)=>setCreateForm({...createForm, dateOfBirth: e.target.value})} 
                   required
                 />
@@ -669,6 +676,10 @@ export default function ReceptionPatientProfilesPage() {
                 }
                 if (!createForm.dateOfBirth) {
                   toast.error('Vui lòng chọn ngày sinh');
+                  return;
+                }
+                if (new Date(createForm.dateOfBirth) > new Date(todayStr)) {
+                  toast.error('Ngày sinh không được ở tương lai');
                   return;
                 }
                 if (!createForm.gender) {
