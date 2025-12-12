@@ -25,7 +25,9 @@ import {
   ChevronRight,
   QrCode,
   Camera,
-  CameraOff
+  CameraOff,
+  Edit,
+  Save
 } from 'lucide-react';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { PatientProfile } from '@/lib/types/user';
@@ -44,9 +46,13 @@ interface Service {
 }
 
 interface DoctorOption {
-  doctorId: string;
-  doctorCode: string;
-  doctorName: string;
+  type: 'doctor' | 'technician';
+  doctorId?: string;
+  doctorCode?: string;
+  doctorName?: string;
+  technicianId?: string;
+  technicianCode?: string;
+  name: string;
   boothId: string | null;
   boothCode: string | null;
   boothName: string | null;
@@ -139,6 +145,14 @@ export default function ReceptionCreatePrescriptionPage() {
   const [prescriptionsPage, setPrescriptionsPage] = useState(1);
   const [prescriptionsLimit] = useState(20);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
+  
+  // Update prescription dialog states
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [selectedPrescriptionForUpdate, setSelectedPrescriptionForUpdate] = useState<any>(null);
+  const [loadingPrescriptionDetails, setLoadingPrescriptionDetails] = useState(false);
+  const [updatingPrescription, setUpdatingPrescription] = useState(false);
+  const [availableDoctorsForUpdate, setAvailableDoctorsForUpdate] = useState<Record<string, DoctorOption[]>>({});
+  const [loadingDoctorsForUpdate, setLoadingDoctorsForUpdate] = useState<Record<string, boolean>>({});
 
   // Appointment lookup states
   const [appointmentCode, setAppointmentCode] = useState('');
@@ -1154,6 +1168,105 @@ export default function ReceptionCreatePrescriptionPage() {
     }
   }, [prescriptionsPage, prescriptionsLimit]);
 
+  // Load prescription details for update
+  const loadPrescriptionDetails = useCallback(async (prescriptionId: string) => {
+    setLoadingPrescriptionDetails(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/prescriptions/by-id/${prescriptionId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedPrescriptionForUpdate(data);
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Không thể tải chi tiết phiếu chỉ định');
+      }
+    } catch (error) {
+      console.error('Error loading prescription details:', error);
+      toast.error('Không thể tải chi tiết phiếu chỉ định');
+    } finally {
+      setLoadingPrescriptionDetails(false);
+    }
+  }, []);
+
+  // Load available doctors for a service
+  const loadAvailableDoctors = useCallback(async (prescriptionId: string, serviceId: string, prescriptionServiceId: string) => {
+    setLoadingDoctorsForUpdate(prev => ({ ...prev, [prescriptionServiceId]: true }));
+    try {
+      const res = await fetch(`${API_BASE_URL}/prescriptions/${prescriptionId}/available-doctors/${serviceId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (res.ok) {
+        const doctors = await res.json();
+        setAvailableDoctorsForUpdate(prev => ({ ...prev, [prescriptionServiceId]: doctors || [] }));
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Không thể tải danh sách bác sĩ');
+        setAvailableDoctorsForUpdate(prev => ({ ...prev, [prescriptionServiceId]: [] }));
+      }
+    } catch (error) {
+      console.error('Error loading available doctors:', error);
+      toast.error('Không thể tải danh sách bác sĩ');
+      setAvailableDoctorsForUpdate(prev => ({ ...prev, [prescriptionServiceId]: [] }));
+    } finally {
+      setLoadingDoctorsForUpdate(prev => ({ ...prev, [prescriptionServiceId]: false }));
+    }
+  }, []);
+
+  // Handle open update dialog
+  const handleOpenUpdateDialog = useCallback(async (prescription: PrescriptionListItem) => {
+    setUpdateDialogOpen(true);
+    setSelectedPrescriptionForUpdate(null);
+    setAvailableDoctorsForUpdate({});
+    await loadPrescriptionDetails(prescription.id);
+  }, [loadPrescriptionDetails]);
+
+  // Handle update prescription
+  const handleUpdatePrescription = useCallback(async (updateData: {
+    prescriptionStatus?: string;
+    services?: Array<{
+      prescriptionServiceId: string;
+      status?: string;
+      doctorId?: string;
+      technicianId?: string;
+    }>;
+  }) => {
+    if (!selectedPrescriptionForUpdate?.id) return;
+    
+    setUpdatingPrescription(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/prescriptions/${selectedPrescriptionForUpdate.id}/update-services`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+      
+      if (res.ok) {
+        toast.success('Cập nhật phiếu chỉ định thành công');
+        setUpdateDialogOpen(false);
+        setSelectedPrescriptionForUpdate(null);
+        setAvailableDoctorsForUpdate({});
+        await fetchPrescriptions();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Không thể cập nhật phiếu chỉ định');
+      }
+    } catch (error) {
+      console.error('Error updating prescription:', error);
+      toast.error('Không thể cập nhật phiếu chỉ định');
+    } finally {
+      setUpdatingPrescription(false);
+    }
+  }, [selectedPrescriptionForUpdate, fetchPrescriptions]);
+
   // When switching to prescriptions tab or page changes
   useEffect(() => {
     if (activeTab === 'prescriptions') {
@@ -1454,18 +1567,25 @@ export default function ReceptionCreatePrescriptionPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="__none__">Không chọn</SelectItem>
-                                  {doctors.map((doctor) => (
-                                    <SelectItem key={doctor.doctorId} value={doctor.doctorId}>
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{doctor.doctorName}</span>
-                                        <span className="text-xs text-gray-500">
-                                          {doctor.doctorCode}
-                                          {doctor.clinicRoomName && ` • ${doctor.clinicRoomName}`}
-                                          {doctor.boothName && ` • ${doctor.boothName}`}
-                                        </span>
-                                      </div>
-                                    </SelectItem>
-                                  ))}
+                                  {doctors
+                                    .filter((doctor) => doctor.type === 'doctor' && doctor.doctorId)
+                                    .map((doctor) => {
+                                      const doctorId = doctor.doctorId!;
+                                      const doctorName = doctor.doctorName || doctor.name;
+                                      const doctorCode = doctor.doctorCode || '';
+                                      return (
+                                        <SelectItem key={doctorId} value={doctorId}>
+                                          <div className="flex flex-col">
+                                            <span className="font-medium">{doctorName}</span>
+                                            <span className="text-xs text-gray-500">
+                                              {doctorCode}
+                                              {doctor.clinicRoomName && ` • ${doctor.clinicRoomName}`}
+                                              {doctor.boothName && ` • ${doctor.boothName}`}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    })}
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -1610,6 +1730,7 @@ export default function ReceptionCreatePrescriptionPage() {
                           <TableHead className="w-[220px]">Dịch vụ</TableHead>
                           <TableHead className="w-[160px]">Mã bệnh án</TableHead>
                           <TableHead className="w-[120px]">Trạng thái</TableHead>
+                          <TableHead className="w-[100px]">Thao tác</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1640,6 +1761,17 @@ export default function ReceptionCreatePrescriptionPage() {
                                 <Badge variant="outline" className="text-xs">
                                   {p.status || 'N/A'}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenUpdateDialog(p)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                  Cập nhật
+                                </Button>
                               </TableCell>
                             </TableRow>
                           );
@@ -1764,6 +1896,416 @@ export default function ReceptionCreatePrescriptionPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Update Prescription Dialog */}
+      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cập nhật phiếu chỉ định</DialogTitle>
+            <DialogDescription>
+              Cập nhật trạng thái phiếu chỉ định và các dịch vụ
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingPrescriptionDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-600">Đang tải...</span>
+            </div>
+          ) : selectedPrescriptionForUpdate ? (
+            <UpdatePrescriptionForm
+              prescription={selectedPrescriptionForUpdate}
+              availableDoctors={availableDoctorsForUpdate}
+              loadingDoctors={loadingDoctorsForUpdate}
+              onLoadDoctors={loadAvailableDoctors}
+              onUpdate={handleUpdatePrescription}
+              updating={updatingPrescription}
+            />
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              Không có dữ liệu
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Update Prescription Form Component
+function UpdatePrescriptionForm({
+  prescription,
+  availableDoctors,
+  loadingDoctors,
+  onLoadDoctors,
+  onUpdate,
+  updating,
+}: {
+  prescription: any;
+  availableDoctors: Record<string, DoctorOption[]>;
+  loadingDoctors: Record<string, boolean>;
+  onLoadDoctors: (prescriptionId: string, serviceId: string, prescriptionServiceId: string) => void;
+  onUpdate: (data: {
+    prescriptionStatus?: string;
+    services?: Array<{
+      prescriptionServiceId: string;
+      status?: string;
+      doctorId?: string;
+      technicianId?: string;
+    }>;
+  }) => void;
+  updating: boolean;
+}) {
+  const [prescriptionStatus, setPrescriptionStatus] = React.useState<string>(prescription.status || 'NOT_STARTED');
+  const [serviceUpdates, setServiceUpdates] = React.useState<Record<string, {
+    status?: string;
+    doctorId?: string;
+    technicianId?: string;
+  }>>({});
+
+  React.useEffect(() => {
+    // Initialize service updates
+    const updates: Record<string, { status?: string; doctorId?: string; technicianId?: string }> = {};
+    if (prescription.services) {
+      prescription.services.forEach((ps: any) => {
+        updates[ps.id] = {
+          status: ps.status,
+          doctorId: ps.doctorId || undefined,
+          technicianId: ps.technicianId || undefined,
+        };
+      });
+    }
+    setServiceUpdates(updates);
+  }, [prescription]);
+
+  const handleServiceStatusChange = (prescriptionServiceId: string, status: string) => {
+    setServiceUpdates(prev => ({
+      ...prev,
+      [prescriptionServiceId]: {
+        ...prev[prescriptionServiceId],
+        status,
+      },
+    }));
+  };
+
+  const handleServiceDoctorChange = (prescriptionServiceId: string, doctorId: string) => {
+    setServiceUpdates(prev => ({
+      ...prev,
+      [prescriptionServiceId]: {
+        ...prev[prescriptionServiceId],
+        doctorId: doctorId || undefined,
+        technicianId: undefined, // Clear technician when selecting doctor
+      },
+    }));
+  };
+
+  const handleServiceTechnicianChange = (prescriptionServiceId: string, technicianId: string) => {
+    setServiceUpdates(prev => ({
+      ...prev,
+      [prescriptionServiceId]: {
+        ...prev[prescriptionServiceId],
+        technicianId: technicianId || undefined,
+        doctorId: undefined, // Clear doctor when selecting technician
+      },
+    }));
+  };
+
+  const handleLoadDoctors = (serviceId: string, prescriptionServiceId: string) => {
+    if (!availableDoctors[prescriptionServiceId] && !loadingDoctors[prescriptionServiceId]) {
+      onLoadDoctors(prescription.id, serviceId, prescriptionServiceId);
+    }
+  };
+
+  const handleSubmit = () => {
+    const updateData: {
+      prescriptionStatus?: string;
+      services?: Array<{
+        prescriptionServiceId: string;
+        status?: string;
+        doctorId?: string;
+        technicianId?: string;
+      }>;
+    } = {};
+
+    // Add prescription status if changed
+    if (prescriptionStatus !== prescription.status) {
+      updateData.prescriptionStatus = prescriptionStatus;
+    }
+
+    // Add service updates
+    const serviceUpdatesArray: Array<{
+      prescriptionServiceId: string;
+      status?: string;
+      doctorId?: string;
+      technicianId?: string;
+    }> = [];
+
+    Object.entries(serviceUpdates).forEach(([prescriptionServiceId, updates]) => {
+      const originalService = prescription.services.find((ps: any) => ps.id === prescriptionServiceId);
+      if (!originalService) return;
+
+      const hasChanges = 
+        updates.status !== originalService.status ||
+        updates.doctorId !== (originalService.doctorId || undefined) ||
+        updates.technicianId !== (originalService.technicianId || undefined);
+
+      if (hasChanges) {
+        const updateItem: {
+          prescriptionServiceId: string;
+          status?: string;
+          doctorId?: string;
+          technicianId?: string;
+        } = {
+          prescriptionServiceId,
+          status: updates.status,
+        };
+        
+        if (updates.doctorId) {
+          updateItem.doctorId = updates.doctorId;
+        }
+        if (updates.technicianId) {
+          updateItem.technicianId = updates.technicianId;
+        }
+        
+        serviceUpdatesArray.push(updateItem);
+      }
+    });
+
+    if (serviceUpdatesArray.length > 0) {
+      updateData.services = serviceUpdatesArray;
+    }
+
+    if (updateData.prescriptionStatus || updateData.services) {
+      onUpdate(updateData);
+    } else {
+      toast.info('Không có thay đổi nào');
+    }
+  };
+
+  const prescriptionStatusOptions = [
+    { value: 'NOT_STARTED', label: 'Chưa bắt đầu' },
+    { value: 'PENDING', label: 'Đang chờ' },
+    { value: 'WAITING', label: 'Chờ phục vụ' },
+    { value: 'PREPARING', label: 'Chuẩn bị' },
+    { value: 'SERVING', label: 'Đang phục vụ' },
+    { value: 'WAITING_RESULT', label: 'Chờ kết quả' },
+    { value: 'RETURNING', label: 'Đang trả lại' },
+    { value: 'COMPLETED', label: 'Hoàn thành' },
+    { value: 'CANCELLED', label: 'Đã hủy' },
+  ];
+
+  const serviceStatusOptions = [
+    { value: 'NOT_STARTED', label: 'Chưa bắt đầu' },
+    { value: 'PENDING', label: 'Đang chờ' },
+    { value: 'WAITING', label: 'Chờ phục vụ' },
+    { value: 'PREPARING', label: 'Chuẩn bị' },
+    { value: 'SERVING', label: 'Đang phục vụ' },
+    { value: 'WAITING_RESULT', label: 'Chờ kết quả' },
+    { value: 'RETURNING', label: 'Đang trả lại' },
+    { value: 'COMPLETED', label: 'Hoàn thành' },
+    { value: 'CANCELLED', label: 'Đã hủy' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Prescription Status */}
+      <div className="space-y-2">
+        <Label>Trạng thái phiếu chỉ định</Label>
+        <Select value={prescriptionStatus} onValueChange={setPrescriptionStatus}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {prescriptionStatusOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Services List */}
+      <div className="space-y-4">
+        <Label>Danh sách dịch vụ</Label>
+        {prescription.services && prescription.services.length > 0 ? (
+          <div className="space-y-3">
+            {prescription.services.map((ps: any) => {
+              const isCompleted = ps.status === 'COMPLETED';
+              const currentUpdate = serviceUpdates[ps.id] || {};
+              const doctors = availableDoctors[ps.id] || [];
+              const isLoadingDoctors = loadingDoctors[ps.id] || false;
+
+              return (
+                <Card key={ps.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{ps.service?.name || ps.service?.serviceCode}</div>
+                        <div className="text-xs text-gray-500">Thứ tự: {ps.order}</div>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {ps.status}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Service Status */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Trạng thái dịch vụ</Label>
+                        <Select
+                          value={currentUpdate.status || ps.status}
+                          onValueChange={(value) => handleServiceStatusChange(ps.id, value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceStatusOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Doctor/Technician Selection */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Người thực hiện</Label>
+                        <div className="flex gap-2">
+                          <Select
+                            value={
+                              currentUpdate.doctorId 
+                                ? `doctor-${currentUpdate.doctorId}` 
+                                : currentUpdate.technicianId 
+                                  ? `technician-${currentUpdate.technicianId}` 
+                                  : ps.doctorId 
+                                    ? `doctor-${ps.doctorId}` 
+                                    : ps.technicianId 
+                                      ? `technician-${ps.technicianId}` 
+                                      : ''
+                            }
+                            onValueChange={(value) => {
+                              if (value.startsWith('doctor-')) {
+                                handleServiceDoctorChange(ps.id, value.replace('doctor-', ''));
+                              } else if (value.startsWith('technician-')) {
+                                handleServiceTechnicianChange(ps.id, value.replace('technician-', ''));
+                              }
+                            }}
+                            disabled={isCompleted}
+                            onOpenChange={(open) => {
+                              if (open && !isCompleted && doctors.length === 0 && !isLoadingDoctors) {
+                                handleLoadDoctors(ps.serviceId, ps.id);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-9 flex-1">
+                              <SelectValue placeholder={isCompleted ? "Không thể thay đổi" : "Chọn người thực hiện"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingDoctors ? (
+                                <SelectItem value="loading" disabled>
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />
+                                  Đang tải...
+                                </SelectItem>
+                              ) : doctors.length === 0 ? (
+                                <SelectItem value="none" disabled>
+                                  Không có người thực hiện khả dụng
+                                </SelectItem>
+                              ) : (
+                                <>
+                                  {/* Current assigned person */}
+                                  {ps.doctorId && (
+                                    <SelectItem value={`doctor-${ps.doctorId}`}>
+                                      👨‍⚕️ {ps.doctor?.auth?.name || 'Bác sĩ hiện tại'}
+                                    </SelectItem>
+                                  )}
+                                  {ps.technicianId && (
+                                    <SelectItem value={`technician-${ps.technicianId}`}>
+                                      🔧 {ps.technician?.auth?.name || 'Kỹ thuật viên hiện tại'}
+                                    </SelectItem>
+                                  )}
+                                  
+                                  {/* Available doctors */}
+                                  {doctors.filter(d => d.type === 'doctor').map(doctor => (
+                                    <SelectItem key={`doctor-${doctor.doctorId}`} value={`doctor-${doctor.doctorId}`}>
+                                      👨‍⚕️ {doctor.name} {doctor.boothCode && `(${doctor.boothCode})`}
+                                    </SelectItem>
+                                  ))}
+                                  
+                                  {/* Available technicians */}
+                                  {doctors.filter(d => d.type === 'technician').map(technician => (
+                                    <SelectItem key={`technician-${technician.technicianId}`} value={`technician-${technician.technicianId}`}>
+                                      🔧 {technician.name} {technician.boothCode && `(${technician.boothCode})`}
+                                    </SelectItem>
+                                  ))}
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {!isCompleted && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleLoadDoctors(ps.serviceId, ps.id)}
+                              disabled={isLoadingDoctors}
+                            >
+                              <RefreshCw className={`h-4 w-4 ${isLoadingDoctors ? 'animate-spin' : ''}`} />
+                            </Button>
+                          )}
+                        </div>
+                        {isCompleted && (
+                          <p className="text-xs text-gray-500">Dịch vụ đã hoàn thành, không thể thay đổi người thực hiện</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">Không có dịch vụ nào</p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setPrescriptionStatus(prescription.status || 'NOT_STARTED');
+            const updates: Record<string, { status?: string; doctorId?: string }> = {};
+            prescription.services?.forEach((ps: any) => {
+              updates[ps.id] = {
+                status: ps.status,
+                doctorId: ps.doctorId || undefined,
+              };
+            });
+            setServiceUpdates(updates);
+          }}
+          disabled={updating}
+        >
+          Đặt lại
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={updating}
+        >
+          {updating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Đang cập nhật...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Lưu thay đổi
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

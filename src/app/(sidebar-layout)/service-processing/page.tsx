@@ -109,6 +109,8 @@ export default function ServiceProcessingPage() {
   const [todaySessions, setTodaySessions] = useState<WS[]>([]);
   const [processingSessionId, setProcessingSessionId] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [doctorSocket, setDoctorSocket] = useState<Socket | null>(null);
+  const [technicianSocket, setTechnicianSocket] = useState<Socket | null>(null);
   const [queue, setQueue] = useState<{
     patients: Array<{
       patientProfileId: string;
@@ -156,19 +158,26 @@ export default function ServiceProcessingPage() {
     }
 
     console.log('🔄 [Socket] Đang bắt đầu kết nối...');
-    console.log('📍 [Socket] URL:', socketUrl);
-    console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
+    console.log('📍 [Socket] Raw URL from env:', socketUrl);
+    console.log('👤 [Socket] User ID:', user.id);
     console.log('⏳ [Socket] Trạng thái: Đang kết nối...');
-
-    // Connect to socket with error handling
-    const newSocket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 1000,
-      timeout: 5000,
-    });
-    setSocket(newSocket);
+    
+    // Extract base URL by removing any existing namespace
+    // If URL is http://localhost:3000/doctors, base will be http://localhost:3000
+    let baseSocketUrl = socketUrl.replace(/\/$/, ''); // Remove trailing slash
+    // Remove common namespace paths if they exist
+    baseSocketUrl = baseSocketUrl.replace(/\/(doctors|technicians|counters|booths|clinic-rooms)$/, '');
+    
+    console.log('📍 [Socket] Base URL (after cleanup):', baseSocketUrl);
+    
+    // Validate URL format
+    try {
+      new URL(baseSocketUrl);
+    } catch (e) {
+      console.error('❌ [Socket] Invalid URL format:', baseSocketUrl);
+      toast.error('Cấu hình Socket.IO URL không hợp lệ');
+      return;
+    }
 
     // Helper function to extract data from wrapper (if exists)
     const extractEventData = (payload: any) => {
@@ -179,34 +188,32 @@ export default function ServiceProcessingPage() {
       return payload;
     };
 
-    // Register event listeners BEFORE connecting to ensure they're ready
-    // 1. new_prescription_patient: Có bệnh nhân mới với prescription
-    newSocket.on('new_prescription_patient', (payload) => {
+    // Shared event handler for both doctor and technician
+    const handleNewPrescriptionPatient = (payload: any) => {
       const data = extractEventData(payload);
-      console.log('[DOCTOR SOCKET] ✅ RECEIVED new_prescription_patient - Full payload:', payload);
-      console.log('[DOCTOR SOCKET] new_prescription_patient - Extracted data:', data);
-      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
-      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
-      console.log('[DOCTOR SOCKET] Services:', data.services?.length || data.serviceIds?.length || 0, 'services');
-      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      console.log('[SOCKET] ✅ RECEIVED new_prescription_patient - Full payload:', payload);
+      console.log('[SOCKET] new_prescription_patient - Extracted data:', data);
+      console.log('[SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[SOCKET] Services:', data.services?.length || data.serviceIds?.length || 0, 'services');
+      console.log('[SOCKET] Timestamp:', payload.timestamp || data.timestamp);
       
       toast.info(`🔔 Có bệnh nhân mới: ${data.patientName} (${data.prescriptionCode})`);
       // Reload queue when new patient arrives
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
-    });
+    };
 
-    // 2. patient_action: Bệnh nhân được gọi hoặc bỏ qua
-    newSocket.on('patient_action', (payload) => {
+    const handlePatientAction = (payload: any) => {
       const data = extractEventData(payload);
-      console.log('[DOCTOR SOCKET] ✅ RECEIVED patient_action - Full payload:', payload);
-      console.log('[DOCTOR SOCKET] patient_action - Extracted data:', data);
-      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
-      console.log('[DOCTOR SOCKET] Action:', data.action);
-      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
-      console.log('[DOCTOR SOCKET] Current Patient:', data.currentPatient);
-      console.log('[DOCTOR SOCKET] Next Patient:', data.nextPatient);
-      console.log('[DOCTOR SOCKET] Preparing Patient:', data.preparingPatient);
-      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      console.log('[SOCKET] ✅ RECEIVED patient_action - Full payload:', payload);
+      console.log('[SOCKET] patient_action - Extracted data:', data);
+      console.log('[SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[SOCKET] Action:', data.action);
+      console.log('[SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[SOCKET] Current Patient:', data.currentPatient);
+      console.log('[SOCKET] Next Patient:', data.nextPatient);
+      console.log('[SOCKET] Preparing Patient:', data.preparingPatient);
+      console.log('[SOCKET] Timestamp:', payload.timestamp || data.timestamp);
       
       if (data.action === 'CALLED') {
         toast.info(`📢 Bệnh nhân đã được gọi: ${data.patientName}`);
@@ -216,177 +223,227 @@ export default function ServiceProcessingPage() {
       
       // Reload queue when patient action occurs
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
-    });
+    };
 
-    // 3. patient_status_changed: Trạng thái bệnh nhân thay đổi
-    // Try both lowercase and uppercase event names
     const handlePatientStatusChanged = (payload: any) => {
-      console.log('[DOCTOR SOCKET] 🎯 LISTENER TRIGGERED: patient_status_changed');
-      console.log('[DOCTOR SOCKET] Raw payload type:', typeof payload);
-      console.log('[DOCTOR SOCKET] Raw payload:', payload);
+      console.log('[SOCKET] 🎯 LISTENER TRIGGERED: patient_status_changed');
+      console.log('[SOCKET] Raw payload type:', typeof payload);
+      console.log('[SOCKET] Raw payload:', payload);
       
       const data = extractEventData(payload);
-      console.log('[DOCTOR SOCKET] ✅ RECEIVED patient_status_changed - Full payload:', payload);
-      console.log('[DOCTOR SOCKET] patient_status_changed - Extracted data:', data);
+      console.log('[SOCKET] ✅ RECEIVED patient_status_changed - Full payload:', payload);
+      console.log('[SOCKET] patient_status_changed - Extracted data:', data);
       
       if (!data || !data.patientName) {
-        console.error('[DOCTOR SOCKET] ⚠️ WARNING: Invalid data structure!', data);
+        console.error('[SOCKET] ⚠️ WARNING: Invalid data structure!', data);
         return;
       }
       
-      console.log('[DOCTOR SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
-      console.log('[DOCTOR SOCKET] Status change:', data.oldStatus, '→', data.newStatus);
-      console.log('[DOCTOR SOCKET] Prescription:', data.prescriptionCode);
-      console.log('[DOCTOR SOCKET] Timestamp:', payload.timestamp || data.timestamp);
+      console.log('[SOCKET] Patient:', data.patientName, `(${data.patientProfileId})`);
+      console.log('[SOCKET] Status change:', data.oldStatus, '→', data.newStatus);
+      console.log('[SOCKET] Prescription:', data.prescriptionCode);
+      console.log('[SOCKET] Timestamp:', payload.timestamp || data.timestamp);
       
       // Reload queue when patient status changes (no toast to avoid spam)
       serviceProcessingService.getWaitingQueue().then(setQueue).catch(console.error);
     };
 
-    newSocket.on('patient_status_changed', handlePatientStatusChanged);
-    // Also try uppercase version in case backend sends it that way
-    newSocket.on('PATIENT_STATUS_CHANGED', handlePatientStatusChanged);
+    // Connect to DOCTOR namespace
+    const doctorSocketUrl = `${baseSocketUrl}/doctors`;
+    console.log('🔄 [DOCTOR SOCKET] Đang kết nối đến namespace /doctors...');
+    console.log('📍 [DOCTOR SOCKET] Full URL:', doctorSocketUrl);
+    const newDoctorSocket = io(doctorSocketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      timeout: 5000,
+    });
+    setDoctorSocket(newDoctorSocket);
 
-    console.log('✅ [Socket] Event listeners đã được đăng ký: new_prescription_patient, patient_action, patient_status_changed');
+    // Connect to TECHNICIAN namespace
+    const technicianSocketUrl = `${baseSocketUrl}/technicians`;
+    console.log('🔄 [TECHNICIAN SOCKET] Đang kết nối đến namespace /technicians...');
+    console.log('📍 [TECHNICIAN SOCKET] Full URL:', technicianSocketUrl);
+    const newTechnicianSocket = io(technicianSocketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      timeout: 5000,
+    });
+    setTechnicianSocket(newTechnicianSocket);
 
-    // Debug: Add a catch-all listener to see ALL incoming events
+    // Keep backward compatibility - set main socket to doctor socket
+    setSocket(newDoctorSocket);
+
+    // Register event listeners for DOCTOR socket
+    newDoctorSocket.on('new_prescription_patient', handleNewPrescriptionPatient);
+    newDoctorSocket.on('patient_action', handlePatientAction);
+    newDoctorSocket.on('patient_status_changed', handlePatientStatusChanged);
+    newDoctorSocket.on('PATIENT_STATUS_CHANGED', handlePatientStatusChanged);
+
+    // Register event listeners for TECHNICIAN socket
+    newTechnicianSocket.on('new_prescription_patient', handleNewPrescriptionPatient);
+    newTechnicianSocket.on('patient_action', handlePatientAction);
+    newTechnicianSocket.on('patient_status_changed', handlePatientStatusChanged);
+    newTechnicianSocket.on('PATIENT_STATUS_CHANGED', handlePatientStatusChanged);
+
+    console.log('✅ [Socket] Event listeners đã được đăng ký cho cả doctor và technician');
+
+    // Debug: Add a catch-all listener to see ALL incoming events for both sockets
     // This will help us debug if events are being received but not handled
-    (newSocket as any).onAny((eventName: string, ...args: any[]) => {
-      console.log('🔍 [Socket DEBUG] ════════════════════════════════════');
-      console.log('🔍 [Socket DEBUG] Received ANY event:', eventName);
-      console.log('🔍 [Socket DEBUG] Args:', args);
-      console.log('🔍 [Socket DEBUG] Args length:', args.length);
-      if (args.length > 0) {
-        try {
-          console.log('🔍 [Socket DEBUG] First arg:', JSON.stringify(args[0], null, 2));
-        } catch (e) {
-          console.log('🔍 [Socket DEBUG] First arg (cannot stringify):', args[0]);
-        }
-      }
-      console.log('🔍 [Socket DEBUG] ════════════════════════════════════');
+    (newDoctorSocket as any).onAny?.((eventName: string, ...args: any[]) => {
+      console.log('🔍 [DOCTOR SOCKET DEBUG] ════════════════════════════════════');
+      console.log('🔍 [DOCTOR SOCKET DEBUG] Received ANY event:', eventName);
+      console.log('🔍 [DOCTOR SOCKET DEBUG] Args:', args);
+      console.log('🔍 [DOCTOR SOCKET DEBUG] ════════════════════════════════════');
+    });
+
+    (newTechnicianSocket as any).onAny?.((eventName: string, ...args: any[]) => {
+      console.log('🔍 [TECHNICIAN SOCKET DEBUG] ════════════════════════════════════');
+      console.log('🔍 [TECHNICIAN SOCKET DEBUG] Received ANY event:', eventName);
+      console.log('🔍 [TECHNICIAN SOCKET DEBUG] Args:', args);
+      console.log('🔍 [TECHNICIAN SOCKET DEBUG] ════════════════════════════════════');
     });
 
     // Also try listening to common variations of the event name
-    const tryListenToEvent = (eventName: string) => {
-      newSocket.on(eventName, (data: any) => {
-        console.log(`🔍 [Socket DEBUG] ✅ Received event with name: ${eventName}`, data);
+    const tryListenToEvent = (socket: Socket, socketType: string, eventName: string) => {
+      socket.on(eventName, (data: any) => {
+        console.log(`🔍 [${socketType} SOCKET DEBUG] ✅ Received event with name: ${eventName}`, data);
       });
     };
 
-    // Try all possible event name variations
-    tryListenToEvent('patient_status_changed');
-    tryListenToEvent('PATIENT_STATUS_CHANGED');
-    tryListenToEvent('patient-status-changed');
-    tryListenToEvent('PATIENT-STATUS-CHANGED');
-    tryListenToEvent('patientStatusChanged');
-    tryListenToEvent('PatientStatusChanged');
+    // Try all possible event name variations for both sockets
+    ['patient_status_changed', 'PATIENT_STATUS_CHANGED', 'patient-status-changed', 'PATIENT-STATUS-CHANGED', 'patientStatusChanged', 'PatientStatusChanged'].forEach(eventName => {
+      tryListenToEvent(newDoctorSocket, 'DOCTOR', eventName);
+      tryListenToEvent(newTechnicianSocket, 'TECHNICIAN', eventName);
+    });
 
     // Log connection state changes
-    newSocket.on('connecting', () => {
-      console.log('🔄 [Socket] Đang kết nối... (connecting event)');
+    newDoctorSocket.on('connecting', () => {
+      console.log('🔄 [DOCTOR SOCKET] Đang kết nối... (connecting event)');
+    });
+
+    newTechnicianSocket.on('connecting', () => {
+      console.log('🔄 [TECHNICIAN SOCKET] Đang kết nối... (connecting event)');
     });
 
     // Handle connection errors gracefully
-    newSocket.on('connect_error', (error) => {
-      console.error('❌ [Socket] LỖI kết nối:', error.message);
-      console.error('📍 [Socket] URL thất bại:', socketUrl);
-      console.error('❌ [Socket] Trạng thái: Kết nối thất bại');
+    newDoctorSocket.on('connect_error', (error) => {
+      console.error('❌ [DOCTOR SOCKET] LỖI kết nối:', error.message);
+      console.error('📍 [DOCTOR SOCKET] URL thất bại:', doctorSocketUrl);
       // Don't show error toast, just log it
     });
 
-    newSocket.on('connect', () => {
-      // Verify connection is actually established
-      if (!newSocket.connected) {
-        console.error('⚠️ [Socket] WARNING: connect event fired but socket.connected is false!');
+    newTechnicianSocket.on('connect_error', (error) => {
+      console.error('❌ [TECHNICIAN SOCKET] LỖI kết nối:', error.message);
+      console.error('📍 [TECHNICIAN SOCKET] URL thất bại:', technicianSocketUrl);
+      // Don't show error toast, just log it
+    });
+
+    // Handle DOCTOR socket connection
+    newDoctorSocket.on('connect', () => {
+      if (!newDoctorSocket.connected) {
+        console.error('⚠️ [DOCTOR SOCKET] WARNING: connect event fired but socket.connected is false!');
         return;
       }
 
-      const socketId = newSocket.id;
+      const socketId = newDoctorSocket.id;
       if (!socketId) {
-        console.error('⚠️ [Socket] WARNING: connect event fired but socket.id is missing!');
+        console.error('⚠️ [DOCTOR SOCKET] WARNING: connect event fired but socket.id is missing!');
         return;
       }
 
-      const transport = newSocket.io.engine.transport.name;
-      // Extract namespace from URL (everything after the base URL)
-      const namespace = socketUrl.includes('/') && socketUrl.split('/').length > 3 
-        ? '/' + socketUrl.split('/').slice(3).join('/')
-        : '/';
+      console.log('✅ [DOCTOR SOCKET] Đã kết nối thành công!');
+      console.log('📍 [DOCTOR SOCKET] URL:', doctorSocketUrl);
+      console.log('🆔 [DOCTOR SOCKET] Socket ID:', socketId);
+      console.log('👨‍⚕️ [DOCTOR SOCKET] User ID:', user.id);
       
-      console.log('✅ [Socket] Đã kết nối thành công!');
-      console.log('✅ [Socket] socket.connected =', newSocket.connected);
-      console.log('📍 [Socket] URL:', socketUrl);
-      console.log('🆔 [Socket] Socket ID:', socketId);
-      console.log('🚀 [Socket] Transport:', transport);
-      console.log('📡 [Socket] Namespace:', namespace);
-      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
-      console.log('🏥 [Socket] Room: doctor_room (doctorId: ' + user.id + ')');
-      console.log('✅ [Socket] Trạng thái: Đã kết nối và sẵn sàng');
-      
-      toast.success('Đã kết nối Socket.IO - Đang lắng nghe cập nhật realtime');
-      // Join doctor room only after successful connection
-      newSocket.emit('join_doctor', { doctorId: user.id });
-      console.log('📤 [Socket] Emitted join_doctor with doctorId:', user.id);
-      // Show notification that we're listening (don't wait for server confirmation)
-      toast.info('Đã tham gia phòng bác sĩ - Sẵn sàng nhận thông báo');
+      // Join doctor room after successful connection
+      newDoctorSocket.emit('join_doctor', { doctorId: user.id });
+      console.log('📤 [DOCTOR SOCKET] Emitted join_doctor with doctorId:', user.id);
     });
 
-    // Listen for successful room join confirmation (if server sends it)
-    newSocket.on('joined_doctor', (data) => {
-      console.log('✅ [Socket] Server xác nhận đã tham gia phòng bác sĩ');
-      console.log('📥 [Socket] Server response:', data);
-      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
-      console.log('🔍 [Socket DEBUG] Expected room: doctor:' + user.id);
-      console.log('🔍 [Socket DEBUG] Socket ID:', newSocket.id);
-      console.log('🔍 [Socket DEBUG] Socket connected:', newSocket.connected);
+    // Handle TECHNICIAN socket connection
+    newTechnicianSocket.on('connect', () => {
+      if (!newTechnicianSocket.connected) {
+        console.error('⚠️ [TECHNICIAN SOCKET] WARNING: connect event fired but socket.connected is false!');
+        return;
+      }
+
+      const socketId = newTechnicianSocket.id;
+      if (!socketId) {
+        console.error('⚠️ [TECHNICIAN SOCKET] WARNING: connect event fired but socket.id is missing!');
+        return;
+      }
+
+      console.log('✅ [TECHNICIAN SOCKET] Đã kết nối thành công!');
+      console.log('📍 [TECHNICIAN SOCKET] URL:', technicianSocketUrl);
+      console.log('🆔 [TECHNICIAN SOCKET] Socket ID:', socketId);
+      console.log('🔧 [TECHNICIAN SOCKET] User ID:', user.id);
       
-      // After joining room, verify we can receive events
-      // Try emitting a test event to see if room join worked
-      console.log('🔍 [Socket DEBUG] Room join confirmed. Waiting for events...');
-      console.log('🔍 [Socket DEBUG] All registered listeners:', (newSocket as any)._callbacks || 'N/A');
-      
-      // Server confirmed join - this is optional, we already showed notification on connect
+      // Join technician room after successful connection
+      newTechnicianSocket.emit('join_technician', { technicianId: user.id });
+      console.log('📤 [TECHNICIAN SOCKET] Emitted join_technician with technicianId:', user.id);
     });
 
-    newSocket.on('disconnect', (reason) => {
-      console.log('❌ [Socket] Đã ngắt kết nối');
-      console.log('📍 [Socket] URL:', socketUrl);
-      console.log('📛 [Socket] Lý do:', reason);
+    // Listen for successful room join confirmations
+    newDoctorSocket.on('joined_doctor', (data) => {
+      console.log('✅ [DOCTOR SOCKET] Server xác nhận đã tham gia phòng bác sĩ');
+      console.log('📥 [DOCTOR SOCKET] Server response:', data);
+      toast.success('Đã kết nối Socket.IO - Đang lắng nghe cập nhật realtime (Bác sĩ)');
+    });
+
+    newTechnicianSocket.on('joined_technician', (data) => {
+      console.log('✅ [TECHNICIAN SOCKET] Server xác nhận đã tham gia phòng kỹ thuật viên');
+      console.log('📥 [TECHNICIAN SOCKET] Server response:', data);
+      toast.success('Đã kết nối Socket.IO - Đang lắng nghe cập nhật realtime (Kỹ thuật viên)');
+    });
+
+    // Handle disconnect events
+    newDoctorSocket.on('disconnect', (reason) => {
+      console.log('❌ [DOCTOR SOCKET] Đã ngắt kết nối');
+      console.log('📛 [DOCTOR SOCKET] Lý do:', reason);
       if (reason === 'io server disconnect') {
-        // Server disconnected, show notification
-        toast.warning('Mất kết nối Socket.IO - Đang thử kết nối lại...');
+        toast.warning('Mất kết nối Socket.IO (Bác sĩ) - Đang thử kết nối lại...');
+      }
+    });
+
+    newTechnicianSocket.on('disconnect', (reason) => {
+      console.log('❌ [TECHNICIAN SOCKET] Đã ngắt kết nối');
+      console.log('📛 [TECHNICIAN SOCKET] Lý do:', reason);
+      if (reason === 'io server disconnect') {
+        toast.warning('Mất kết nối Socket.IO (Kỹ thuật viên) - Đang thử kết nối lại...');
       }
     });
 
     // Handle reconnection success
-    newSocket.on('reconnect', (attemptNumber) => {
-      const socketId = newSocket.id;
-      const transport = newSocket.io.engine.transport.name;
-      // Extract namespace from URL (everything after the base URL)
-      const namespace = socketUrl.includes('/') && socketUrl.split('/').length > 3 
-        ? '/' + socketUrl.split('/').slice(3).join('/')
-        : '/';
-      
-      console.log('🔄 [Socket] Đã kết nối lại thành công!');
-      console.log('📍 [Socket] URL:', socketUrl);
-      console.log('🆔 [Socket] Socket ID:', socketId);
-      console.log('🚀 [Socket] Transport:', transport);
-      console.log('📡 [Socket] Namespace:', namespace);
-      console.log('👨‍⚕️ [Socket] Doctor ID:', user.id);
-      console.log('🔢 [Socket] Reconnected after', attemptNumber, 'attempts');
-      
-      toast.success('Đã kết nối lại Socket.IO - Đang lắng nghe cập nhật');
-      // Rejoin doctor room after reconnection
-      newSocket.emit('join_doctor', { doctorId: user.id });
-      console.log('📤 [Socket] Re-emitted join_doctor with doctorId:', user.id);
+    newDoctorSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 [DOCTOR SOCKET] Đã kết nối lại thành công sau', attemptNumber, 'lần thử');
+      toast.success('Đã kết nối lại Socket.IO (Bác sĩ)');
+      newDoctorSocket.emit('join_doctor', { doctorId: user.id });
+      console.log('📤 [DOCTOR SOCKET] Re-emitted join_doctor with doctorId:', user.id);
+    });
+
+    newTechnicianSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 [TECHNICIAN SOCKET] Đã kết nối lại thành công sau', attemptNumber, 'lần thử');
+      toast.success('Đã kết nối lại Socket.IO (Kỹ thuật viên)');
+      newTechnicianSocket.emit('join_technician', { technicianId: user.id });
+      console.log('📤 [TECHNICIAN SOCKET] Re-emitted join_technician with technicianId:', user.id);
     });
 
     // Cleanup on unmount
     return () => {
-      if (newSocket.connected) {
-        newSocket.disconnect();
+      if (newDoctorSocket.connected) {
+        newDoctorSocket.disconnect();
+      }
+      if (newTechnicianSocket.connected) {
+        newTechnicianSocket.disconnect();
       }
       setSocket(null);
+      setDoctorSocket(null);
+      setTechnicianSocket(null);
     };
   }, [user?.id]);
 
@@ -511,17 +568,55 @@ export default function ServiceProcessingPage() {
   };
 
   const handleSkipPatient = async (prescriptionId: string, serviceId: string) => {
+    // Kiểm tra số lượng bệnh nhân trước khi skip
+    if (queue && queue.totalCount <= 1) {
+      toast.warning('Không thể bỏ qua bệnh nhân này vì đây là bệnh nhân duy nhất trong hàng chờ');
+      return;
+    }
+
+    // Kiểm tra xem bệnh nhân có đang SERVING không
+    const patient = queue?.patients.find(p => 
+      p.services.some(s => s.prescriptionId === prescriptionId && s.serviceId === serviceId)
+    );
+    if (patient && (patient.overallStatus === 'SERVING' || patient.services.some(s => s.status === 'SERVING'))) {
+      toast.warning('Không thể bỏ qua bệnh nhân đang được phục vụ');
+      return;
+    }
+
     const skipKey = `${prescriptionId}-${serviceId}`;
     setSkippingPatient(skipKey);
     try {
-      await serviceProcessingService.skipPatient(prescriptionId, serviceId);
-      toast.success('Đã bỏ qua bệnh nhân');
-      // Reload queue after skipping
-      const q = await serviceProcessingService.getWaitingQueue();
-      setQueue(q);
+      const result: any = await serviceProcessingService.skipPatient(prescriptionId, serviceId);
+      
+      // Kiểm tra response từ backend
+      if (result && typeof result === 'object' && 'success' in result) {
+        if (result.success === false) {
+          toast.warning((result as any).message || 'Không thể bỏ qua bệnh nhân');
+        } else {
+          toast.success((result as any).message || 'Đã bỏ qua bệnh nhân');
+          // Đợi một chút để backend xử lý xong việc rebuild queue
+          await new Promise(resolve => setTimeout(resolve, 300));
+          // Reload queue after skipping để cập nhật thứ tự mới
+          const q = await serviceProcessingService.getWaitingQueue();
+          setQueue(q);
+        }
+      } else {
+        toast.success('Đã bỏ qua bệnh nhân');
+        // Đợi một chút để backend xử lý xong việc rebuild queue
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Reload queue after skipping để cập nhật thứ tự mới
+        const q = await serviceProcessingService.getWaitingQueue();
+        setQueue(q);
+      }
     } catch (error: any) {
       console.error('Error skipping patient:', error);
-      toast.error(error.response?.data?.message || 'Không thể bỏ qua bệnh nhân');
+      const errorMessage = error.response?.data?.message || 'Không thể bỏ qua bệnh nhân';
+      // Nếu là lỗi về số lượng bệnh nhân, hiển thị warning thay vì error
+      if (errorMessage.includes('duy nhất') || errorMessage.includes('1 bệnh nhân')) {
+        toast.warning(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setSkippingPatient(null);
     }
@@ -2033,26 +2128,48 @@ export default function ServiceProcessingPage() {
               <Users className="h-5 w-5 text-blue-600" />
               Hàng chờ hôm nay {queue ? `(${queue.totalCount})` : ''}
             </CardTitle>
-            {queue && queue.patients.length > 0 && (
-              <Button
-                onClick={handleCallNextPatient}
-                disabled={callingNext}
-                className="flex items-center gap-2"
-                size="sm"
-              >
-                {callingNext ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Đang gọi...
-                  </>
-                ) : (
-                  <>
-                    <PhoneCall className="h-4 w-4" />
-                    Gọi bệnh nhân tiếp theo
-                  </>
-                )}
-              </Button>
-            )}
+            {queue && queue.patients.length > 0 && (() => {
+              // Tính số lượng bệnh nhân trong hàng chờ thường (không phải WAITING_RESULT)
+              const normalPatients = queue.patients.filter(p => 
+                p.overallStatus !== 'WAITING_RESULT' && 
+                !p.services.some(s => s.status === 'WAITING_RESULT')
+              );
+              const hasNormalPatients = normalPatients.length > 0;
+              const firstNormalPatient = normalPatients[0];
+              const isFirstServing = firstNormalPatient?.overallStatus === 'SERVING';
+              
+              return (
+                <Button
+                  onClick={handleCallNextPatient}
+                  disabled={
+                    callingNext || 
+                    !hasNormalPatients ||
+                    isFirstServing
+                  }
+                  className="flex items-center gap-2"
+                  size="sm"
+                  title={
+                    !hasNormalPatients
+                      ? 'Không có bệnh nhân trong hàng chờ thường'
+                      : isFirstServing
+                      ? 'Bệnh nhân đầu tiên đang được phục vụ, không thể gọi bệnh nhân tiếp theo'
+                      : 'Gọi bệnh nhân tiếp theo'
+                  }
+                >
+                  {callingNext ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Đang gọi...
+                    </>
+                  ) : (
+                    <>
+                      <PhoneCall className="h-4 w-4" />
+                      Gọi bệnh nhân tiếp theo
+                    </>
+                  )}
+                </Button>
+              );
+            })()}
           </div>
         </CardHeader>
         <CardContent>
@@ -2106,10 +2223,11 @@ export default function ServiceProcessingPage() {
                       <Badge variant="secondary" className="text-xs">
                         {p.overallStatus}
                       </Badge>
-                      {/* Skip button - only show for non-WAITING_RESULT patients */}
+                      {/* Skip button - only show for non-WAITING_RESULT patients and when there's more than 1 patient */}
                       {p.overallStatus !== 'WAITING_RESULT' && 
                        !p.services.some(s => s.status === 'WAITING_RESULT') &&
-                       p.services.length > 0 && (
+                       p.services.length > 0 && 
+                       queue && queue.totalCount > 1 && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -2117,8 +2235,20 @@ export default function ServiceProcessingPage() {
                             const firstService = p.services[0];
                             handleSkipPatient(firstService.prescriptionId, firstService.serviceId);
                           }}
-                          disabled={skippingPatient === `${p.services[0].prescriptionId}-${p.services[0].serviceId}`}
+                          disabled={
+                            skippingPatient === `${p.services[0].prescriptionId}-${p.services[0].serviceId}` ||
+                            (queue && queue.totalCount <= 1) ||
+                            p.overallStatus === 'SERVING' ||
+                            p.services.some(s => s.status === 'SERVING')
+                          }
                           className="flex items-center gap-1 h-7 text-xs"
+                          title={
+                            p.overallStatus === 'SERVING' || p.services.some(s => s.status === 'SERVING')
+                              ? 'Không thể bỏ qua bệnh nhân đang được phục vụ'
+                              : queue && queue.totalCount <= 1
+                              ? 'Không thể bỏ qua vì đây là bệnh nhân duy nhất trong hàng chờ'
+                              : 'Bỏ qua bệnh nhân này'
+                          }
                         >
                           {skippingPatient === `${p.services[0].prescriptionId}-${p.services[0].serviceId}` ? (
                             <>

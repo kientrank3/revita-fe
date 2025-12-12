@@ -48,7 +48,7 @@ const getMenuItems = () => {
 			icon: CalendarDays,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
-			roles: ["ADMIN", "DOCTOR"],
+			roles: ["ADMIN", "DOCTOR","TECHNICIAN"],
 		},
 		// {
 		// 	title: "Báo cáo",
