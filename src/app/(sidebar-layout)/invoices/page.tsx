@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { cashierApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clipboard, Copy, CreditCard, ExternalLink, FileSearch, Printer, QrCode, RefreshCcw, Scan, Camera, CameraOff } from 'lucide-react';
+import { CheckCircle2, Clipboard, Copy, CreditCard, ExternalLink, FileSearch, Printer, QrCode, RefreshCcw, Scan, Camera, CameraOff, Landmark, HandCoins } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -171,6 +171,7 @@ export default function InvoicesPage() {
   const [confirmedInvoiceQrImage, setConfirmedInvoiceQrImage] = useState<string | null>(null);
   const [printMode, setPrintMode] = useState<'none' | 'invoice' | 'routing' | 'payment'>('none');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentModalInvoiceCode, setPaymentModalInvoiceCode] = useState<string | null>(null);
   const [customerMoney, setCustomerMoney] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH');
   const [transactionHistory, setTransactionHistory] = useState<Array<{
@@ -183,7 +184,6 @@ export default function InvoicesPage() {
   const [manualConfirming, setManualConfirming] = useState(false);
   const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [socketLog, setSocketLog] = useState<string[]>([]);
@@ -202,23 +202,6 @@ export default function InvoicesPage() {
   const qrScanningRef = useRef(false);
 
   // Update current time every second to avoid hydration mismatch
-  useEffect(() => {
-    const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }));
-    };
-
-    // Set initial time
-    updateTime();
-
-    // Update every second
-    const interval = setInterval(updateTime, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     let canceled = false;
@@ -1311,6 +1294,7 @@ export default function InvoicesPage() {
         setRefreshingTransaction(false);
         setCreatedInvoice(data);
         setPaymentModalOpen(true);
+        setPaymentModalInvoiceCode(data.invoiceCode);
 
         if (!data.transaction?.paymentUrl) {
           toast.warning('Không nhận được liên kết thanh toán từ PayOS. Vui lòng thử lại hoặc chọn phương thức khác.');
@@ -1358,6 +1342,7 @@ export default function InvoicesPage() {
       } else {
         setCreatedInvoice(data);
         setPaymentModalOpen(true);
+        setPaymentModalInvoiceCode(data.invoiceCode);
         toast.success('Đã làm mới liên kết thanh toán PayOS');
       }
     } catch (err: any) {
@@ -1475,6 +1460,9 @@ export default function InvoicesPage() {
           return;
         }
 
+        // Kiểm tra xem modal PayOS có đang mở cho invoice này không
+        const isModalOpenForThisInvoice = paymentModalOpen && paymentModalInvoiceCode === invoiceCode;
+
         // Call new API to get invoice details using cashierApi
         try {
           const { data: invoiceResponse } = await cashierApi.getInvoiceById(invoiceId);
@@ -1511,18 +1499,28 @@ export default function InvoicesPage() {
             // Chỉ export PDF nếu chưa được export (kiểm tra xem confirmResult đã có chưa)
             // Nếu confirmResult đã có invoiceCode này thì không export lại
             if (!confirmResult || confirmResult.invoiceCode !== invoiceData.invoiceCode) {
-            // Auto download PDF immediately with correct payment data
-            setTimeout(() => {
-              exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
-            }, 500);
+              // Auto download PDF immediately with correct payment data
+              setTimeout(() => {
+                exportSectionAsPdf('invoice', transformedData, invoiceData.amountPaid || invoiceData.totalAmount);
+              }, 500);
 
-            // Show success message
-            toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
+              // Show success message
+              toast.success('Thanh toán thành công! Đang tải xuống hóa đơn...');
               
               // Cập nhật state để tránh export lại
               setConfirmResult(transformedData as InvoicePaymentSummary);
             } else {
               console.log('[SOCKET] Invoice already finalized, skipping PDF export');
+            }
+
+            // Nếu modal đang mở cho invoice này, đóng modal và refresh trang
+            if (isModalOpenForThisInvoice) {
+              setPaymentModalOpen(false);
+              setPaymentModalInvoiceCode(null);
+              // Refresh trang sau 1 giây để đảm bảo PDF đã được tải xuống
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
             }
           }
         } catch (error) {
@@ -1560,10 +1558,7 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-semibold">Thanh toán dịch vụ</h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            {currentTime}
-          </div>
+          <div className="flex items-center gap-4">
 
 
           {transactionHistory.length > 0 && (
@@ -1809,19 +1804,23 @@ export default function InvoicesPage() {
                       <Label>Phương thức thanh toán</Label>
                       <div className="flex gap-2">
                         {[
-                          { value: 'CASH', label: '💵 Tiền mặt', color: 'bg-green-100 text-green-800' },
-                          { value: 'TRANSFER', label: '🏦 Chuyển khoản', color: 'bg-purple-100 text-purple-800' }
-                        ].map(method => (
-                          <Button
-                            key={method.value}
-                            variant={paymentMethod === method.value ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setPaymentMethod(method.value as any)}
-                            className={paymentMethod === method.value ? method.color : ''}
-                          >
-                            {method.label}
-                          </Button>
-                        ))}
+                          { value: 'CASH', label: 'Tiền mặt', icon: HandCoins, color: 'bg-green-100 text-green-800' },
+                          { value: 'TRANSFER', label: 'Chuyển khoản', icon: Landmark, color: 'bg-purple-100 text-purple-800' }
+                        ].map(method => {
+                          const IconComponent = method.icon;
+                          return (
+                            <Button
+                              key={method.value}
+                              variant={paymentMethod === method.value ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setPaymentMethod(method.value as any)}
+                              className={paymentMethod === method.value ? method.color : ''}
+                            >
+                              <IconComponent className="h-4 w-4 mr-1" />
+                              {method.label}
+                            </Button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1867,52 +1866,6 @@ export default function InvoicesPage() {
                   </>
                 )}
 
-                {createdInvoice && (
-                  <div
-                    className={`p-3 rounded-lg border space-y-2 ${
-                      isCreatedInvoicePaid
-                        ? 'bg-green-50 border-green-200 text-green-800'
-                        : 'bg-blue-50 border-blue-200 text-blue-800'
-                    }`}
-                  >
-                    <div className="text-sm flex items-center justify-between">
-                      <span>
-                        {isCreatedInvoicePaid
-                          ? '✅ Thanh toán thành công!'
-                          : '⏳ Đang chờ khách thanh toán qua PayOS'}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPrescription(null);
-                          setSelectedCodes([]);
-                          setPreview(null);
-                          setCreatedInvoice(null);
-                          setConfirmResult(null);
-                          setCustomerMoney('');
-                          setPrescriptionCode('');
-                          setPaymentMethod('CASH');
-                          setManualConfirming(false);
-                          setRefreshingTransaction(false);
-                        }}
-                      >
-                        Giao dịch mới
-                      </Button>
-                    </div>
-                    <div className="text-xs">
-                      Mã hóa đơn: {createdInvoice?.invoiceCode}
-                    </div>
-                    <div className="text-xs">
-                      Trạng thái: {createdInvoice?.paymentStatus}
-                    </div>
-                    {isCreatedInvoiceTransferPending && (
-                      <div className="text-xs">
-                        Chia sẻ QR hoặc liên kết bên dưới cho khách hàng. Khi khách thanh toán thành công, hệ thống sẽ tự động cập nhật.
-                      </div>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -1977,80 +1930,43 @@ export default function InvoicesPage() {
               </Card>
             )}
 
-            {createdInvoice && (
+            {createdInvoice && isCreatedInvoiceTransferPending && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Hoá đơn</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span>Mã hoá đơn: <span className="font-semibold">{createdInvoice?.invoiceCode}</span></span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => createdInvoice?.invoiceCode && copyToClipboard(createdInvoice.invoiceCode, 'Đã sao chép mã hoá đơn')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div>Tổng tiền: <span className="font-semibold">{createdInvoice?.totalAmount.toLocaleString()} đ</span></div>
-                    <div className="flex items-center gap-2">
-                      <span>Trạng thái:</span>
-                      <Badge variant="secondary" className={getPaymentStatusBadgeClass(createdInvoice?.paymentStatus)}>
-                        {createdInvoice?.paymentStatus || 'ĐANG CẬP NHẬT'}
-                      </Badge>
-                    </div>
-                    {createdInvoice?.paymentMethod && (
-                      <div>Phương thức: {PAYMENT_METHOD_LABEL[createdInvoice.paymentMethod] || createdInvoice.paymentMethod}</div>
-                    )}
-                    {createdInvoice?.transaction?.orderCode && (
-                      <div className="flex items-center gap-2">
-                        <span>Mã đơn PayOS: <span className="font-semibold">{createdInvoice.transaction.orderCode}</span></span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() =>
-                            createdInvoice?.transaction?.orderCode &&
-                            copyToClipboard(createdInvoice.transaction.orderCode, 'Đã sao chép mã đơn PayOS')
-                          }
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
+                <CardContent className="space-y-4 text-sm pt-6">
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setPaymentModalOpen(true);
+                      setPaymentModalInvoiceCode(createdInvoice?.invoiceCode || null);
+                    }}>
+                      <QrCode className="h-4 w-4 mr-1" /> Xem thông tin thanh toán
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRefreshTransaction}
+                      disabled={refreshingTransaction}
+                    >
+                      <RefreshCcw className="h-4 w-4 mr-1" />
+                      {refreshingTransaction ? 'Đang làm mới...' : 'Làm mới liên kết'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleManualConfirm}
+                      disabled={manualConfirming}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                      {manualConfirming ? 'Đang xác nhận...' : 'Xác nhận thủ công'}
+                    </Button>
                   </div>
 
-                  {isCreatedInvoiceTransferPending && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setPaymentModalOpen(true)}>
-                        <QrCode className="h-4 w-4 mr-1" /> Xem thông tin thanh toán
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleRefreshTransaction}
-                        disabled={refreshingTransaction}
-                      >
-                        <RefreshCcw className="h-4 w-4 mr-1" />
-                        {refreshingTransaction ? 'Đang làm mới...' : 'Làm mới liên kết'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleManualConfirm}
-                        disabled={manualConfirming}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" />
-                        {manualConfirming ? 'Đang xác nhận...' : 'Xác nhận thủ công'}
-                      </Button>
-                    </div>
-                  )}
-
                   {/* Payment info modal */}
-                  <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+                  <Dialog open={paymentModalOpen} onOpenChange={(open) => {
+                    setPaymentModalOpen(open);
+                    if (!open) {
+                      setPaymentModalInvoiceCode(null);
+                    }
+                  }}>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
                         <DialogTitle>Thông tin thanh toán PayOS</DialogTitle>
@@ -2059,9 +1975,6 @@ export default function InvoicesPage() {
                       {createdInvoice?.transaction && (
                         <div className="space-y-3">
                           <div className="text-sm">Số tiền: <span className="font-semibold">{createdInvoice.totalAmount.toLocaleString()} đ</span></div>
-                          {createdInvoice.transaction.expiredAt && (
-                            <div className="text-xs text-purple-700">Hết hạn: {formatDateTime(createdInvoice.transaction.expiredAt)}</div>
-                          )}
 
                           {createdInvoice.transaction.qrCode && (
                             <div className="flex flex-col items-center gap-2">
