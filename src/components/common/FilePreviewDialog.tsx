@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, X, FileText, Image as ImageIcon, File, Loader2 } from 'lucide-react';
@@ -196,15 +197,18 @@ export function FilePreviewDialog({
                 </div>
               )}
               {!error && (
-                <img
+                <Image
                   src={fileUrl}
                   alt={displayName}
+                  width={800}
+                  height={600}
                   className="max-w-full max-h-[calc(95vh-140px)] w-auto h-auto object-contain rounded-lg shadow-lg"
                   onLoad={() => setLoading(false)}
                   onError={() => {
                     setLoading(false);
                     setError('Không thể tải hình ảnh. Vui lòng thử mở trong tab mới.');
                   }}
+                  unoptimized
                 />
               )}
             </div>

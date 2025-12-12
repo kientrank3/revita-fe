@@ -148,7 +148,7 @@ export default function ReceptionCreatePrescriptionPage() {
   
   // Update prescription dialog states
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [selectedPrescriptionForUpdate, setSelectedPrescriptionForUpdate] = useState<any>(null);
+  const [selectedPrescriptionForUpdate, setSelectedPrescriptionForUpdate] = useState<PrescriptionListItem | null>(null);
   const [loadingPrescriptionDetails, setLoadingPrescriptionDetails] = useState(false);
   const [updatingPrescription, setUpdatingPrescription] = useState(false);
   const [availableDoctorsForUpdate, setAvailableDoctorsForUpdate] = useState<Record<string, DoctorOption[]>>({});
@@ -1914,7 +1914,20 @@ export default function ReceptionCreatePrescriptionPage() {
             </div>
           ) : selectedPrescriptionForUpdate ? (
             <UpdatePrescriptionForm
-              prescription={selectedPrescriptionForUpdate}
+              prescription={selectedPrescriptionForUpdate as unknown as PrescriptionListItem & { 
+                services?: Array<{ 
+                  id: string; 
+                  status?: string; 
+                  doctorId?: string | null; 
+                  technicianId?: string | null; 
+                  serviceId?: string; 
+                  serviceName?: string; 
+                  order?: number;
+                  service?: { serviceCode?: string; name?: string } | null;
+                  doctor?: { id: string; auth?: { name?: string } } | null;
+                  technician?: { id: string; auth?: { name?: string } } | null;
+                }> | null;
+              }}
               availableDoctors={availableDoctorsForUpdate}
               loadingDoctors={loadingDoctorsForUpdate}
               onLoadDoctors={loadAvailableDoctors}
@@ -1941,7 +1954,20 @@ function UpdatePrescriptionForm({
   onUpdate,
   updating,
 }: {
-  prescription: any;
+  prescription: PrescriptionListItem & { 
+    services?: Array<{ 
+      id: string; 
+      status?: string; 
+      doctorId?: string | null; 
+      technicianId?: string | null; 
+      serviceId?: string; 
+      serviceName?: string; 
+      order?: number;
+      service?: { serviceCode?: string; name?: string } | null;
+      doctor?: { id: string; auth?: { name?: string } } | null;
+      technician?: { id: string; auth?: { name?: string } } | null;
+    }> | null;
+  };
   availableDoctors: Record<string, DoctorOption[]>;
   loadingDoctors: Record<string, boolean>;
   onLoadDoctors: (prescriptionId: string, serviceId: string, prescriptionServiceId: string) => void;
@@ -1967,7 +1993,7 @@ function UpdatePrescriptionForm({
     // Initialize service updates
     const updates: Record<string, { status?: string; doctorId?: string; technicianId?: string }> = {};
     if (prescription.services) {
-      prescription.services.forEach((ps: any) => {
+      prescription.services?.forEach((ps: { id: string; status?: string; doctorId?: string | null; technicianId?: string | null }) => {
         updates[ps.id] = {
           status: ps.status,
           doctorId: ps.doctorId || undefined,
@@ -2041,7 +2067,7 @@ function UpdatePrescriptionForm({
     }> = [];
 
     Object.entries(serviceUpdates).forEach(([prescriptionServiceId, updates]) => {
-      const originalService = prescription.services.find((ps: any) => ps.id === prescriptionServiceId);
+      const originalService = prescription.services?.find((ps: { id: string; status?: string; doctorId?: string | null; technicianId?: string | null }) => ps.id === prescriptionServiceId);
       if (!originalService) return;
 
       const hasChanges = 
@@ -2130,7 +2156,7 @@ function UpdatePrescriptionForm({
         <Label>Danh sách dịch vụ</Label>
         {prescription.services && prescription.services.length > 0 ? (
           <div className="space-y-3">
-            {prescription.services.map((ps: any) => {
+            {prescription.services?.map((ps: { id: string; status?: string; doctorId?: string | null; technicianId?: string | null; serviceId?: string; serviceName?: string; order?: number; service?: { serviceCode?: string; name?: string } | null; doctor?: { id: string; auth?: { name?: string } } | null; technician?: { id: string; auth?: { name?: string } } | null }) => {
               const isCompleted = ps.status === 'COMPLETED';
               const currentUpdate = serviceUpdates[ps.id] || {};
               const doctors = availableDoctors[ps.id] || [];
@@ -2195,7 +2221,7 @@ function UpdatePrescriptionForm({
                             }}
                             disabled={isCompleted}
                             onOpenChange={(open) => {
-                              if (open && !isCompleted && doctors.length === 0 && !isLoadingDoctors) {
+                              if (open && !isCompleted && doctors.length === 0 && !isLoadingDoctors && ps.serviceId) {
                                 handleLoadDoctors(ps.serviceId, ps.id);
                               }
                             }}
@@ -2248,7 +2274,11 @@ function UpdatePrescriptionForm({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleLoadDoctors(ps.serviceId, ps.id)}
+                              onClick={() => {
+                                if (ps.serviceId) {
+                                  handleLoadDoctors(ps.serviceId, ps.id);
+                                }
+                              }}
                               disabled={isLoadingDoctors}
                             >
                               <RefreshCw className={`h-4 w-4 ${isLoadingDoctors ? 'animate-spin' : ''}`} />
@@ -2277,7 +2307,7 @@ function UpdatePrescriptionForm({
           onClick={() => {
             setPrescriptionStatus(prescription.status || 'NOT_STARTED');
             const updates: Record<string, { status?: string; doctorId?: string }> = {};
-            prescription.services?.forEach((ps: any) => {
+            prescription.services?.forEach((ps: { id: string; status?: string; doctorId?: string | null; technicianId?: string | null }) => {
               updates[ps.id] = {
                 status: ps.status,
                 doctorId: ps.doctorId || undefined,

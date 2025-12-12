@@ -137,25 +137,6 @@ type InvoicePaymentSummary = {
   transaction?: PaymentTransaction | null;
 };
 
-const PAYMENT_METHOD_LABEL: Record<string, string> = {
-  CASH: 'Tiền mặt',
-  CARD: 'Thẻ',
-  TRANSFER: 'Chuyển khoản',
-  WALLET: 'Ví điện tử',
-};
-
-const getPaymentStatusBadgeClass = (status?: string) => {
-  switch (status) {
-    case 'PAID':
-    case 'SUCCEEDED':
-      return 'bg-green-100 text-green-800';
-    case 'FAILED':
-    case 'CANCELLED':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-yellow-100 text-yellow-800';
-  }
-};
 
 export default function InvoicesPage() {
   const { user } = useAuth();
@@ -1191,12 +1172,6 @@ export default function InvoicesPage() {
     };
   }, []);
 
-  const formatDateTime = useCallback((value?: string | null) => {
-    if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString('vi-VN');
-  }, []);
 
   const finalizePaidInvoice = useCallback((invoice: InvoicePaymentSummary) => {
     setCreatedInvoice(invoice);
