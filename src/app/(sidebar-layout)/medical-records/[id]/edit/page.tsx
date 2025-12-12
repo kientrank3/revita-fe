@@ -977,288 +977,6 @@ export default function EditMedicalRecordPage() {
             medicalRecordId={medicalRecord.id}
             patientProfileId={medicalRecord.patientProfileId}
           />
-
-          {/* Service Prescriptions List */}
-          <Card className="border-l border-l-orange-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
-                <ClipboardList className="h-5 w-5 text-orange-600" />
-                Phiếu chỉ định dịch vụ ({servicePrescriptions.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingServicePrescriptions ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
-                  <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
-                </div>
-              ) : servicePrescriptions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <ClipboardList className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">Chưa có phiếu chỉ định nào</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {servicePrescriptions.map((prescription) => (
-                    <div
-                      key={prescription.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      {/* Prescription Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {getServiceStatusIcon(prescription.status)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-500 mr-2">
-                            {prescription.prescriptionCode}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => {
-                              setSelectedPrescription(prescription);
-                              setIsPrescriptionDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Services List */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-900">
-                          Dịch vụ ({prescription.services.length})
-                        </h4>
-                        {prescription.services.map((service) => (
-                          <div
-                            key={service.serviceId}
-                            className="space-y-2"
-                          >
-                            <div className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
-                              <Badge variant="outline" className="text-xs">
-                                {service.order}
-                              </Badge>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {service.service.name}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  {service.service.serviceCode}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  className={`${getServiceStatusColor(service.status)} text-xs`}
-                                >
-                                  {getServiceStatusText(service.status)}
-                                </Badge>
-                                {/* Button to create new prescription for this service */}
-                                {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
-                                    onClick={() => {
-                                      // Convert to ServiceProcessingPrescriptionService format
-                                      const serviceForDialog = {
-                                        id: undefined,
-                                        prescriptionId: service.prescriptionId,
-                                        serviceId: service.serviceId,
-                                        service: {
-                                          id: service.service.id,
-                                          serviceCode: service.service.serviceCode,
-                                          name: service.service.name,
-                                          price: 0,
-                                          description: service.service.description || '',
-                                          timePerPatient: 0
-                                        },
-                                        status: service.status as ServiceProcessingPrescriptionService['status'],
-                                        order: service.order,
-                                        note: service.note,
-                                        startedAt: null,
-                                        completedAt: null,
-                                        results: service.results || [],
-                                        prescription: {
-                                          id: prescription.id,
-                                          prescriptionCode: prescription.prescriptionCode,
-                                          status: prescription.status,
-                                          patientProfile: prescription.patientProfile || {
-                                            id: prescription.patientProfileId,
-                                            name: 'N/A',
-                                            dateOfBirth: '',
-                                            gender: 'OTHER'
-                                          }
-                                        }
-                                      } as ServiceWithPrescription;
-                                      setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
-                                      setCreatePrescriptionDialogOpen(true);
-                                    }}
-                                  >
-                                    <FileText className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Hiển thị kết quả và note nếu service đã Complete */}
-                            {service.status === 'COMPLETED' && (service.results.length > 0 || service.note) && (
-                              <div className="ml-8 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                {service.note && (
-                                  <div className="mb-2">
-                                    <p className="text-xs font-medium text-green-900 mb-1">Ghi chú:</p>
-                                    <p className="text-xs text-green-800">{service.note}</p>
-                                  </div>
-                                )}
-                                {service.results.length > 0 && (
-                                  <div>
-                                    <p className="text-xs font-medium text-green-900 mb-1">Kết quả ({service.results.length}):</p>
-                                    <div className="space-y-1">
-                                      {service.results.map((result, idx) => {
-                                        const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
-                                        const extension = fileName.split('.').pop()?.toLowerCase() || '';
-                                        const getFileIcon = () => {
-                                          if (['pdf'].includes(extension)) {
-                                            return <FileText className="h-3.5 w-3.5 text-red-500" />;
-                                          }
-                                          if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
-                                            return <ImageIcon className="h-3.5 w-3.5 text-green-500" />;
-                                          }
-                                          if (['doc', 'docx'].includes(extension)) {
-                                            return <FileText className="h-3.5 w-3.5 text-blue-500" />;
-                                          }
-                                          if (['xls', 'xlsx'].includes(extension)) {
-                                            return <FileText className="h-3.5 w-3.5 text-green-600" />;
-                                          }
-                                          return <File className="h-3.5 w-3.5 text-gray-500" />;
-                                        };
-                                        return (
-                                          <button
-                                            key={idx}
-                                            onClick={() => {
-                                              setPreviewFileUrl(result);
-                                              setPreviewFileName(fileName);
-                                              setIsPreviewDialogOpen(true);
-                                            }}
-                                            className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors w-full text-left group"
-                                            title={fileName}
-                                          >
-                                            {getFileIcon()}
-                                            <span className="truncate flex-1">{fileName.length > 40 ? `${fileName.substring(0, 40)}...` : fileName}</span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Hiển thị danh sách phiếu con (issuedPrescriptions) */}
-                            {service.issuedPrescriptions && service.issuedPrescriptions.length > 0 && (
-                              <div className="ml-8 space-y-2">
-                                <p className="text-xs font-medium text-gray-700 mb-1">
-                                  Phiếu chỉ định con ({service.issuedPrescriptions.length}):
-                                </p>
-                                {service.issuedPrescriptions.map((issuedPrescription) => (
-                                  <div
-                                    key={issuedPrescription.id}
-                                    className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                                  >
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {issuedPrescription.prescriptionCode}
-                                        </Badge>
-                                        <Badge className={`${getServiceStatusColor(issuedPrescription.status)} text-xs`}>
-                                          {getServiceStatusText(issuedPrescription.status)}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                    
-                                    {/* Danh sách dịch vụ trong phiếu con */}
-                                    {issuedPrescription.services.length > 0 && (
-                                      <div className="mb-2">
-                                        <p className="text-xs font-medium text-blue-900 mb-1">Dịch vụ:</p>
-                                        <div className="space-y-1">
-                                          {issuedPrescription.services.map((subService) => (
-                                            <div key={subService.serviceId} className="text-xs text-blue-800">
-                                              <span className="font-medium">#{subService.order}</span> {subService.service.name} ({subService.service.serviceCode})
-                                              <Badge className={`ml-2 ${getServiceStatusColor(subService.status)} text-xs`}>
-                                                {getServiceStatusText(subService.status)}
-                                              </Badge>
-                                              
-                                              {/* Kết quả và note của dịch vụ con nếu đã Complete */}
-                                              {subService.status === 'COMPLETED' && (subService.results.length > 0 || subService.note) && (
-                                                <div className="ml-4 mt-1 p-2 bg-white border border-blue-300 rounded">
-                                                  {subService.note && (
-                                                    <p className="text-xs text-gray-700 mb-1">
-                                                      <span className="font-medium">Ghi chú:</span> {subService.note}
-                                                    </p>
-                                                  )}
-                                                  {subService.results.length > 0 && (
-                                                    <div>
-                                                      <p className="text-xs font-medium text-gray-700 mb-1">Kết quả:</p>
-                                                      <div className="space-y-0.5">
-                                                        {subService.results.map((result, idx) => {
-                                                          const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
-                                                          return (
-                                                            <button
-                                                              key={idx}
-                                                              onClick={() => {
-                                                                setPreviewFileUrl(result);
-                                                                setPreviewFileName(fileName);
-                                                                setIsPreviewDialogOpen(true);
-                                                              }}
-                                                              className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
-                                                            >
-                                                              {fileName}
-                                                            </button>
-                                                          );
-                                                        })}
-                                                      </div>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                    
-                                    {/* Note của phiếu con */}
-                                    {issuedPrescription.note && (
-                                      <div className="mt-2 pt-2 border-t border-blue-300">
-                                        <p className="text-xs text-blue-800">
-                                          <span className="font-medium">Ghi chú phiếu:</span> {issuedPrescription.note}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Note */}
-                      {prescription.note && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <p className="text-xs text-gray-600">
-                            <span className="font-medium">Ghi chú:</span> {prescription.note}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Right Column - Edit Form */}
@@ -1297,6 +1015,312 @@ export default function EditMedicalRecordPage() {
             </Card>
           )}
         </div>
+      </div>
+
+      {/* Service Prescriptions List - Full Width Below Medical Record Form */}
+      <div className="mt-6">
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-orange-700">
+              <ClipboardList className="h-5 w-5 text-orange-600" />
+              Phiếu chỉ định dịch vụ ({servicePrescriptions.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingServicePrescriptions ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
+              </div>
+            ) : servicePrescriptions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <ClipboardList className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">Chưa có phiếu chỉ định nào</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {servicePrescriptions.map((prescription) => (
+                  <div
+                    key={prescription.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Prescription Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {getServiceStatusIcon(prescription.status)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500 mr-2">
+                          {prescription.prescriptionCode}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            setSelectedPrescription(prescription);
+                            setIsPrescriptionDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Services List */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-gray-900">
+                        Dịch vụ ({prescription.services.length})
+                      </h4>
+                      {prescription.services.map((service) => (
+                        <div
+                          key={service.serviceId}
+                          className="space-y-2"
+                        >
+                          <div className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
+                            <Badge variant="outline" className="text-xs">
+                              {service.order}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {service.service.name}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {service.service.serviceCode}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${getServiceStatusColor(service.status)} text-xs`}
+                              >
+                                {getServiceStatusText(service.status)}
+                              </Badge>
+                              {/* Button to create new prescription for this service */}
+                              {(service.status === 'NOT_STARTED' || service.status === 'WAITING' || service.status === 'SERVING' || service.status === 'PENDING') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-6 px-2"
+                                  onClick={() => {
+                                    // Convert to ServiceProcessingPrescriptionService format
+                                    const serviceForDialog = {
+                                      id: undefined,
+                                      prescriptionId: service.prescriptionId,
+                                      serviceId: service.serviceId,
+                                      service: {
+                                        id: service.service.id,
+                                        serviceCode: service.service.serviceCode,
+                                        name: service.service.name,
+                                        price: 0,
+                                        description: service.service.description || '',
+                                        timePerPatient: 0
+                                      },
+                                      status: service.status as ServiceProcessingPrescriptionService['status'],
+                                      order: service.order,
+                                      note: service.note,
+                                      startedAt: null,
+                                      completedAt: null,
+                                      results: service.results || [],
+                                      prescription: {
+                                        id: prescription.id,
+                                        prescriptionCode: prescription.prescriptionCode,
+                                        status: prescription.status,
+                                        patientProfile: prescription.patientProfile || {
+                                          id: prescription.patientProfileId,
+                                          name: 'N/A',
+                                          dateOfBirth: '',
+                                          gender: 'OTHER'
+                                        }
+                                      }
+                                    } as ServiceWithPrescription;
+                                    setSelectedServiceForPrescription(serviceForDialog as ServiceWithPrescription);
+                                    setCreatePrescriptionDialogOpen(true);
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Hiển thị kết quả và note nếu service đã Complete */}
+                          {service.status === 'COMPLETED' && (service.results.length > 0 || service.note) && (
+                            <div className="ml-8 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              {service.note && (
+                                <div className="mb-2">
+                                  <p className="text-xs font-medium text-green-900 mb-1">Ghi chú:</p>
+                                  <p className="text-xs text-green-800">{service.note}</p>
+                                </div>
+                              )}
+                              {service.results.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium text-green-900 mb-2">Kết quả ({service.results.length}):</p>
+                                  <div className="flex flex-wrap gap-3">
+                                    {service.results.map((result, idx) => {
+                                      const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                      const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                                      const getFileIcon = () => {
+                                        if (['pdf'].includes(extension)) {
+                                          return <FileText className="h-6 w-6 text-red-500" />;
+                                        }
+                                        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                          return <ImageIcon className="h-6 w-6 text-green-500" />;
+                                        }
+                                        if (['doc', 'docx'].includes(extension)) {
+                                          return <FileText className="h-6 w-6 text-blue-500" />;
+                                        }
+                                        if (['xls', 'xlsx'].includes(extension)) {
+                                          return <FileText className="h-6 w-6 text-green-600" />;
+                                        }
+                                        return <File className="h-6 w-6 text-gray-500" />;
+                                      };
+                                      return (
+                                        <button
+                                          key={idx}
+                                          onClick={() => {
+                                            setPreviewFileUrl(result);
+                                            setPreviewFileName(fileName);
+                                            setIsPreviewDialogOpen(true);
+                                          }}
+                                          className="relative group/icon p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                          title={fileName}
+                                        >
+                                          {getFileIcon()}
+                                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                            {fileName}
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Hiển thị danh sách phiếu con (issuedPrescriptions) */}
+                          {service.issuedPrescriptions && service.issuedPrescriptions.length > 0 && (
+                            <div className="ml-8 space-y-2">
+                              <p className="text-xs font-medium text-gray-700 mb-1">
+                                Phiếu chỉ định con ({service.issuedPrescriptions.length}):
+                              </p>
+                              {service.issuedPrescriptions.map((issuedPrescription) => (
+                                <div
+                                  key={issuedPrescription.id}
+                                  className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {issuedPrescription.prescriptionCode}
+                                      </Badge>
+                                      <Badge className={`${getServiceStatusColor(issuedPrescription.status)} text-xs`}>
+                                        {getServiceStatusText(issuedPrescription.status)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Danh sách dịch vụ trong phiếu con */}
+                                  {issuedPrescription.services.length > 0 && (
+                                    <div className="mb-2">
+                                      <p className="text-xs font-medium text-blue-900 mb-1">Dịch vụ:</p>
+                                      <div className="space-y-1">
+                                        {issuedPrescription.services.map((subService) => (
+                                          <div key={subService.serviceId} className="text-xs text-blue-800">
+                                            <span className="font-medium">#{subService.order}</span> {subService.service.name} ({subService.service.serviceCode})
+                                            <Badge className={`ml-2 ${getServiceStatusColor(subService.status)} text-xs`}>
+                                              {getServiceStatusText(subService.status)}
+                                            </Badge>
+                                            
+                                            {/* Kết quả và note của dịch vụ con nếu đã Complete */}
+                                            {subService.status === 'COMPLETED' && (subService.results.length > 0 || subService.note) && (
+                                              <div className="ml-4 mt-1 p-2 bg-white border border-blue-300 rounded">
+                                                {subService.note && (
+                                                  <p className="text-xs text-gray-700 mb-1">
+                                                    <span className="font-medium">Ghi chú:</span> {subService.note}
+                                                  </p>
+                                                )}
+                                                {subService.results.length > 0 && (
+                                                  <div>
+                                                    <p className="text-xs font-medium text-gray-700 mb-2">Kết quả:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                      {subService.results.map((result, idx) => {
+                                                        const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                                        const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                                                        const getFileIcon = () => {
+                                                          if (['pdf'].includes(extension)) {
+                                                            return <FileText className="h-5 w-5 text-red-500" />;
+                                                          }
+                                                          if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                                            return <ImageIcon className="h-5 w-5 text-green-500" />;
+                                                          }
+                                                          if (['doc', 'docx'].includes(extension)) {
+                                                            return <FileText className="h-5 w-5 text-blue-500" />;
+                                                          }
+                                                          if (['xls', 'xlsx'].includes(extension)) {
+                                                            return <FileText className="h-5 w-5 text-green-600" />;
+                                                          }
+                                                          return <File className="h-5 w-5 text-gray-500" />;
+                                                        };
+                                                        return (
+                                                          <button
+                                                            key={idx}
+                                                            onClick={() => {
+                                                              setPreviewFileUrl(result);
+                                                              setPreviewFileName(fileName);
+                                                              setIsPreviewDialogOpen(true);
+                                                            }}
+                                                            className="relative group/icon p-1.5 hover:bg-blue-50 rounded transition-colors"
+                                                            title={fileName}
+                                                          >
+                                                            {getFileIcon()}
+                                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                                              {fileName}
+                                                            </div>
+                                                          </button>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Note của phiếu con */}
+                                  {issuedPrescription.note && (
+                                    <div className="mt-2 pt-2 border-t border-blue-300">
+                                      <p className="text-xs text-blue-800">
+                                        <span className="font-medium">Ghi chú phiếu:</span> {issuedPrescription.note}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Note */}
+                    {prescription.note && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Ghi chú:</span> {prescription.note}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Prescription Detail Dialog */}
@@ -1396,10 +1420,26 @@ export default function EditMedicalRecordPage() {
                           )}
                           {service.results.length > 0 && (
                             <div>
-                              <p className="text-xs font-medium text-green-900 mb-1">Kết quả ({service.results.length}):</p>
-                              <div className="space-y-1">
+                              <p className="text-xs font-medium text-green-900 mb-2">Kết quả ({service.results.length}):</p>
+                              <div className="flex flex-wrap gap-3">
                                 {service.results.map((result, idx) => {
                                   const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                                  const getFileIcon = () => {
+                                    if (['pdf'].includes(extension)) {
+                                      return <FileText className="h-6 w-6 text-red-500" />;
+                                    }
+                                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                      return <ImageIcon className="h-6 w-6 text-green-500" />;
+                                    }
+                                    if (['doc', 'docx'].includes(extension)) {
+                                      return <FileText className="h-6 w-6 text-blue-500" />;
+                                    }
+                                    if (['xls', 'xlsx'].includes(extension)) {
+                                      return <FileText className="h-6 w-6 text-green-600" />;
+                                    }
+                                    return <File className="h-6 w-6 text-gray-500" />;
+                                  };
                                   return (
                                     <button
                                       key={idx}
@@ -1408,9 +1448,13 @@ export default function EditMedicalRecordPage() {
                                         setPreviewFileName(fileName);
                                         setIsPreviewDialogOpen(true);
                                       }}
-                                      className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
+                                      className="relative group/icon p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title={fileName}
                                     >
-                                      {fileName}
+                                      {getFileIcon()}
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                        {fileName}
+                                      </div>
                                     </button>
                                   );
                                 })}
@@ -1464,10 +1508,26 @@ export default function EditMedicalRecordPage() {
                                             )}
                                             {subService.results.length > 0 && (
                                               <div>
-                                                <p className="text-xs font-medium text-gray-700 mb-1">Kết quả:</p>
-                                                <div className="space-y-0.5">
+                                                <p className="text-xs font-medium text-gray-700 mb-2">Kết quả:</p>
+                                                <div className="flex flex-wrap gap-2">
                                                   {subService.results.map((result, idx) => {
                                                     const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                                                    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                                                    const getFileIcon = () => {
+                                                      if (['pdf'].includes(extension)) {
+                                                        return <FileText className="h-5 w-5 text-red-500" />;
+                                                      }
+                                                      if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                                        return <ImageIcon className="h-5 w-5 text-green-500" />;
+                                                      }
+                                                      if (['doc', 'docx'].includes(extension)) {
+                                                        return <FileText className="h-5 w-5 text-blue-500" />;
+                                                      }
+                                                      if (['xls', 'xlsx'].includes(extension)) {
+                                                        return <FileText className="h-5 w-5 text-green-600" />;
+                                                      }
+                                                      return <File className="h-5 w-5 text-gray-500" />;
+                                                    };
                                                     return (
                                                       <button
                                                         key={idx}
@@ -1476,9 +1536,13 @@ export default function EditMedicalRecordPage() {
                                                           setPreviewFileName(fileName);
                                                           setIsPreviewDialogOpen(true);
                                                         }}
-                                                        className="text-xs text-blue-600 hover:text-blue-800 underline block truncate text-left w-full"
+                                                        className="relative group/icon p-1.5 hover:bg-blue-50 rounded transition-colors"
+                                                        title={fileName}
                                                       >
-                                                        {fileName}
+                                                        {getFileIcon()}
+                                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                                          {fileName}
+                                                        </div>
                                                       </button>
                                                     );
                                                   })}
