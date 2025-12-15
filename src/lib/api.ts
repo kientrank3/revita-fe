@@ -742,6 +742,18 @@ export const medicationPrescriptionApi = {
           }
         : undefined,
     }),
+
+  // Send feedback for a prescription (patient or doctor)
+  sendFeedback: (id: string, data: { message: string; isUrgent?: boolean }) =>
+    api.post(`/medication-prescriptions/${id}/feedback`, data),
+
+  // Doctor: get feedback for their prescriptions
+  getMyFeedback: (params?: { date?: string }) =>
+    api.get('/medication-prescriptions/feedback/mine', { params }),
+
+  // Admin: get all feedback
+  getAdminFeedback: (params?: { date?: string }) =>
+    api.get('/medication-prescriptions/feedback/admin', { params }),
 };
 
 // Drug Search API (OpenFDA)

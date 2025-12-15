@@ -32,6 +32,12 @@ export interface MedicationPrescription {
   items: MedicationPrescriptionItem[];
   createdAt: string;
   updatedAt: string;
+  // Feedback fields
+  feedbackMessage?: string | null;
+  feedbackIsUrgent?: boolean | null;
+  feedbackById?: string | null;
+  feedbackByRole?: 'PATIENT' | 'DOCTOR' | 'ADMIN' | null;
+  feedbackAt?: string | null;
   // Related entities from API response
   patientProfile?: {
     id: string;

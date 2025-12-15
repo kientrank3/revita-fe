@@ -97,7 +97,7 @@ export function DoctorAppointmentsPanel({ asSheet = false }: { asSheet?: boolean
             <div key={a.appointmentId} className="border rounded px-3 py-2 text-sm flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-medium">{a.appointmentCode}</span>
-                <span className="text-gray-600">{new Date(a.date).toLocaleDateString('vi-VN')} · <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{a.startTime}-{a.endTime}</span></span>
+                <span className="text-gray-600">{new Date(a.date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{a.startTime}-{a.endTime}</span></span>
                 <span className="text-gray-600">{a.services?.[0]?.serviceName || '-'}</span>
               </div>
               {/* <div className="flex items-center gap-2">

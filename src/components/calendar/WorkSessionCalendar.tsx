@@ -591,7 +591,7 @@ export function WorkSessionCalendar({
               }}
               allDayText=""
               noEventsText="Không có lịch làm việc"
-              timeZone="UTC"
+              timeZone="Asia/Ho_Chi_Minh"
               displayEventTime={true}
               displayEventEnd={true}
               slotLabelFormat={{

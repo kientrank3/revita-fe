@@ -181,15 +181,15 @@ export function AdminWorkSessionManager({
   // Date range filter
   const dateFilteredSessions = filteredSessions.filter((s) => {
     const d = new Date(s.startTime);
-    const afterFrom = dateFrom ? d >= new Date(`${dateFrom}T00:00:00`) : true;
-    const beforeTo = dateTo ? d <= new Date(`${dateTo}T23:59:59`) : true;
+    const afterFrom = dateFrom ? d >= new Date(`${dateFrom}T00:00:00+07:00`) : true;
+    const beforeTo = dateTo ? d <= new Date(`${dateTo}T23:59:59+07:00`) : true;
     return afterFrom && beforeTo;
   });
 
   const sortedSessions = [...dateFilteredSessions].sort((a, b) => {
     switch (sortBy) {
       case 'date':
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       case 'status':
         return a.status.localeCompare(b.status);
       case 'doctor':

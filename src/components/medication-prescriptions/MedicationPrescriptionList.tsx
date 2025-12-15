@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { medicationPrescriptionApi } from '@/lib/api';
 import { MedicationPrescription, MedicationPrescriptionStatus } from '@/lib/types/medication-prescription';
 import { CalendarDays, FileText, Search, Eye, RefreshCw, Edit, Trash2, Printer } from 'lucide-react';
@@ -24,8 +26,11 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [feedbackOpenId, setFeedbackOpenId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackUrgent, setFeedbackUrgent] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -54,6 +59,40 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
     }
   };
 
+  const handleOpenFeedback = (id: string, existingMessage?: string | null, existingUrgent?: boolean | null) => {
+    setFeedbackOpenId(id);
+    setFeedbackMessage(existingMessage || '');
+    setFeedbackUrgent(Boolean(existingUrgent));
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackOpenId) return;
+    if (!feedbackMessage.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    try {
+      setSubmittingFeedback(true);
+      const res = await medicationPrescriptionApi.sendFeedback(feedbackOpenId, {
+        message: feedbackMessage.trim(),
+        isUrgent: feedbackUrgent,
+      });
+      const updated = res.data;
+      setPrescriptions(prev =>
+        prev.map(p => (p.id === feedbackOpenId ? { ...p, ...updated } : p))
+      );
+      toast.success('Đã gửi phản hồi');
+      setFeedbackOpenId(null);
+      setFeedbackMessage('');
+      setFeedbackUrgent(false);
+    } catch (error) {
+      console.error('Error sending feedback:', error);
+      toast.error('Không thể gửi phản hồi');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
   const handleUpdateStatus = async (prescriptionId: string, newStatus: MedicationPrescriptionStatus) => {
     try {
       setUpdatingId(prescriptionId);
@@ -73,26 +112,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
     }
   };
 
-  const handleDelete = async (prescriptionId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa đơn thuốc này?')) {
-      return;
-    }
-
-    try {
-      setDeletingId(prescriptionId);
-      await medicationPrescriptionApi.delete(prescriptionId);
-      
-      // Remove from local state
-      setPrescriptions(prev => prev.filter(p => p.id !== prescriptionId));
-      
-      toast.success('Đã xóa đơn thuốc thành công');
-    } catch (error) {
-      console.error('Error deleting prescription:', error);
-      toast.error('Không thể xóa đơn thuốc');
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  
 
   const getStatusColor = (status: MedicationPrescriptionStatus) => {
     switch (status) {
@@ -239,7 +259,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                     {prescription.items.length > 0 ? (
                       <div className="space-y-2">
                         {prescription.items.map((item, index) => (
-                          <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
+                          <div key={index} className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -339,7 +359,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                           size="sm"
                           onClick={() => handleUpdateStatus(prescription.id, MedicationPrescriptionStatus.CANCELLED)}
                           disabled={updatingId === prescription.id}
-                          className="text-xs text-red-600 border-red-200 hover:bg-red-50"
+                          className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                         >
                           {updatingId === prescription.id ? (
                             <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
@@ -353,6 +373,56 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
 
                     {/* View / Print / Delete Actions */}
                     <div className="flex gap-2">
+                      {!isDoctor && (
+                        <Dialog open={feedbackOpenId === prescription.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setFeedbackOpenId(null);
+                            return;
+                          }
+                          handleOpenFeedback(prescription.id, prescription.feedbackMessage, prescription.feedbackIsUrgent ?? undefined);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Phản hồi
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Gửi phản hồi đơn thuốc #{prescription.code}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Nội dung</label>
+                                <Textarea
+                                  value={feedbackMessage}
+                                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                                  rows={4}
+                                  placeholder="Nhập phản hồi cho bác sĩ..."
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={feedbackUrgent}
+                                  onCheckedChange={(checked) => setFeedbackUrgent(Boolean(checked))}
+                                />
+                                <span>Đánh dấu khẩn cấp</span>
+                              </label>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setFeedbackOpenId(null)}
+                                  disabled={submittingFeedback}
+                                >
+                                  Hủy
+                                </Button>
+                                <Button onClick={handleSubmitFeedback} disabled={submittingFeedback}>
+                                  {submittingFeedback ? 'Đang gửi...' : 'Gửi phản hồi'}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -507,20 +577,7 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
                       </DialogContent>
                     </Dialog>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(prescription.id)}
-                      disabled={deletingId === prescription.id}
-                      className="text-xs text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      {deletingId === prescription.id ? (
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3 w-3 mr-1" />
-                      )}
-                      Xóa
-                    </Button>
+                    
                   </div>
                 </div>
               </div>

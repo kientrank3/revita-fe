@@ -60,17 +60,50 @@ type ServiceWithPrescription = PrescriptionService & {
 import { UpdateResultsDialog } from '@/components/service-processing/UpdateResultsDialog';
 import { CreatePrescriptionDialog } from '@/components/service-processing/CreatePrescriptionDialog';
 
-// Helper function to format UTC time directly (no timezone conversion)
-// This ensures consistent display: send 08:00 UTC → store 08:00 UTC → display 08:00
-const formatUTCTime = (date: Date | string, includeSeconds = false): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const hours = String(d.getUTCHours()).padStart(2, '0');
-  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-  if (includeSeconds) {
-    const seconds = String(d.getUTCSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
+// Helper: format time in Vietnam timezone (UTC+7) for display.
+// Strip trailing Z in case backend returns UTC string but we need wall-clock display.
+const parseAsLocalDate = (value: Date | string): Date => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const normalized = value.endsWith('Z') ? value.slice(0, -1) : value;
+    return new Date(normalized);
   }
-  return `${hours}:${minutes}`;
+  return new Date(value);
+};
+
+const formatVNTime = (date: Date | string, includeSeconds = false): string => {
+  const d = parseAsLocalDate(date);
+  const formatter = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(includeSeconds ? { second: '2-digit' } : {})
+  });
+  return formatter.format(d);
+};
+
+// Get current timestamp in Vietnam timezone (wall-clock UTC+7)
+const getNowInVietnamMs = (): number => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+    .formatToParts(new Date())
+    .reduce<Record<string, string>>((acc, part) => {
+      if (part.type !== 'literal') acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  return new Date(
+    `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`
+  ).getTime();
 };
 
 export default function ServiceProcessingPage() {
@@ -446,9 +479,8 @@ export default function ServiceProcessingPage() {
       setTechnicianSocket(null);
     };
   }, [user?.id]);
-
-  const sortByStartTime = (a: WS, b: WS) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-
+  const sortByStartTime = (a: WS, b: WS) =>
+    parseAsLocalDate(a.startTime).getTime() - parseAsLocalDate(b.startTime).getTime();
   const toggleTodaySessions = async () => {
     try {
       if (!sessionsOpen) {
@@ -466,7 +498,7 @@ export default function ServiceProcessingPage() {
   const findFirstApproved = (sessions: WS[]) => sessions.find(ws => ws.status === 'APPROVED');
   const getFirstStartableApproved = (sessions: WS[]) => sessions.find(ws => ws.status === 'APPROVED' && !isOverdue(ws));
 
-  const isOverdue = (ws: WS) => new Date().getTime() > new Date(ws.endTime).getTime();
+  const isOverdue = (ws: WS) => getNowInVietnamMs() > parseAsLocalDate(ws.endTime).getTime();
 
   const onStartSession = async (ws: WS) => {
     if (!window.confirm('Bạn có muốn bắt đầu phiên làm việc này không?')) return;
@@ -1814,9 +1846,9 @@ export default function ServiceProcessingPage() {
                         </Badge>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {formatUTCTime(ws.startTime)}
+                        {formatVNTime(ws.startTime)}
                         {' - '}
-                        {formatUTCTime(ws.endTime)}
+                        {formatVNTime(ws.endTime)}
                       </div>
                       {ws.status === 'APPROVED' && isOverdue(ws) && (
                         <div className="text-xs text-red-600 mt-1">Phiên làm việc đã quá hạn</div>
@@ -1880,7 +1912,7 @@ export default function ServiceProcessingPage() {
               <div>
                 <div className="text-sm text-gray-600">Thời gian</div>
                 <div className="font-medium">
-                  {formatUTCTime(workSession.startTime)} - {formatUTCTime(workSession.endTime)}
+                  {formatVNTime(workSession.startTime)} - {formatVNTime(workSession.endTime)}
                 </div>
               </div>
             </div>

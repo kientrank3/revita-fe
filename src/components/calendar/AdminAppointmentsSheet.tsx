@@ -127,7 +127,7 @@ export function AdminAppointmentsSheet({ open, onOpenChange }: AdminAppointments
               <span className="text-sm text-gray-600">{appt.appointmentCode || appt.appointmentId}</span>
             </div>
             <div className="text-xs text-gray-500">
-              {appt.createdAt ? new Date(appt.createdAt).toLocaleString('vi-VN') : ''}
+              {appt.createdAt ? new Date(appt.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : ''}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-800">
@@ -138,7 +138,7 @@ export function AdminAppointmentsSheet({ open, onOpenChange }: AdminAppointments
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-gray-700">
                 <Calendar className="w-4 h-4" />
-                <span>{new Date(appt.date).toLocaleDateString('vi-VN')}</span>
+                <span>{new Date(appt.date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
                 <span className="text-gray-500">· {appt.startTime}-{appt.endTime}</span>
               </div>
               <div className="text-gray-600">

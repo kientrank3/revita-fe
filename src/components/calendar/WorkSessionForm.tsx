@@ -73,6 +73,31 @@ export function WorkSessionForm({
     getServicesByLocation
   } = useServices();
 
+  const getVNDateTimeParts = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+      .formatToParts(date)
+      .reduce<Record<string, string>>((acc, part) => {
+        if (part.type !== 'literal') acc[part.type] = part.value;
+        return acc;
+      }, {});
+
+    return {
+      year: Number(parts.year),
+      month: Number(parts.month),
+      day: Number(parts.day),
+      hours: Number(parts.hour),
+      minutes: Number(parts.minute),
+    };
+  };
+
   // Fetch doctor services when form opens and user is a doctor
   useEffect(() => {
     // Wait for auth to finish loading before fetching doctor services
@@ -113,47 +138,26 @@ export function WorkSessionForm({
   // Initialize form data and apply location filter for editing sessions (doctors)
   useEffect(() => {
     if (editingSession) {
-      // Parse UTC time from API (no timezone conversion)
-      // API returns UTC time string like "2025-11-08T13:00:00.000Z"
-      // Extract UTC date and time directly
       const start = new Date(editingSession.startTime);
       const end = new Date(editingSession.endTime);
-      
-      // Get UTC date and time (not local time)
-      const startUTC = {
-        year: start.getUTCFullYear(),
-        month: start.getUTCMonth() + 1,
-        day: start.getUTCDate(),
-        hours: start.getUTCHours(),
-        minutes: start.getUTCMinutes(),
-      };
-      
-      const endUTC = {
-        hours: end.getUTCHours(),
-        minutes: end.getUTCMinutes(),
-      };
-      
+
+      // Convert to Vietnam time for displaying in the form
+      const startVN = getVNDateTimeParts(start);
+      const endVN = getVNDateTimeParts(end);
+
       const sessionServiceIds = editingSession.services.map(s => s.id);
       setFormData({
-        // Use UTC date and time to match what's stored in backend
-        date: `${startUTC.year}-${String(startUTC.month).padStart(2, '0')}-${String(startUTC.day).padStart(2, '0')}`,
-        startTime: `${String(startUTC.hours).padStart(2, '0')}:${String(startUTC.minutes).padStart(2, '0')}`,
-        endTime: `${String(endUTC.hours).padStart(2, '0')}:${String(endUTC.minutes).padStart(2, '0')}`,
+        date: `${startVN.year}-${String(startVN.month).padStart(2, '0')}-${String(startVN.day).padStart(2, '0')}`,
+        startTime: `${String(startVN.hours).padStart(2, '0')}:${String(startVN.minutes).padStart(2, '0')}`,
+        endTime: `${String(endVN.hours).padStart(2, '0')}:${String(endVN.minutes).padStart(2, '0')}`,
         serviceIds: sessionServiceIds,
       });
 
     } else if (selectedDate) {
-      // For new sessions, normalize the selected date to UTC
-      // FullCalendar with timeZone="UTC" returns UTC dates, so we need to use UTC methods
-      // Extract UTC date components to ensure consistency
-      const utcDate = {
-        year: selectedDate.getUTCFullYear(),
-        month: selectedDate.getUTCMonth() + 1,
-        day: selectedDate.getUTCDate(),
-      };
-      
+      // For new sessions, extract Vietnam date components from the selected date
+      const vnDate = getVNDateTimeParts(selectedDate);
       setFormData({
-        date: `${utcDate.year}-${String(utcDate.month).padStart(2, '0')}-${String(utcDate.day).padStart(2, '0')}`,
+        date: `${vnDate.year}-${String(vnDate.month).padStart(2, '0')}-${String(vnDate.day).padStart(2, '0')}`,
         startTime: '08:00',
         endTime: '12:00',
         serviceIds: [],

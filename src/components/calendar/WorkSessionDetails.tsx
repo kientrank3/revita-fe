@@ -58,6 +58,16 @@ export function WorkSessionDetails({
   // Local state to ensure component updates when workSession prop changes
   const [currentSession, setCurrentSession] = useState(workSession);
 
+  // Parse session datetime but keep wall-clock time (strip trailing Z to avoid UTC → local shift)
+  const parseSessionDate = (value: string | Date) => {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      const normalized = value.endsWith('Z') ? value.slice(0, -1) : value;
+      return new Date(normalized);
+    }
+    return new Date(value);
+  };
+
   // Update local state when workSession prop changes
   useEffect(() => {
     if (workSession) {
@@ -67,8 +77,8 @@ export function WorkSessionDetails({
 
   if (!currentSession) return null;
 
-  const startTime = new Date(currentSession.startTime);
-  const endTime = new Date(currentSession.endTime);
+  const startTime = parseSessionDate(currentSession.startTime);
+  const endTime = parseSessionDate(currentSession.endTime);
   const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
   const hours = Math.floor(duration / 60);
   const minutes = duration % 60;
@@ -84,6 +94,7 @@ export function WorkSessionDetails({
 
   const formatDateTime = (date: Date) => {
     return date.toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -292,10 +303,10 @@ export function WorkSessionDetails({
           {/* Timestamps */}
           <div className="text-xs text-muted-foreground space-y-1">
             <p>
-              Tạo lúc: {new Date(currentSession.createdAt).toLocaleString('vi-VN')}
+              Tạo lúc: {new Date(currentSession.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
             </p>
             <p>
-              Cập nhật: {new Date(currentSession.updatedAt).toLocaleString('vi-VN')}
+              Cập nhật: {new Date(currentSession.updatedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
             </p>
           </div>
         </div>

@@ -26,7 +26,6 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
   ({ medicalRecordId, onRefresh }, ref) => {
     const [prescriptions, setPrescriptions] = useState<MedicationPrescription[]>([]);
     const [loading, setLoading] = useState(true);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -54,27 +53,6 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
         toast.error('Không thể cập nhật đơn thuốc');
       } finally {
         setUpdatingId(null);
-      }
-    };
-
-    const handleDelete = async (prescriptionId: string) => {
-      if (!confirm('Bạn có chắc chắn muốn xóa đơn thuốc này?')) {
-        return;
-      }
-
-      try {
-        setDeletingId(prescriptionId);
-        await medicationPrescriptionApi.delete(prescriptionId);
-        
-        // Remove from local state
-        setPrescriptions(prev => prev.filter(p => p.id !== prescriptionId));
-        
-        toast.success('Đã xóa đơn thuốc thành công');
-      } catch (error) {
-        console.error('Error deleting prescription:', error);
-        toast.error('Không thể xóa đơn thuốc');
-      } finally {
-        setDeletingId(null);
       }
     };
 
@@ -304,31 +282,14 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                         </Button>
                       )} */}
                       
-                      {prescription.status === 'SIGNED' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(prescription.id, MedicationPrescriptionStatus.CANCELLED)}
-                          disabled={updatingId === prescription.id}
-                          className="text-xs text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          {updatingId === prescription.id ? (
-                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3 w-3 mr-1" />
-                          )}
-                          Hủy đơn
-                        </Button>
-                      )}
-                    </div>
+                      
 
                     {/* View and Delete Actions */}
                     <div className="flex gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            Xem chi tiết
+                            <Eye className="h-4 w-4 " />
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -424,20 +385,23 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
                         </DialogContent>
                       </Dialog>
                       
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(prescription.id)}
-                        disabled={deletingId === prescription.id}
-                        className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                      >
-                        {deletingId === prescription.id ? (
-                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3 mr-1" />
-                        )}
-                        Xóa
-                      </Button>
+                      {prescription.status === 'SIGNED' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUpdateStatus(prescription.id, MedicationPrescriptionStatus.CANCELLED)}
+                          disabled={updatingId === prescription.id}
+                          className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                        >
+                          {updatingId === prescription.id ? (
+                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3 mr-1" />
+                          )}
+                          Hủy đơn
+                        </Button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 </div>

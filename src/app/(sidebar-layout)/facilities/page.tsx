@@ -1237,14 +1237,14 @@ function BoothsTab() {
       <PaginationControls page={meta.page} totalPages={meta.totalPages} onPrev={() => setPage(Math.max(1, page - 1))} onNext={() => setPage(Math.min(meta.totalPages || 1, page + 1))} />
 
       {/* Dialog quản lý dịch vụ */}
-      <Dialog open={servicesDialogOpen} onOpenChange={setServicesDialogOpen}>
-        <DialogContent className="w-[70vw] max-h-[90vh] overflow-y-auto">
+      <Dialog open={servicesDialogOpen} onOpenChange={setServicesDialogOpen} >
+        <DialogContent className="w-[50vw] min-h-[50vh] flex flex-col justify-between">
           <DialogHeader>
             <DialogTitle>
               Quản lý dịch vụ - {managingBooth?.name}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col pt-2 px-2 gap-4 flex-1 overflow-y-auto">
             {loadingBoothServices ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="size-6 animate-spin" />

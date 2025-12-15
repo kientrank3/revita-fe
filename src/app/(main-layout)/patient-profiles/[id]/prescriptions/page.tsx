@@ -4,11 +4,15 @@ import { useParams } from 'next/navigation';
 import { usePrescriptionsByProfile } from '@/lib/hooks/usePrescriptionsByProfile';
 import { usePatientProfiles } from '@/lib/hooks/usePatientProfiles';
 import { PatientProfileInfo } from '@/components/patient/PatientProfileInfo';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   FileText, 
@@ -21,6 +25,9 @@ import {
   XCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { medicationPrescriptionApi } from '@/lib/api';
+import { toast } from 'sonner';
+import { MedicationPrescription } from '@/lib/types/medication-prescription';
 
 export default function PatientProfilePrescriptionsPage() {
   const params = useParams();
@@ -28,6 +35,10 @@ export default function PatientProfilePrescriptionsPage() {
   
   const { patientProfiles } = usePatientProfiles();
   const { prescriptions, loading, error, refetch } = usePrescriptionsByProfile(patientProfileId);
+  const [feedbackOpenId, setFeedbackOpenId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackUrgent, setFeedbackUrgent] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
   
   // Ensure prescriptions is always an array
   const safePrescriptions = Array.isArray(prescriptions) ? prescriptions : [];
@@ -54,6 +65,37 @@ export default function PatientProfilePrescriptionsPage() {
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Đã hủy</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleOpenFeedback = (id: string, existingMessage?: string | null, existingUrgent?: boolean | null) => {
+    setFeedbackOpenId(id);
+    setFeedbackMessage(existingMessage || '');
+    setFeedbackUrgent(Boolean(existingUrgent));
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackOpenId) return;
+    if (!feedbackMessage.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    try {
+      setSubmittingFeedback(true);
+      await medicationPrescriptionApi.sendFeedback(feedbackOpenId, {
+        message: feedbackMessage.trim(),
+        isUrgent: feedbackUrgent,
+      });
+      toast.success('Đã gửi phản hồi');
+      setFeedbackOpenId(null);
+      setFeedbackMessage('');
+      setFeedbackUrgent(false);
+      refetch?.();
+    } catch (err) {
+      console.error('Error sending feedback', err);
+      toast.error('Không thể gửi phản hồi');
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -162,11 +204,11 @@ export default function PatientProfilePrescriptionsPage() {
                       </CardTitle>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
                         <div className="flex items-center space-x-1">
-                          <User className="h-4 w-4" />
+                          <User className="h-4 w-4 mr-2" />
                           <span>BS. {prescription.doctor.doctorCode} - {prescription.doctor.description}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-4 w-4 mr-2" />
                           <span>{formatDate(prescription.createdAt)}</span>
                         </div>
                       </div>
@@ -246,6 +288,60 @@ export default function PatientProfilePrescriptionsPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Feedback action */}
+                  <div className="mt-4 flex justify-end">
+                    <Dialog open={feedbackOpenId === prescription.id} onOpenChange={(open) => {
+                      if (!open) {
+                        setFeedbackOpenId(null);
+                        return;
+                      }
+                      const p = prescription as MedicationPrescription & { feedbackMessage?: string | null; feedbackIsUrgent?: boolean | null };
+                      handleOpenFeedback(p.id, p.feedbackMessage, p.feedbackIsUrgent ?? undefined);
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Phản hồi cho bác sĩ
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Phản hồi đơn thuốc #{prescription.code}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium ">Nội dung</label>
+                            <Textarea
+                            className="mt-2 min-h-[100px]"
+                              value={feedbackMessage}
+                              onChange={(e) => setFeedbackMessage(e.target.value)}
+                              rows={4}
+                              placeholder="Nhập phản hồi cho bác sĩ..."
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={feedbackUrgent}
+                              onCheckedChange={(checked) => setFeedbackUrgent(Boolean(checked))}
+                            />
+                            <span>Đánh dấu khẩn cấp</span>
+                          </label>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setFeedbackOpenId(null)}
+                              disabled={submittingFeedback}
+                            >
+                              Hủy
+                            </Button>
+                            <Button onClick={handleSubmitFeedback} disabled={submittingFeedback}>
+                              {submittingFeedback ? 'Đang gửi...' : 'Gửi phản hồi'}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </CardContent>
               </Card>

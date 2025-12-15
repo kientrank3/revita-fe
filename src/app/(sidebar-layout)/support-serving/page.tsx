@@ -207,8 +207,8 @@ export default function SupportServingPage() {
                 ...(session.boothName ? [
                   ['Buồng khám:', `${session.boothName}${session.boothCode ? ` (${session.boothCode})` : ''}`]
                 ] : []),
-                ['Thời gian bắt đầu:', new Date(session.startTime).toLocaleString('vi-VN')],
-                ['Thời gian kết thúc:', new Date(session.endTime).toLocaleString('vi-VN')]
+                ['Thời gian bắt đầu:', new Date(session.startTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })],
+                ['Thời gian kết thúc:', new Date(session.endTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })]
               ]
             },
             layout: {
@@ -219,7 +219,7 @@ export default function SupportServingPage() {
             margin: [0, 0, 0, 20]
           },
           {
-            text: `In từ hệ thống Revita\nNgày in: ${new Date().toLocaleString('vi-VN')}`,
+            text: `In từ hệ thống Revita\nNgày in: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
             fontSize: 9,
             color: '#6b7280',
             alignment: 'center',
@@ -861,7 +861,7 @@ export default function SupportServingPage() {
                               <div>
                                 <p className="text-xs text-gray-500">Thời gian phục vụ</p>
                                 <p className="font-medium text-gray-900 text-sm">
-                                  {new Date(assignResult.assignedServices[0].chosenSession.startTime).toLocaleString('vi-VN')} - {new Date(assignResult.assignedServices[0].chosenSession.endTime).toLocaleString('vi-VN')}
+                                  {new Date(assignResult.assignedServices[0].chosenSession.startTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - {new Date(assignResult.assignedServices[0].chosenSession.endTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                                 </p>
                               </div>
                             </div>

@@ -63,7 +63,7 @@ interface UpdateProfileForm {
   phone: string;
   password: string;
   // role-specific fields
-  degrees: string;
+  degrees?: string;
   yearsExperience: string;
   workHistory: string;
   description: string;
@@ -87,7 +87,6 @@ export default function StaffProfile() {
     email: '',
     phone: '',
     password: '',
-    degrees: '',
     yearsExperience: '',
     workHistory: '',
     description: '',

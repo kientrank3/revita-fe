@@ -36,40 +36,34 @@ const useStatisticsData = <T, P>(
 
   // Memoize params to prevent unnecessary re-renders
   const paramsKey = JSON.stringify(params);
-  console.log('useStatisticsData: paramsKey changed:', paramsKey);
    
   const memoizedParams = useMemo(() => {
-    console.log('useStatisticsData: memoizedParams updated:', params);
     return params;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);
 
   // Memoize the fetch function
   const fetchData = useCallback(async () => {
-    console.log('useStatisticsData: fetchData called, enabled:', enabled, 'params:', memoizedParams);
     if (!enabled) {
-      console.log('useStatisticsData: API call disabled');
       return;
     }
 
-    console.log('useStatisticsData: Starting API call with params:', memoizedParams);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiCall(memoizedParams);
-      console.log('useStatisticsData: API response received:', response);
       setData(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Statistics API error:', err);
+     
     } finally {
       setLoading(false);
     }
   }, [apiCall, memoizedParams, enabled]);
 
   useEffect(() => {
-    console.log('useStatisticsData: useEffect triggered, fetchData:', fetchData);
+    
     fetchData();
   }, [fetchData]);
 
