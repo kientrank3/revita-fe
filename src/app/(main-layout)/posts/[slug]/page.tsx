@@ -16,7 +16,7 @@ import {
   MessageCircle,
   Calendar,
   User,
-  ArrowLeft,
+  ChevronLeft,
   Send,
   ThumbsUp,
 } from 'lucide-react';
@@ -401,8 +401,7 @@ export default function PostDetailPage() {
       {/* Back button */}
       <Link href="/posts">
         <Button variant="ghost" className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Quay lại danh sách
+          <ChevronLeft className="h-4 w-4 mr-2" />
         </Button>
       </Link>
 

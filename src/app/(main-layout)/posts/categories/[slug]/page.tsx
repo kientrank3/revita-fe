@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  ArrowLeft,
   Calendar,
   Heart,
   MessageCircle,
   BookOpen,
+  ChevronLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -120,8 +120,7 @@ export default function CategoryDetailPage() {
         {/* Back button */}
         <Link href="/posts">
           <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quay lại danh sách
+            <ChevronLeft className="h-4 w-4 mr-2" />
           </Button>
         </Link>
 

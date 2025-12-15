@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  ArrowLeft,
+  ChevronLeft,
   Calendar,
   Heart,
   MessageCircle,
@@ -121,8 +121,7 @@ export default function SeriesDetailPage() {
         {/* Back button */}
         <Link href="/posts">
           <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quay lại danh sách
+            <ChevronLeft className="h-4 w-4 mr-2" />
           </Button>
         </Link>
 

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { FileText, ChevronLeft } from 'lucide-react';
 
 export default function PatientProfileNotFound() {
   return (
@@ -18,7 +18,7 @@ export default function PatientProfileNotFound() {
             </p>
             <Button asChild>
               <Link href="/my-patient-profiles">
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ChevronLeft className="h-4 w-4 mr-2" />
                 Quay về danh sách hồ sơ
               </Link>
             </Button>

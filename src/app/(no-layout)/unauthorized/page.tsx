@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, Lock, AlertTriangle, Home, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, AlertTriangle, Home, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function UnauthorizedPage() {
@@ -34,7 +34,7 @@ export default function UnauthorizedPage() {
               className="flex-1"
             >
               <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ChevronLeft className="mr-2 h-4 w-4" />
               </Link>
             </Button>
             <Button 

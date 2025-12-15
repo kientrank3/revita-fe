@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Loader2, Save, ArrowLeft, X, Upload } from "lucide-react";
+import { Loader2, Save, ChevronLeft, X, Upload } from "lucide-react";
 import { postsService } from "@/lib/services/posts.service";
 import { fileStorageService } from "@/lib/services/file-storage.service";
 import type {
@@ -274,7 +274,7 @@ export default function EditPostPage() {
               size="icon"
               onClick={() => router.push("/posts-management")}
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-semibold">Chỉnh sửa bài viết</h1>
           </div>

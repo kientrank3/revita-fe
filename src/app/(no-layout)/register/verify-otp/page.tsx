@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import { registerApi } from "@/lib/api";
 
@@ -213,8 +213,7 @@ function VerifyOtpContent() {
                 onClick={handleBack}
                 className="inline-flex items-center text-gray-600 hover:text-gray-800 font-medium transition-colors"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại trang đăng ký
+                <ChevronLeft className="w-4 h-4 mr-2" />
               </button>
             </div>
           </CardContent>

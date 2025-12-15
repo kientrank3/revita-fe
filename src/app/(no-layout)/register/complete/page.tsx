@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import { registerApi } from "@/lib/api";
 
@@ -317,8 +317,7 @@ function CompleteRegistrationContent() {
                 onClick={handleBack}
                 className="inline-flex items-center text-gray-600 hover:text-gray-800 font-medium transition-colors"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại trang đăng ký
+                <ChevronLeft className="w-4 h-4 mr-2" />
               </button>
             </div>
           </CardContent>

@@ -74,10 +74,7 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
         const prescriptionsList = Array.isArray(prescriptionsData) ? prescriptionsData : [];
         setPrescriptions(prescriptionsList);
         
-        console.log('Parsed prescriptions:', prescriptionsList);
-        console.log('Total prescriptions:', response.data?.total || 0);
         
-        const total = response.data?.total || prescriptionsList.length;
       } catch (error) {
         console.error('Error fetching prescriptions:', error);
         setPrescriptions([]);

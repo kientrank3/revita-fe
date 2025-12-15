@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Phone, Mail, ArrowRight, Loader2, ArrowLeft, Lock } from "lucide-react"
+import { Phone, Mail, ArrowRight, Loader2, ChevronLeft, Lock } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { getRedirectPathByRole } from "@/lib/utils/redirect"
@@ -175,7 +175,7 @@ export default function LoginPage() {
         onClick={handleBack}
         className="absolute top-6 left-6 inline-flex items-center text-gray-600 hover:text-gray-800 font-medium transition-colors bg-white/80 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm hover:shadow-md"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ChevronLeft className="w-4 h-4" />
       </button>
 
       <div className="w-full max-w-md">

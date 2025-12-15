@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
-  ArrowLeft, 
+  ChevronLeft, 
   FileText, 
   Calendar, 
   User, 
@@ -160,7 +160,7 @@ export default function PatientProfilePrescriptionsPage() {
           <div className="flex items-center space-x-4 mb-4">
             <Button asChild variant="outline" size="sm">
               <Link href="/my-patient-profiles">
-                <ArrowLeft className="h-4 w-4 " />
+                <ChevronLeft className="h-4 w-4 " />
               </Link>
             </Button>
           </div>
