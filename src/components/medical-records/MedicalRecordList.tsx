@@ -188,7 +188,12 @@ export function MedicalRecordList({
         const templateMap: Record<string, TemplateData> = {};
         templateResults.forEach(template => {
           if (template) {
-            templateMap[template.id] = template;
+            templateMap[template.id] = {
+              id: template.id,
+              templateCode: template.templateCode,
+              name: template.name,
+              specialtyName: template.specialtyName || template.specialty?.name || 'N/A'
+            };
           }
         });
         setTemplateData(templateMap);

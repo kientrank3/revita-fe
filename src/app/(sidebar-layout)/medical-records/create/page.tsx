@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 import { 
-  ArrowLeft, 
+  ChevronLeft, 
   FileText, 
   User, 
   Save,
@@ -521,7 +521,7 @@ function CreateMedicalRecordPageContent() {
             onClick={handleCancel}
             className="flex items-center gap-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-gray-300" />
           <h1 className="text-3xl font-bold text-gray-900">Tạo bệnh án mới</h1>

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { 
-  ArrowLeft, 
+  ChevronLeft,
   Search,
   Plus,
   X,
@@ -242,7 +242,7 @@ export default function CreatePrescriptionPage() {
             onClick={handleBack}
             className="flex items-center gap-2 text-sm"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">

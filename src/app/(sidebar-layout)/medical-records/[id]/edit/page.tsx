@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
-  ArrowLeft, 
+  ChevronLeft, 
   FileText,
   Stethoscope,
   ClipboardList,
@@ -33,6 +33,7 @@ import { FilePreviewDialog } from '@/components/common/FilePreviewDialog';
 export default function EditMedicalRecordPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const recordId = params.id as string;
 
   const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
@@ -249,11 +250,28 @@ export default function EditMedicalRecordPage() {
   };
 
   const handleCancel = () => {
-    router.push(`/medical-records/${recordId}`);
+    // Check if there's a returnTo query param
+    const returnTo = searchParams.get('returnTo');
+    if (returnTo) {
+      router.push(returnTo);
+    } else {
+      router.push(`/medical-records/${recordId}`);
+    }
   };
 
   const handleBack = () => {
-    router.push('/medical-records');
+    // Check if there's a returnTo query param
+    const returnTo = searchParams.get('returnTo');
+    if (returnTo) {
+      router.push(returnTo);
+    } else {
+      // Try to go back in history, fallback to /medical-records
+      if (window.history.length > 1) {
+        router.back();
+      } else {
+        router.push('/medical-records');
+      }
+    }
   };
 
   const getStatusColor = (status: MedicalRecordStatus) => {
@@ -840,7 +858,7 @@ export default function EditMedicalRecordPage() {
               Bệnh án bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.
             </p>
             <Button onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
@@ -860,7 +878,7 @@ export default function EditMedicalRecordPage() {
             onClick={handleBack}
             className="flex items-center gap-2 text-sm"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="h-5 w-px bg-gray-300" />
           <div className="flex-1">
@@ -1008,7 +1026,7 @@ export default function EditMedicalRecordPage() {
                     Bệnh án này không có dữ liệu để chỉnh sửa
                   </p>
                   <Button onClick={handleBack} variant="outline" className="flex items-center gap-2">
-                    <ArrowLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>

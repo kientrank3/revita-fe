@@ -23,7 +23,12 @@ export interface Template {
   id: string;
   templateCode: string;
   name: string;
-  specialtyName: string;
+  specialtyName?: string; // Deprecated: use specialty.name instead
+  specialty?: {
+    id: string;
+    name: string;
+    specialtyCode: string;
+  };
   fields: {
     [x: string]: any;
     fields: FieldDefinition[];

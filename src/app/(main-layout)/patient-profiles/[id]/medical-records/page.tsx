@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, FileText, Calendar, User, AlertCircle, Stethoscope, Download, Eye, Star } from 'lucide-react';
+import { FileText, Calendar, User, AlertCircle, Stethoscope, Download, Eye, Star, ChevronLeft } from 'lucide-react';
 
 import { useMedicalRecords } from '@/lib/hooks/useMedicalRecords';
 import { usePatientProfiles } from '@/lib/hooks/usePatientProfiles';
@@ -361,7 +361,7 @@ export default function PatientProfileMedicalRecordsPage() {
           <div className="flex items-center space-x-4 mb-4">
             <Button asChild variant="outline" size="sm">
               <Link href="/my-patient-profiles">
-                <ArrowLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" />
               </Link>
             </Button>
           </div>

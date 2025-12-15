@@ -78,11 +78,6 @@ export const MedicalRecordPrescriptions = forwardRef<MedicalRecordPrescriptionsR
         console.log('Total prescriptions:', response.data?.total || 0);
         
         const total = response.data?.total || prescriptionsList.length;
-        if (prescriptionsList.length > 0) {
-          toast.success(`Đã tải ${prescriptionsList.length}/${total} đơn thuốc`);
-        } else {
-          toast.info('Bệnh án chưa có đơn thuốc nào');
-        }
       } catch (error) {
         console.error('Error fetching prescriptions:', error);
         setPrescriptions([]);
