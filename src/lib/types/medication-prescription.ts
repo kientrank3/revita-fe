@@ -38,6 +38,9 @@ export interface MedicationPrescription {
   feedbackById?: string | null;
   feedbackByRole?: 'PATIENT' | 'DOCTOR' | 'ADMIN' | null;
   feedbackAt?: string | null;
+  feedbackResponseNote?: string | null;
+  feedbackResponseAt?: string | null;
+  feedbackProcessed?: boolean;
   // Related entities from API response
   patientProfile?: {
     id: string;

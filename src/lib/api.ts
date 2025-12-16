@@ -748,12 +748,16 @@ export const medicationPrescriptionApi = {
     api.post(`/medication-prescriptions/${id}/feedback`, data),
 
   // Doctor: get feedback for their prescriptions
-  getMyFeedback: (params?: { date?: string }) =>
+  getMyFeedback: (params?: { date?: string; isUrgent?: boolean }) =>
     api.get('/medication-prescriptions/feedback/mine', { params }),
 
   // Admin: get all feedback
-  getAdminFeedback: (params?: { date?: string }) =>
+  getAdminFeedback: (params?: { date?: string; isUrgent?: boolean }) =>
     api.get('/medication-prescriptions/feedback/admin', { params }),
+
+  // Doctor: respond to feedback
+  respondFeedback: (id: string, data: { responseNote: string }) =>
+    api.post(`/medication-prescriptions/${id}/feedback/respond`, data),
 };
 
 // Drug Search API (OpenFDA)
