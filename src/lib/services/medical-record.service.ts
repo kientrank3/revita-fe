@@ -137,6 +137,25 @@ class MedicalRecordService {
     const response = await api.get(`/medical-records/${id}/template`);
     return unwrapObjectResponse<Template>(response.data);
   }
+
+  // Get all templates (from templates endpoint) with pagination
+  async getAllTemplates(limit: number = 10, offset: number = 0): Promise<{ data: Template[]; meta?: any }> {
+    const response = await api.get('/templates', {
+      params: {
+        limit,
+        offset,
+      },
+    });
+    return response.data;
+  }
+
+  // Update template auto diagnosis setting
+  async updateTemplateAutoDiagnosis(templateId: string, enableAutoDiagnosis: boolean): Promise<Template> {
+    const response = await api.patch(`/templates/${templateId}/auto-diagnosis`, {
+      enableAutoDiagnosis,
+    });
+    return unwrapObjectResponse<Template>(response.data);
+  }
 }
 
 export const medicalRecordService = new MedicalRecordService();

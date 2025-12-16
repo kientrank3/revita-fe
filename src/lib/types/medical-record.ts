@@ -33,6 +33,8 @@ export interface Template {
     [x: string]: any;
     fields: FieldDefinition[];
   };
+  isActive?: boolean;
+  enableAutoDiagnosis?: boolean;
 }
 
 export interface MedicalRecord {

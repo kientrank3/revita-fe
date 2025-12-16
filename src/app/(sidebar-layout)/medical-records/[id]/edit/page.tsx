@@ -891,15 +891,17 @@ export default function EditMedicalRecordPage() {
             <Badge className={`${getStatusColor(medicalRecord.status)} text-xs`}>
               {getStatusText(medicalRecord.status)}
             </Badge>
-            <Button
-              onClick={handlePredict}
-              variant="secondary"
-              className="flex items-center gap-2 text-sm"
-              disabled={isPredicting}
-            >
-              <Brain className="h-4 w-4" />
-              {isPredicting ? 'Đang chuẩn đoán...' : 'Chuẩn đoán tự động'}
-            </Button>
+            {template.enableAutoDiagnosis && (
+              <Button
+                onClick={handlePredict}
+                variant="secondary"
+                className="flex items-center gap-2 text-sm"
+                disabled={isPredicting}
+              >
+                <Brain className="h-4 w-4" />
+                {isPredicting ? 'Đang chuẩn đoán...' : 'Chuẩn đoán tự động'}
+              </Button>
+            )}
             <Button
               onClick={() => router.push(`/medical-records/${recordId}/prescription`)}
               className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700"

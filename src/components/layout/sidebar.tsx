@@ -18,6 +18,7 @@ import {
 	HandHelping,
 	ConciergeBell,
 	Contact,
+	Settings,
 } from "lucide-react";
 
 import {
@@ -140,6 +141,14 @@ const getMenuItems = () => {
 			roles: ["ADMIN"],
 		},
 		{
+			title: "Cài đặt hệ thống",
+			url: "/system-settings",
+			icon: Settings,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
+		},
+		{
 			title: "Bài viết",
 			url: "/posts-management",
 			icon: FileTextIcon,
@@ -148,12 +157,20 @@ const getMenuItems = () => {
 			roles: ["ADMIN"],
 		},
 		{
-			title: "Hỗ trợ vào khám",
+			title: "Chekin dịch vụ",
 			url: "/support-serving",
 			icon: HandHelping,
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["RECEPTIONIST"],
+		},
+		{
+			title: "Cấu hình hệ thống",
+			url: "/system-settings",
+			icon: Settings,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: ["ADMIN"],
 		},
 		
 	];
