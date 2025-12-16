@@ -12,6 +12,10 @@ import {
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { ChartStatisticsCards, ChartDetailedStatisticsCards } from "@/components/dashboard/ChartStatisticsCards";
 import { ChartRevenueStatistics, ChartPaymentMethodStatistics } from "@/components/dashboard/ChartRevenueStatistics";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
@@ -33,10 +37,16 @@ export function DashboardClient() {
   const { user } = useAuth();
   const userRole = user?.role;
   const canViewFeedback = userRole === 'DOCTOR' || userRole === 'ADMIN';
+  const isDoctor = userRole === 'DOCTOR';
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackDate, setFeedbackDate] = useState<string>('');
+  const [feedbackUrgentFilter, setFeedbackUrgentFilter] = useState<string>('all');
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackList, setFeedbackList] = useState<MedicationPrescription[]>([]);
+  const [respondDialogOpen, setRespondDialogOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<MedicationPrescription | null>(null);
+  const [responseNote, setResponseNote] = useState('');
+  const [submittingResponse, setSubmittingResponse] = useState(false);
 
   const {
     period,
@@ -109,7 +119,7 @@ export function DashboardClient() {
   const canViewTopServices = ['ADMIN', 'RECEPTIONIST'].includes(userRole || '');
 
   // Fetch feedback list for doctor/admin
-  const fetchFeedback = async (params?: { date?: string }) => {
+  const fetchFeedback = async (params?: { date?: string; isUrgent?: boolean }) => {
     if (!canViewFeedback) return;
     try {
       setFeedbackLoading(true);
@@ -121,17 +131,58 @@ export function DashboardClient() {
       setFeedbackList(data as MedicationPrescription[]);
     } catch (err) {
       console.error('Error loading feedback', err);
+      toast.error('Không thể tải danh sách phản hồi');
     } finally {
       setFeedbackLoading(false);
     }
   };
 
+  const handleRespondFeedback = (feedback: MedicationPrescription) => {
+    setSelectedFeedback(feedback);
+    setResponseNote('');
+    setRespondDialogOpen(true);
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!selectedFeedback || !responseNote.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    try {
+      setSubmittingResponse(true);
+      const res = await medicationPrescriptionApi.respondFeedback(selectedFeedback.id, {
+        responseNote: responseNote.trim(),
+      });
+      const updated = res.data?.data || res.data;
+      
+      // Update local state
+      setFeedbackList(prev =>
+        prev.map(fb => (fb.id === selectedFeedback.id ? { ...fb, ...updated } : fb))
+      );
+      
+      toast.success('Đã gửi phản hồi thành công');
+      setRespondDialogOpen(false);
+      setSelectedFeedback(null);
+      setResponseNote('');
+    } catch (error: unknown) {
+      console.error('Error responding to feedback:', error);
+      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Không thể gửi phản hồi';
+      toast.error(errorMessage);
+    } finally {
+      setSubmittingResponse(false);
+    }
+  };
+
   useEffect(() => {
     if (feedbackOpen) {
-      fetchFeedback(feedbackDate ? { date: feedbackDate } : undefined);
+      const params: { date?: string; isUrgent?: boolean } = {};
+      if (feedbackDate) params.date = feedbackDate;
+      if (feedbackUrgentFilter === 'urgent') params.isUrgent = true;
+      else if (feedbackUrgentFilter === 'normal') params.isUrgent = false;
+      fetchFeedback(Object.keys(params).length > 0 ? params : undefined);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedbackOpen]);
+  }, [feedbackOpen, feedbackDate, feedbackUrgentFilter]);
 
   return (
     <>
@@ -163,15 +214,32 @@ export function DashboardClient() {
                   
                 </SheetClose>
                 <div className="mt-4 space-y-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Input
                       type="date"
                       value={feedbackDate}
                       onChange={(e) => setFeedbackDate(e.target.value)}
+                      className="flex-1 min-w-[150px]"
                     />
+                    <Select value={feedbackUrgentFilter} onValueChange={setFeedbackUrgentFilter}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Mức độ" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="urgent">Khẩn cấp</SelectItem>
+                        <SelectItem value="normal">Thường</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       variant="outline"
-                      onClick={() => fetchFeedback(feedbackDate ? { date: feedbackDate } : undefined)}
+                      onClick={() => {
+                        const params: { date?: string; isUrgent?: boolean } = {};
+                        if (feedbackDate) params.date = feedbackDate;
+                        if (feedbackUrgentFilter === 'urgent') params.isUrgent = true;
+                        else if (feedbackUrgentFilter === 'normal') params.isUrgent = false;
+                        fetchFeedback(Object.keys(params).length > 0 ? params : undefined);
+                      }}
                       disabled={feedbackLoading}
                     >
                       {feedbackLoading ? 'Đang tải...' : 'Lọc'}
@@ -180,6 +248,7 @@ export function DashboardClient() {
                       variant="outline"
                       onClick={() => {
                         setFeedbackDate('');
+                        setFeedbackUrgentFilter('all');
                         fetchFeedback();
                       }}
                     >
@@ -206,6 +275,9 @@ export function DashboardClient() {
                               {fb.feedbackIsUrgent && (
                                 <Badge variant="destructive" className="text-xs">Khẩn</Badge>
                               )}
+                              {fb.feedbackProcessed && (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Đã xử lý</Badge>
+                              )}
                               {fb.status && (
                                 <Badge variant="outline" className="text-xs">{fb.status}</Badge>
                               )}
@@ -214,17 +286,40 @@ export function DashboardClient() {
                           <div className="text-sm text-muted-foreground">
                             {fb.patientProfile?.name || 'Bệnh nhân'}
                           </div>
-                          <div className="text-sm leading-relaxed">{fb.feedbackMessage}</div>
+                          <div className="text-sm leading-relaxed bg-gray-50 p-2 rounded border">{fb.feedbackMessage}</div>
+                          {fb.feedbackResponseNote && (
+                            <div className="text-sm leading-relaxed bg-blue-50 p-2 rounded border border-blue-200">
+                              <div className="font-medium text-blue-900 mb-1">Phản hồi của bác sĩ:</div>
+                              <div className="text-blue-800">{fb.feedbackResponseNote}</div>
+                              {fb.feedbackResponseAt && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {new Date(fb.feedbackResponseAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             {fb.feedbackAt ? (
-                              <span>{new Date(fb.feedbackAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
+                              <span>Phản hồi: {new Date(fb.feedbackAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
                             ) : (
                               <span>--</span>
                             )}
-                            {fb.doctor?.doctorCode && (
+                            {fb.doctor?.doctorCode && userRole === 'ADMIN' && (
                               <span>BS: {fb.doctor.doctorCode}</span>
                             )}
                           </div>
+                          {isDoctor && !fb.feedbackProcessed && (
+                            <div className="pt-2 border-t">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRespondFeedback(fb)}
+                                className="w-full"
+                              >
+                                Trả lời phản hồi
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -291,6 +386,51 @@ export function DashboardClient() {
           endDate={params.endDate}
         />
       )}
+
+      {/* Respond Feedback Dialog */}
+      <Dialog open={respondDialogOpen} onOpenChange={setRespondDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Trả lời phản hồi đơn thuốc #{selectedFeedback?.code}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedFeedback?.feedbackMessage && (
+              <div className="bg-gray-50 p-3 rounded border">
+                <div className="text-sm font-medium mb-1">Phản hồi từ bệnh nhân:</div>
+                <div className="text-sm text-gray-700">{selectedFeedback.feedbackMessage}</div>
+                {selectedFeedback.feedbackIsUrgent && (
+                  <Badge variant="destructive" className="text-xs mt-2">Khẩn cấp</Badge>
+                )}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nội dung phản hồi</label>
+              <Textarea
+                value={responseNote}
+                onChange={(e) => setResponseNote(e.target.value)}
+                rows={4}
+                placeholder="Nhập phản hồi cho bệnh nhân..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRespondDialogOpen(false);
+                  setSelectedFeedback(null);
+                  setResponseNote('');
+                }}
+                disabled={submittingResponse}
+              >
+                Hủy
+              </Button>
+              <Button onClick={handleSubmitResponse} disabled={submittingResponse}>
+                {submittingResponse ? 'Đang gửi...' : 'Gửi phản hồi'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </>
   );

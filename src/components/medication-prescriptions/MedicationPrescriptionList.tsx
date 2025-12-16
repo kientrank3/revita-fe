@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { medicationPrescriptionApi } from '@/lib/api';
 import { MedicationPrescription, MedicationPrescriptionStatus } from '@/lib/types/medication-prescription';
-import { CalendarDays, FileText, Search, Eye, RefreshCw, Edit, Trash2, Printer } from 'lucide-react';
+import { CalendarDays, FileText, Search, Eye, RefreshCw, Edit, Trash2, Printer, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -31,6 +31,10 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackUrgent, setFeedbackUrgent] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  // Doctor: view and respond to feedback
+  const [viewFeedbackOpenId, setViewFeedbackOpenId] = useState<string | null>(null);
+  const [responseNote, setResponseNote] = useState('');
+  const [submittingResponse, setSubmittingResponse] = useState(false);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -109,6 +113,40 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
       toast.error('Không thể cập nhật đơn thuốc');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleViewFeedback = (prescription: MedicationPrescription) => {
+    setViewFeedbackOpenId(prescription.id);
+    setResponseNote('');
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!viewFeedbackOpenId || !responseNote.trim()) {
+      toast.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    try {
+      setSubmittingResponse(true);
+      const res = await medicationPrescriptionApi.respondFeedback(viewFeedbackOpenId, {
+        responseNote: responseNote.trim(),
+      });
+      const updated = res.data?.data || res.data;
+      
+      // Update local state
+      setPrescriptions(prev =>
+        prev.map(p => (p.id === viewFeedbackOpenId ? { ...p, ...updated } : p))
+      );
+      
+      toast.success('Đã gửi phản hồi thành công');
+      setViewFeedbackOpenId(null);
+      setResponseNote('');
+    } catch (error: unknown) {
+      console.error('Error responding to feedback:', error);
+      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Không thể gửi phản hồi';
+      toast.error(errorMessage);
+    } finally {
+      setSubmittingResponse(false);
     }
   };
 
@@ -373,6 +411,87 @@ export function MedicationPrescriptionList({ isDoctor = false }: MedicationPresc
 
                     {/* View / Print / Delete Actions */}
                     <div className="flex gap-2">
+                      {isDoctor && prescription.feedbackMessage && (
+                        <Dialog open={viewFeedbackOpenId === prescription.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setViewFeedbackOpenId(null);
+                            setResponseNote('');
+                            return;
+                          }
+                          handleViewFeedback(prescription);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className={prescription.feedbackIsUrgent ? 'border-red-300 text-red-700 hover:bg-red-50 hover:text-red-700' : ''}>
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              {prescription.feedbackIsUrgent ? 'Phản hồi khẩn' : 'Xem phản hồi'}
+                              {prescription.feedbackProcessed && (
+                                <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-200">Đã xử lý</Badge>
+                              )}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Phản hồi đơn thuốc #{prescription.code}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="bg-gray-50 p-3 rounded border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-sm font-medium">Phản hồi từ bệnh nhân:</div>
+                                  {prescription.feedbackIsUrgent && (
+                                    <Badge variant="destructive" className="text-xs">Khẩn cấp</Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-700 leading-relaxed">{prescription.feedbackMessage}</div>
+                                {prescription.feedbackAt && (
+                                  <div className="text-xs text-gray-500 mt-2">
+                                    {format(new Date(prescription.feedbackAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {prescription.feedbackResponseNote ? (
+                                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                  <div className="text-sm font-medium text-blue-900 mb-1">Phản hồi của bạn:</div>
+                                  <div className="text-sm text-blue-800">{prescription.feedbackResponseNote}</div>
+                                  {prescription.feedbackResponseAt && (
+                                    <div className="text-xs text-blue-600 mt-2">
+                                      {format(new Date(prescription.feedbackResponseAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium mb-2">Trả lời phản hồi</label>
+                                  <Textarea
+                                    value={responseNote}
+                                    onChange={(e) => setResponseNote(e.target.value)}
+                                    rows={4}
+                                    placeholder="Nhập phản hồi cho bệnh nhân..."
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setViewFeedbackOpenId(null);
+                                    setResponseNote('');
+                                  }}
+                                  disabled={submittingResponse}
+                                >
+                                  {prescription.feedbackResponseNote ? 'Đóng' : 'Hủy'}
+                                </Button>
+                                {!prescription.feedbackResponseNote && (
+                                  <Button onClick={handleSubmitResponse} disabled={submittingResponse}>
+                                    {submittingResponse ? 'Đang gửi...' : 'Gửi phản hồi'}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                       {!isDoctor && (
                         <Dialog open={feedbackOpenId === prescription.id} onOpenChange={(open) => {
                           if (!open) {

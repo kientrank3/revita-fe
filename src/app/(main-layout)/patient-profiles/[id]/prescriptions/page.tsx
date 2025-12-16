@@ -27,7 +27,7 @@ import {
 import Link from 'next/link';
 import { medicationPrescriptionApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { MedicationPrescription } from '@/lib/types/medication-prescription';
+import { MedicationPrescription } from '@/lib/hooks/usePrescriptionsByProfile';
 
 export default function PatientProfilePrescriptionsPage() {
   const params = useParams();
@@ -302,7 +302,7 @@ export default function PatientProfilePrescriptionsPage() {
                     }}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
-                          Phản hồi cho bác sĩ
+                          Phản hồi đơn thuốc
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-md">
@@ -310,34 +310,80 @@ export default function PatientProfilePrescriptionsPage() {
                           <DialogTitle>Phản hồi đơn thuốc #{prescription.code}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium ">Nội dung</label>
-                            <Textarea
-                            className="mt-2 min-h-[100px]"
-                              value={feedbackMessage}
-                              onChange={(e) => setFeedbackMessage(e.target.value)}
-                              rows={4}
-                              placeholder="Nhập phản hồi cho bác sĩ..."
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={feedbackUrgent}
-                              onCheckedChange={(checked) => setFeedbackUrgent(Boolean(checked))}
-                            />
-                            <span>Đánh dấu khẩn cấp</span>
-                          </label>
+                          {/* Hiển thị feedback đã gửi (nếu có) */}
+                          {prescription.feedbackMessage && (
+                            <div className="bg-gray-50 p-3 rounded-lg border">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-sm font-medium text-gray-900">Phản hồi của bạn:</div>
+                                {prescription.feedbackIsUrgent && (
+                                  <Badge variant="destructive" className="text-xs">Khẩn cấp</Badge>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-700 leading-relaxed">{prescription.feedbackMessage}</div>
+                              {prescription.feedbackAt && (
+                                <div className="text-xs text-gray-500 mt-2">
+                                  {formatDate(prescription.feedbackAt)}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Hiển thị phản hồi của bác sĩ (nếu có) */}
+                          {prescription.feedbackResponseNote && (
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                              <div className="text-sm font-medium text-blue-900 mb-1">Phản hồi từ bác sĩ:</div>
+                              <div className="text-sm text-blue-800 leading-relaxed">{prescription.feedbackResponseNote}</div>
+                              {prescription.feedbackResponseAt && (
+                                <div className="text-xs text-blue-600 mt-2">
+                                  {formatDate(prescription.feedbackResponseAt)}
+                                </div>
+                              )}
+                              {prescription.feedbackProcessed && (
+                                <Badge variant="outline" className="mt-2 text-xs bg-green-50 text-green-700 border-green-200">
+                                  Đã xử lý
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Form gửi feedback mới hoặc chỉnh sửa (nếu chưa có feedback hoặc chưa được xử lý) */}
+                          {(!prescription.feedbackMessage || !prescription.feedbackProcessed) && (
+                            <>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Nội dung</label>
+                                <Textarea
+                                  className="mt-2 min-h-[100px]"
+                                  value={feedbackMessage}
+                                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                                  rows={4}
+                                  placeholder="Nhập phản hồi cho bác sĩ..."
+                                  disabled={!!prescription.feedbackMessage && prescription.feedbackProcessed}
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={feedbackUrgent}
+                                  onCheckedChange={(checked) => setFeedbackUrgent(Boolean(checked))}
+                                  disabled={!!prescription.feedbackMessage && prescription.feedbackProcessed}
+                                />
+                                <span>Đánh dấu khẩn cấp</span>
+                              </label>
+                            </>
+                          )}
+
                           <div className="flex justify-end gap-2">
                             <Button
                               variant="outline"
                               onClick={() => setFeedbackOpenId(null)}
                               disabled={submittingFeedback}
                             >
-                              Hủy
+                              Đóng
                             </Button>
-                            <Button onClick={handleSubmitFeedback} disabled={submittingFeedback}>
-                              {submittingFeedback ? 'Đang gửi...' : 'Gửi phản hồi'}
-                            </Button>
+                            {(!prescription.feedbackMessage || !prescription.feedbackProcessed) && (
+                              <Button onClick={handleSubmitFeedback} disabled={submittingFeedback}>
+                                {submittingFeedback ? 'Đang gửi...' : prescription.feedbackMessage ? 'Cập nhật phản hồi' : 'Gửi phản hồi'}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </DialogContent>

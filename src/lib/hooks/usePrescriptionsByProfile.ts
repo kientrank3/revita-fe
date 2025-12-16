@@ -57,6 +57,15 @@ export interface MedicationPrescription {
   } | null;
   note?: string | null;
   status: 'DRAFT' | 'SIGNED' | 'CANCELLED';
+  // Feedback fields
+  feedbackMessage?: string | null;
+  feedbackIsUrgent?: boolean | null;
+  feedbackById?: string | null;
+  feedbackByRole?: 'PATIENT' | 'DOCTOR' | 'ADMIN' | null;
+  feedbackAt?: string | null;
+  feedbackResponseNote?: string | null;
+  feedbackResponseAt?: string | null;
+  feedbackProcessed?: boolean;
   items: {
     id: string;
     prescriptionId: string;
