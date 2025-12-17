@@ -150,14 +150,6 @@ const getMenuItems = () => {
 			roles: ["ADMIN"],
 		},
 		{
-			title: "Cài đặt hệ thống",
-			url: "/system-settings",
-			icon: Settings,
-			color: "text-primary",
-			bgColor: "bg-primary/10",
-			roles: ["ADMIN"],
-		},
-		{
 			title: "Bài viết",
 			url: "/posts-management",
 			icon: FileTextIcon,

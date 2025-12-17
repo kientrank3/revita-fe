@@ -39,7 +39,10 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  Plus,
+  ClipboardList,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 type QueueStatus = 'WAITING' | 'NEXT' | 'SERVING' | 'SKIPPED' | 'COMPLETED' | 'REMOVED';
 
@@ -135,6 +138,8 @@ const trimTrailingSlash = (value: string) => (value.endsWith('/') ? value.slice(
 const API_BASE_URL = trimTrailingSlash(
   process.env.NEXT_PUBLIC_API_URL || `${DEFAULT_HTTP_HOST}/api`
 );
+
+// Remove duplicate API_BASE_URL definition if exists
 
 const SOCKET_URL = trimTrailingSlash(
   process.env.NEXT_PUBLIC_QUEUE_SOCKET_URL || `${DEFAULT_HTTP_HOST}/counters`
@@ -500,6 +505,11 @@ export default function ReceptionPage() {
   const [assignNotes, setAssignNotes] = useState('');
   const [isVip, setIsVip] = useState(false);
   const [showCounterModal, setShowCounterModal] = useState(false);
+  const [showCreatePrescriptionDialog, setShowCreatePrescriptionDialog] = useState(false);
+  const [prescriptionAppointmentCode, setPrescriptionAppointmentCode] = useState('');
+  const [prescriptionPatientProfileCode, setPrescriptionPatientProfileCode] = useState('');
+  const [creatingPrescription, setCreatingPrescription] = useState(false);
+  const [creatingPrescriptionForTicket, setCreatingPrescriptionForTicket] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -572,7 +582,27 @@ export default function ReceptionPage() {
 
       const message = typeof data.message === 'string' ? data.message : null;
       toast.success(message || 'Đã gọi bệnh nhân tiếp theo');
+      
+      // Refresh queue snapshot trước để lấy currentPatient mới
       await refreshQueueSnapshot(selectedCounterId);
+      
+      // Nếu bệnh nhân hiện tại có appointmentCode, cập nhật status thành COMPLETED
+      const updatedSnapshot = await fetchQueueSnapshotFromApi(selectedCounterId);
+      if (updatedSnapshot?.current?.metadata && (updatedSnapshot.current.metadata as any).appointmentCode) {
+        const appointmentCode = (updatedSnapshot.current.metadata as any).appointmentCode;
+        try {
+          await fetch(`${API_BASE_URL}/appointment-booking/appointments/${encodeURIComponent(appointmentCode)}/check-in`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (err) {
+          console.error('Error updating appointment status:', err);
+          // Không hiển thị lỗi cho user vì đây là thao tác phụ
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể gọi bệnh nhân tiếp theo';
       toast.error(message);
@@ -690,6 +720,280 @@ export default function ReceptionPage() {
     }
   }, [selectedCounterId, loadCounters]);
 
+  const handleCreatePrescriptionFromTicket = useCallback(async (ticket: QueueTicket) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để tạo phiếu chỉ định');
+      return;
+    }
+
+    setCreatingPrescriptionForTicket(ticket.ticketId);
+
+    try {
+      const metadata = ticket.metadata as any;
+      const appointmentCode = metadata?.appointmentCode;
+      const patientProfileCode = metadata?.patientProfileCode;
+
+      // Ưu tiên tạo từ appointmentCode nếu có
+      if (appointmentCode) {
+        try {
+          // Tạo prescription từ appointment
+          const prescriptionRes = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(appointmentCode)}/create-prescription`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!prescriptionRes.ok) {
+            const err = await prescriptionRes.json().catch(() => ({}));
+            throw new Error(err?.message || 'Không thể tạo phiếu chỉ định từ lịch hẹn');
+          }
+
+          const prescriptionResult = await prescriptionRes.json();
+          toast.success('Tạo phiếu chỉ định thành công');
+          
+          // Cập nhật appointment status thành COMPLETED
+          try {
+            await fetch(`${API_BASE_URL}/appointment-booking/appointments/${encodeURIComponent(appointmentCode)}/check-in`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+          } catch (err) {
+            console.error('Error updating appointment status:', err);
+          }
+
+          // Auto generate and download PDF
+          const prescriptionData = prescriptionResult.data || prescriptionResult;
+          const prescriptionCode = prescriptionData.prescriptionCode || prescriptionResult.prescriptionCode;
+          
+          if (prescriptionCode) {
+            try {
+              // Check if response already has full prescription data (with services, patientProfile, doctor)
+              const hasFullData = prescriptionData.services && 
+                                  Array.isArray(prescriptionData.services) && 
+                                  prescriptionData.patientProfile && 
+                                  prescriptionData.doctor;
+              
+              let fullPrescriptionData = prescriptionData;
+              
+              // If response doesn't have full data, fetch it
+              if (!hasFullData) {
+                const presRes = await fetch(`${API_BASE_URL}/prescriptions/${encodeURIComponent(prescriptionCode)}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+                if (presRes.ok) {
+                  const fullPrescription = await presRes.json();
+                  fullPrescriptionData = fullPrescription.data || fullPrescription;
+                }
+              }
+              
+              // Generate and download PDF
+              const { generatePrescriptionPDF } = await import('@/lib/utils/prescription-pdf');
+              await generatePrescriptionPDF(fullPrescriptionData);
+              toast.success('Đã tải PDF phiếu chỉ định');
+            } catch (pdfError) {
+              console.error('Error generating PDF:', pdfError);
+              toast.error('Tạo phiếu thành công nhưng không thể tạo PDF. Vui lòng in từ danh sách phiếu.');
+            }
+          }
+
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tạo phiếu chỉ định từ lịch hẹn';
+          toast.error(message);
+          return;
+        }
+      }
+
+      // Nếu không có appointmentCode, thử tạo từ patientProfileCode
+      if (patientProfileCode) {
+        try {
+          // Tìm patient profile
+          const profileRes = await fetch(`${API_BASE_URL}/patient-profiles/search?code=${encodeURIComponent(patientProfileCode)}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!profileRes.ok) {
+            const err = await profileRes.json().catch(() => ({}));
+            throw new Error(err?.message || 'Không tìm thấy hồ sơ bệnh nhân');
+          }
+
+          const profiles = await profileRes.json();
+          const profile = Array.isArray(profiles) ? profiles[0] : (profiles?.data?.[0] || profiles?.patientProfiles?.[0]);
+
+          if (!profile) {
+            throw new Error('Không tìm thấy hồ sơ bệnh nhân');
+          }
+
+          // Redirect đến trang tạo prescription với patientProfileId
+          window.location.href = `/reception/prescription?patientProfileId=${profile.id}`;
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tìm hồ sơ bệnh nhân';
+          toast.error(message);
+          return;
+        }
+      }
+
+      // Nếu không có cả hai, hiển thị thông báo
+      toast.error('Không tìm thấy mã lịch hẹn hoặc mã hồ sơ bệnh nhân trong thông tin hàng chờ');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tạo phiếu chỉ định';
+      toast.error(message);
+    } finally {
+      setCreatingPrescriptionForTicket(null);
+    }
+  }, []);
+
+  const handleCreatePrescription = useCallback(async () => {
+    if (!prescriptionAppointmentCode && !prescriptionPatientProfileCode) {
+      toast.error('Vui lòng nhập mã lịch hẹn hoặc mã hồ sơ bệnh nhân');
+      return;
+    }
+
+    setCreatingPrescription(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+
+    try {
+      let appointmentData = null;
+      let patientProfileId = null;
+
+      // Nếu có appointmentCode, lấy thông tin appointment
+      if (prescriptionAppointmentCode) {
+        const appointmentRes = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(prescriptionAppointmentCode)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!appointmentRes.ok) {
+          const err = await appointmentRes.json().catch(() => ({}));
+          throw new Error(err?.message || 'Không tìm thấy lịch hẹn');
+        }
+
+        appointmentData = await appointmentRes.json();
+        patientProfileId = appointmentData.patientProfile?.id;
+
+        if (!patientProfileId) {
+          throw new Error('Không tìm thấy thông tin bệnh nhân từ lịch hẹn');
+        }
+
+        // Tạo prescription từ appointment
+        const prescriptionRes = await fetch(`${API_BASE_URL}/prescriptions/appointment/${encodeURIComponent(prescriptionAppointmentCode)}/create-prescription`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!prescriptionRes.ok) {
+          const err = await prescriptionRes.json().catch(() => ({}));
+          throw new Error(err?.message || 'Không thể tạo phiếu chỉ định từ lịch hẹn');
+        }
+
+        const prescriptionResult = await prescriptionRes.json();
+        toast.success('Tạo phiếu chỉ định thành công');
+        
+        // Cập nhật appointment status thành COMPLETED
+        try {
+          await fetch(`${API_BASE_URL}/appointment-booking/appointments/${encodeURIComponent(prescriptionAppointmentCode)}/check-in`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (err) {
+          console.error('Error updating appointment status:', err);
+        }
+
+        // Auto generate and download PDF
+        const prescriptionData = prescriptionResult.data || prescriptionResult;
+        const prescriptionCode = prescriptionData.prescriptionCode || prescriptionResult.prescriptionCode;
+        
+        if (prescriptionCode) {
+          try {
+            // Check if response already has full prescription data (with services, patientProfile, doctor)
+            const hasFullData = prescriptionData.services && 
+                                Array.isArray(prescriptionData.services) && 
+                                prescriptionData.patientProfile && 
+                                prescriptionData.doctor;
+            
+            let fullPrescriptionData = prescriptionData;
+            
+            // If response doesn't have full data, fetch it
+            if (!hasFullData) {
+              const presRes = await fetch(`${API_BASE_URL}/prescriptions/${encodeURIComponent(prescriptionCode)}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (presRes.ok) {
+                const fullPrescription = await presRes.json();
+                fullPrescriptionData = fullPrescription.data || fullPrescription;
+              }
+            }
+            
+            // Generate and download PDF
+            const { generatePrescriptionPDF } = await import('@/lib/utils/prescription-pdf');
+            await generatePrescriptionPDF(fullPrescriptionData);
+            toast.success('Đã tải PDF phiếu chỉ định');
+          } catch (pdfError) {
+            console.error('Error generating PDF:', pdfError);
+            toast.error('Tạo phiếu thành công nhưng không thể tạo PDF. Vui lòng in từ danh sách phiếu.');
+          }
+        }
+
+        // Đóng dialog và reset form
+        setShowCreatePrescriptionDialog(false);
+        setPrescriptionAppointmentCode('');
+        setPrescriptionPatientProfileCode('');
+        return;
+      }
+
+      // Nếu có patientProfileCode, cần redirect đến trang tạo prescription với patientProfileId
+      if (prescriptionPatientProfileCode) {
+        // Tìm patient profile
+        const profileRes = await fetch(`${API_BASE_URL}/patient-profiles/search?code=${encodeURIComponent(prescriptionPatientProfileCode)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!profileRes.ok) {
+          const err = await profileRes.json().catch(() => ({}));
+          throw new Error(err?.message || 'Không tìm thấy hồ sơ bệnh nhân');
+        }
+
+        const profiles = await profileRes.json();
+        const profile = Array.isArray(profiles) ? profiles[0] : (profiles?.data?.[0] || profiles?.patientProfiles?.[0]);
+
+        if (!profile) {
+          throw new Error('Không tìm thấy hồ sơ bệnh nhân');
+        }
+
+        // Redirect đến trang tạo prescription với patientProfileId
+        window.location.href = `/reception/prescription?patientProfileId=${profile.id}`;
+        return;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tạo phiếu chỉ định';
+      toast.error(message);
+    } finally {
+      setCreatingPrescription(false);
+    }
+  }, [prescriptionAppointmentCode, prescriptionPatientProfileCode]);
+
   useEffect(() => {
     loadCounters();
   }, [loadCounters]);
@@ -802,14 +1106,24 @@ export default function ReceptionPage() {
             Làm mới hàng chờ
           </Button>
           {selectedCounterId && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowCounterModal(true)}
-            >
-              <User className="mr-2 h-4 w-4" />
-              Quản lý quầy
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreatePrescriptionDialog(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Tạo phiếu chỉ định
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCounterModal(true)}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Quản lý quầy
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -856,6 +1170,12 @@ export default function ReceptionPage() {
                   <p className="text-lg font-semibold text-gray-900">{currentPatient.patientName}</p>
                   <p className="text-sm text-gray-600">Tuổi: {currentPatient.patientAge}</p>
                   <p className="text-sm font-medium text-blue-700">Số thứ tự: {currentPatient.queueNumber}</p>
+                  {currentPatient.metadata && (currentPatient.metadata as any).patientProfileCode && (
+                    <p className="text-xs text-gray-600">Mã hồ sơ: {(currentPatient.metadata as any).patientProfileCode}</p>
+                  )}
+                  {currentPatient.metadata && (currentPatient.metadata as any).appointmentCode && (
+                    <p className="text-xs text-gray-600">Mã lịch hẹn: {(currentPatient.metadata as any).appointmentCode}</p>
+                  )}
                   <p className="text-xs text-gray-500">
                     Bắt đầu: {formatTime(currentPatient.assignedAt)}
                   </p>
@@ -882,6 +1202,28 @@ export default function ReceptionPage() {
                     </Badge>
                   )}
                 </div>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCreatePrescriptionFromTicket(currentPatient)}
+                    disabled={creatingPrescriptionForTicket === currentPatient.ticketId}
+                    className="text-xs"
+                  >
+                    {creatingPrescriptionForTicket === currentPatient.ticketId ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList className="mr-1 h-3 w-3" />
+                        Tạo chỉ định
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 py-8 text-center text-sm text-gray-600">
@@ -892,9 +1234,33 @@ export default function ReceptionPage() {
 
             {nextPatient && (
               <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                <p className="font-semibold">Bệnh nhân tiếp theo</p>
-                <p>{nextPatient.patientName}</p>
-                <p className="text-xs text-yellow-700">Số thứ tự: {nextPatient.queueNumber}</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold">Bệnh nhân tiếp theo</p>
+                    <p>{nextPatient.patientName}</p>
+                    <p className="text-xs text-yellow-700">Số thứ tự: {nextPatient.queueNumber}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCreatePrescriptionFromTicket(nextPatient)}
+                    disabled={creatingPrescriptionForTicket === nextPatient.ticketId}
+                    className="text-xs"
+                  >
+                    {creatingPrescriptionForTicket === nextPatient.ticketId ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList className="mr-1 h-3 w-3" />
+                        Tạo chỉ định
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1027,9 +1393,13 @@ export default function ReceptionPage() {
                         </span>
                         <span>Số: {ticket.queueNumber || '--'}</span>
                         <span>Tuổi: {ticket.patientAge}</span>
-                        {ticket.queuePriority !== null && ticket.queuePriority !== undefined && (
-                          <span>Ưu tiên: {ticket.queuePriority}</span>
+                        {ticket.metadata && (ticket.metadata as any).patientProfileCode && (
+                          <span className="text-blue-600 font-medium">Hồ sơ: {(ticket.metadata as any).patientProfileCode}</span>
                         )}
+                        {ticket.metadata && (ticket.metadata as any).appointmentCode && (
+                          <span className="text-green-600 font-medium">Lịch hẹn: {(ticket.metadata as any).appointmentCode}</span>
+                        )}
+
                         {ticket.callCount > 0 && (
                           <Badge
                             variant="outline"
@@ -1047,6 +1417,28 @@ export default function ReceptionPage() {
                       {priorityBadges.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">{priorityBadges}</div>
                       )}
+                      <div className="mt-3 flex justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCreatePrescriptionFromTicket(ticket)}
+                          disabled={creatingPrescriptionForTicket === ticket.ticketId}
+                          className="text-xs"
+                        >
+                          {creatingPrescriptionForTicket === ticket.ticketId ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <ClipboardList className="mr-1 h-3 w-3" />
+                              Tạo chỉ định
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1338,6 +1730,98 @@ export default function ReceptionPage() {
                 <LogOut className="mr-2 h-4 w-4" />
               )}
               Xác nhận Checkout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Prescription Dialog */}
+      <Dialog open={showCreatePrescriptionDialog} onOpenChange={setShowCreatePrescriptionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Tạo phiếu chỉ định
+            </DialogTitle>
+            <DialogDescription>
+              Nhập mã lịch hẹn hoặc mã hồ sơ bệnh nhân để tạo phiếu chỉ định
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="appointment-code">Mã lịch hẹn (Appointment Code)</Label>
+              <Input
+                id="appointment-code"
+                placeholder="VD: APT-1234567890"
+                value={prescriptionAppointmentCode}
+                onChange={(e) => {
+                  setPrescriptionAppointmentCode(e.target.value);
+                  if (e.target.value) {
+                    setPrescriptionPatientProfileCode('');
+                  }
+                }}
+                disabled={creatingPrescription}
+              />
+              <p className="text-xs text-gray-500">
+                Nếu tạo từ mã lịch hẹn, hệ thống sẽ tự động tạo phiếu chỉ định và cập nhật trạng thái lịch hẹn
+              </p>
+            </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">Hoặc</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="patient-profile-code">Mã hồ sơ bệnh nhân (Patient Profile Code)</Label>
+              <Input
+                id="patient-profile-code"
+                placeholder="VD: PAT-1234567890"
+                value={prescriptionPatientProfileCode}
+                onChange={(e) => {
+                  setPrescriptionPatientProfileCode(e.target.value);
+                  if (e.target.value) {
+                    setPrescriptionAppointmentCode('');
+                  }
+                }}
+                disabled={creatingPrescription}
+              />
+              <p className="text-xs text-gray-500">
+                Nếu tạo từ mã hồ sơ, bạn sẽ được chuyển đến trang tạo phiếu chỉ định
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCreatePrescriptionDialog(false);
+                setPrescriptionAppointmentCode('');
+                setPrescriptionPatientProfileCode('');
+              }}
+              disabled={creatingPrescription}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreatePrescription}
+              disabled={creatingPrescription || (!prescriptionAppointmentCode && !prescriptionPatientProfileCode)}
+            >
+              {creatingPrescription ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tạo...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tạo phiếu chỉ định
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

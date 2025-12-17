@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,7 +26,9 @@ import {
   Camera,
   CameraOff,
   Edit,
-  Save
+  Save,
+  Stethoscope,
+  Wrench
 } from 'lucide-react';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { PatientProfile } from '@/lib/types/user';
@@ -125,6 +127,7 @@ interface AppointmentLookup {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 export default function ReceptionCreatePrescriptionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'create' | 'prescriptions'>('create');
 
   // Patient selection
@@ -144,6 +147,18 @@ export default function ReceptionCreatePrescriptionPage() {
   const [prescriptionsPage, setPrescriptionsPage] = useState(1);
   const [prescriptionsLimit] = useState(20);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
+  
+  // Filter states
+  const [filterPatientName, setFilterPatientName] = useState('');
+  const [filterPatientPhone, setFilterPatientPhone] = useState('');
+  const [filterDoctorId, setFilterDoctorId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [availableDoctorsForFilter, setAvailableDoctorsForFilter] = useState<Array<{ id: string; name: string; doctorCode?: string }>>([]);
+  const [loadingDoctorsForFilter, setLoadingDoctorsForFilter] = useState(false);
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+  const [doctorDropdownOpen, setDoctorDropdownOpen] = useState(false);
   
   // Update prescription dialog states
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -170,6 +185,73 @@ export default function ReceptionCreatePrescriptionPage() {
   const lastScanTsRef = React.useRef<number>(0);
   const [scanHint, setScanHint] = useState<string>('Đang khởi động camera...');
   const scanningRef = React.useRef(false);
+
+  // Load patient profile from query parameter
+  useEffect(() => {
+    const patientProfileId = searchParams?.get('patientProfileId');
+    const appointmentCodeFromQuery = searchParams?.get('appointmentCode');
+    
+    // Load patient profile if patientProfileId is in query and not already loaded
+    if (patientProfileId) {
+      // Only load if not already selected or if the ID is different
+      if (!selectedPatientProfile || selectedPatientProfile.id !== patientProfileId) {
+        const loadPatientProfile = async () => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/patient-profiles/${encodeURIComponent(patientProfileId)}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              },
+            });
+            
+            if (response.ok) {
+              const profile = await response.json();
+              setSelectedPatientProfile({
+                id: profile.id,
+                name: profile.name,
+                profileCode: profile.profileCode || '',
+                dateOfBirth: profile.dateOfBirth,
+                gender: profile.gender,
+                phone: profile.phone || '',
+                address: profile.address || '',
+                emergencyContact: profile.emergencyContact || { name: '', phone: '', relationship: '' },
+                occupation: profile.occupation || '',
+                healthInsurance: profile.healthInsurance || '',
+                relationship: profile.relationship || '',
+                isActive: profile.isActive !== undefined ? profile.isActive : true,
+                patientId: profile.patientId || null,
+              } as PatientProfile);
+              toast.success('Đã tải thông tin bệnh nhân');
+              
+              // Switch to create tab to show the form
+              setActiveTab('create');
+              
+              // Clear query parameter after loading
+              const newSearchParams = new URLSearchParams(searchParams?.toString());
+              newSearchParams.delete('patientProfileId');
+              const newUrl = newSearchParams.toString() 
+                ? `/reception/prescription?${newSearchParams.toString()}`
+                : '/reception/prescription';
+              router.replace(newUrl);
+            } else {
+              const err = await response.json().catch(() => ({}));
+              toast.error(err?.message || 'Không tìm thấy hồ sơ bệnh nhân');
+            }
+          } catch (error) {
+            console.error('Error loading patient profile:', error);
+            toast.error('Có lỗi xảy ra khi tải thông tin bệnh nhân');
+          }
+        };
+        
+        loadPatientProfile();
+      }
+    }
+    
+    // Load appointment if appointmentCode is in query
+    if (appointmentCodeFromQuery && !appointmentCode) {
+      setAppointmentCode(appointmentCodeFromQuery);
+      // The existing useEffect for appointmentCode will handle loading
+    }
+  }, [searchParams, selectedPatientProfile, appointmentCode, appointment, router]);
 
   // Search services with debouncing
   useEffect(() => {
@@ -1142,6 +1224,15 @@ export default function ReceptionCreatePrescriptionPage() {
         page: String(prescriptionsPage),
         limit: String(prescriptionsLimit)
       });
+      
+      // Add filter params
+      if (filterPatientName) params.set('patientName', filterPatientName);
+      if (filterPatientPhone) params.set('patientPhone', filterPatientPhone);
+      if (filterDoctorId) params.set('doctorId', filterDoctorId);
+      if (filterStatus) params.set('status', filterStatus);
+      if (filterDateFrom) params.set('dateFrom', filterDateFrom);
+      if (filterDateTo) params.set('dateTo', filterDateTo);
+      
       const res = await fetch(`${API_BASE_URL}/prescriptions?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -1165,7 +1256,84 @@ export default function ReceptionCreatePrescriptionPage() {
     } finally {
       setLoadingPrescriptions(false);
     }
-  }, [prescriptionsPage, prescriptionsLimit]);
+  }, [prescriptionsPage, prescriptionsLimit, filterPatientName, filterPatientPhone, filterDoctorId, filterStatus, filterDateFrom, filterDateTo]);
+  
+  // Load available doctors for filter
+  const loadAvailableDoctorsForFilter = useCallback(async (search?: string) => {
+    setLoadingDoctorsForFilter(true);
+    try {
+      // Use the /users/doctors/all endpoint with search parameter
+      const url = search 
+        ? `${API_BASE_URL}/users/doctors/all?search=${encodeURIComponent(search)}`
+        : `${API_BASE_URL}/users/doctors/all`;
+      
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Transform data to simple format
+        const doctorsList: Array<{ id: string; name: string; doctorCode?: string }> = [];
+        if (Array.isArray(data)) {
+          data.forEach((item: any) => {
+            if (item.id && item.name && item.doctor?.id) {
+              doctorsList.push({ 
+                id: item.doctor.id, 
+                name: item.name,
+                doctorCode: item.doctor.doctorCode 
+              });
+            }
+          });
+        }
+        setAvailableDoctorsForFilter(doctorsList);
+      } else {
+        console.error('Failed to load doctors:', res.status);
+      }
+    } catch (error) {
+      console.error('Error loading doctors:', error);
+    } finally {
+      setLoadingDoctorsForFilter(false);
+    }
+  }, []);
+  
+  // Debounced search for doctors
+  useEffect(() => {
+    if (!doctorDropdownOpen) {
+      return;
+    }
+    
+    const timeoutId = setTimeout(() => {
+      loadAvailableDoctorsForFilter(doctorSearchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [doctorSearchQuery, doctorDropdownOpen, loadAvailableDoctorsForFilter]);
+  
+  // Load doctors when dropdown opens for the first time
+  useEffect(() => {
+    if (doctorDropdownOpen && availableDoctorsForFilter.length === 0 && !doctorSearchQuery) {
+      loadAvailableDoctorsForFilter();
+    }
+  }, [doctorDropdownOpen, availableDoctorsForFilter.length, doctorSearchQuery, loadAvailableDoctorsForFilter]);
+  
+  // Reset filters
+  const resetFilters = useCallback(() => {
+    setFilterPatientName('');
+    setFilterPatientPhone('');
+    setFilterDoctorId('');
+    setFilterStatus('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setPrescriptionsPage(1);
+  }, []);
+  
+  // Apply filters (reset to page 1)
+  const applyFilters = useCallback(() => {
+    setPrescriptionsPage(1);
+  }, []);
 
   // Load prescription details for update
   const loadPrescriptionDetails = useCallback(async (prescriptionId: string) => {
@@ -1270,8 +1438,24 @@ export default function ReceptionCreatePrescriptionPage() {
   useEffect(() => {
     if (activeTab === 'prescriptions') {
       fetchPrescriptions();
+      // Load doctors when tab opens, but not on every render
+      if (availableDoctorsForFilter.length === 0) {
+        loadAvailableDoctorsForFilter();
+      }
     }
   }, [activeTab, fetchPrescriptions]);
+  
+  // Update doctor search query when filterDoctorId changes
+  useEffect(() => {
+    if (filterDoctorId && !doctorSearchQuery) {
+      const selectedDoctor = availableDoctorsForFilter.find(d => d.id === filterDoctorId);
+      if (selectedDoctor) {
+        setDoctorSearchQuery(selectedDoctor.name);
+      }
+    } else if (!filterDoctorId) {
+      setDoctorSearchQuery('');
+    }
+  }, [filterDoctorId, availableDoctorsForFilter]);
 
   const handleBack = () => {
     router.push('/medical-records');
@@ -1687,6 +1871,278 @@ export default function ReceptionCreatePrescriptionPage() {
         </TabsContent>
 
         <TabsContent value="prescriptions" className="space-y-6">
+          {/* Filter Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Search className="h-5 w-5 text-blue-600" />
+                Bộ lọc
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Patient Name Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-patient-name">Tên bệnh nhân</Label>
+                  <Input
+                    id="filter-patient-name"
+                    placeholder="Nhập tên bệnh nhân"
+                    value={filterPatientName}
+                    onChange={(e) => setFilterPatientName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                  />
+                </div>
+
+                {/* Patient Phone Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-patient-phone">Số điện thoại</Label>
+                  <Input
+                    id="filter-patient-phone"
+                    placeholder="Nhập số điện thoại"
+                    value={filterPatientPhone}
+                    onChange={(e) => setFilterPatientPhone(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                  />
+                </div>
+
+                {/* Doctor Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-doctor">Bác sĩ thực hiện</Label>
+                  <div className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="filter-doctor"
+                        placeholder="Tìm kiếm bác sĩ..."
+                        value={doctorSearchQuery}
+                        onChange={(e) => setDoctorSearchQuery(e.target.value)}
+                        onFocus={() => setDoctorDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setDoctorDropdownOpen(false), 200)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {doctorDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {loadingDoctorsForFilter ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                            Đang tải...
+                          </div>
+                        ) : availableDoctorsForFilter.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Không tìm thấy bác sĩ
+                          </div>
+                        ) : (
+                          <>
+                            {availableDoctorsForFilter
+                              .filter((doctor) => 
+                                doctor.name.toLowerCase().includes(doctorSearchQuery.toLowerCase()) ||
+                                doctor.doctorCode?.toLowerCase().includes(doctorSearchQuery.toLowerCase())
+                              )
+                              .map((doctor) => (
+                                <div
+                                  key={doctor.id}
+                                  className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
+                                    filterDoctorId === doctor.id ? 'bg-blue-50' : ''
+                                  }`}
+                                  onClick={() => {
+                                    setFilterDoctorId(doctor.id);
+                                    setDoctorSearchQuery(doctor.name);
+                                    setDoctorDropdownOpen(false);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Stethoscope className="h-4 w-4 text-blue-600" />
+                                    <div>
+                                      <div className="text-sm font-medium">{doctor.name}</div>
+                                      {doctor.doctorCode && (
+                                        <div className="text-xs text-gray-500">{doctor.doctorCode}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            {filterDoctorId && (
+                              <div className="border-t border-gray-200">
+                                <div
+                                  className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm text-gray-600"
+                                  onClick={() => {
+                                    setFilterDoctorId('');
+                                    setDoctorSearchQuery('');
+                                    setDoctorDropdownOpen(false);
+                                  }}
+                                >
+                                  <X className="h-4 w-4 inline mr-2" />
+                                  Xóa lọc bác sĩ
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {filterDoctorId && (
+                    <div className="mt-1">
+                      <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                        {availableDoctorsForFilter.find((d: { id: string; name: string }) => d.id === filterDoctorId)?.name || filterDoctorId}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => {
+                            setFilterDoctorId('');
+                            setDoctorSearchQuery('');
+                          }}
+                        />
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-status">Trạng thái</Label>
+                  <Select 
+                    value={filterStatus || undefined} 
+                    onValueChange={(value) => setFilterStatus(value || '')}
+                  >
+                    <SelectTrigger id="filter-status">
+                      <SelectValue placeholder="Tất cả trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NOT_STARTED">Chưa thanh toán</SelectItem>
+                      <SelectItem value="PENDING">Đã thanh toán</SelectItem>
+                      <SelectItem value="WAITING">Chờ phục vụ</SelectItem>
+                      <SelectItem value="PREPARING">Chuẩn bị</SelectItem>
+                      <SelectItem value="SERVING">Đang phục vụ</SelectItem>
+                      <SelectItem value="WAITING_RESULT">Chờ kết quả</SelectItem>
+                      <SelectItem value="RETURNING">Đã quay lại</SelectItem>
+                      <SelectItem value="SKIPPED">Bị bỏ qua</SelectItem>
+                      <SelectItem value="RESCHEDULED">Hẹn tiếp tục</SelectItem>
+                      <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                      <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date From Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-date-from">Từ ngày</Label>
+                  <Input
+                    id="filter-date-from"
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                  />
+                </div>
+
+                {/* Date To Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="filter-date-to">Đến ngày</Label>
+                  <Input
+                    id="filter-date-to"
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Active Filters & Actions */}
+              <div className="mt-4 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {(filterPatientName || filterPatientPhone || filterDoctorId || filterStatus || filterDateFrom || filterDateTo) && (
+                    <>
+                      {filterPatientName && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          Tên: {filterPatientName}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              setFilterPatientName('');
+                              applyFilters();
+                            }}
+                          />
+                        </Badge>
+                      )}
+                      {filterPatientPhone && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          SĐT: {filterPatientPhone}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              setFilterPatientPhone('');
+                              applyFilters();
+                            }}
+                          />
+                        </Badge>
+                      )}
+                      {filterDoctorId && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          BS: {availableDoctorsForFilter.find((d: { id: string; name: string }) => d.id === filterDoctorId)?.name || filterDoctorId}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              setFilterDoctorId('');
+                              applyFilters();
+                            }}
+                          />
+                        </Badge>
+                      )}
+                      {filterStatus && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          Trạng thái: {filterStatus}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              setFilterStatus('');
+                              applyFilters();
+                            }}
+                          />
+                        </Badge>
+                      )}
+                      {(filterDateFrom || filterDateTo) && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          {filterDateFrom && filterDateTo
+                            ? `${filterDateFrom} - ${filterDateTo}`
+                            : filterDateFrom
+                            ? `Từ: ${filterDateFrom}`
+                            : `Đến: ${filterDateTo}`}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              setFilterDateFrom('');
+                              setFilterDateTo('');
+                              applyFilters();
+                            }}
+                          />
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetFilters}
+                    disabled={loadingPrescriptions}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Xóa bộ lọc
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={applyFilters}
+                    disabled={loadingPrescriptions}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Áp dụng
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -2120,13 +2576,15 @@ function UpdatePrescriptionForm({
   ];
 
   const serviceStatusOptions = [
-    { value: 'NOT_STARTED', label: 'Chưa bắt đầu' },
-    { value: 'PENDING', label: 'Đang chờ' },
+    { value: 'NOT_STARTED', label: 'Chưa thanh toán' },
+    { value: 'PENDING', label: 'Đã thanh toán' },
     { value: 'WAITING', label: 'Chờ phục vụ' },
     { value: 'PREPARING', label: 'Chuẩn bị' },
     { value: 'SERVING', label: 'Đang phục vụ' },
     { value: 'WAITING_RESULT', label: 'Chờ kết quả' },
-    { value: 'RETURNING', label: 'Đang trả lại' },
+    { value: 'RETURNING', label: 'Đã quay lại' },
+    { value: 'SKIPPED', label: 'Bị bỏ qua' },
+    { value: 'RESCHEDULED', label: 'Hẹn tiếp tục' },
     { value: 'COMPLETED', label: 'Hoàn thành' },
     { value: 'CANCELLED', label: 'Đã hủy' },
   ];
@@ -2234,37 +2692,48 @@ function UpdatePrescriptionForm({
                                   <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />
                                   Đang tải...
                                 </SelectItem>
-                              ) : doctors.length === 0 ? (
-                                <SelectItem value="none" disabled>
-                                  Không có người thực hiện khả dụng
-                                </SelectItem>
                               ) : (
                                 <>
-                                  {/* Current assigned person */}
+                                  {/* Current assigned person - Luôn hiển thị nếu có */}
                                   {ps.doctorId && (
                                     <SelectItem value={`doctor-${ps.doctorId}`}>
-                                      👨‍⚕️ {ps.doctor?.auth?.name || 'Bác sĩ hiện tại'}
+                                      <Stethoscope className="h-4 w-4 inline mr-2" /> {ps.doctor?.auth?.name || 'Bác sĩ hiện tại'}
                                     </SelectItem>
                                   )}
                                   {ps.technicianId && (
                                     <SelectItem value={`technician-${ps.technicianId}`}>
-                                      🔧 {ps.technician?.auth?.name || 'Kỹ thuật viên hiện tại'}
+                                      <Wrench className="h-4 w-4 inline mr-2" /> {ps.technician?.auth?.name || 'Kỹ thuật viên hiện tại'}
                                     </SelectItem>
                                   )}
                                   
                                   {/* Available doctors */}
-                                  {doctors.filter(d => d.type === 'doctor').map(doctor => (
-                                    <SelectItem key={`doctor-${doctor.doctorId}`} value={`doctor-${doctor.doctorId}`}>
-                                      👨‍⚕️ {doctor.name} {doctor.boothCode && `(${doctor.boothCode})`}
-                                    </SelectItem>
-                                  ))}
+                                  {doctors.filter(d => d.type === 'doctor').map(doctor => {
+                                    // Tránh trùng với người đang thực hiện
+                                    if (ps.doctorId === doctor.doctorId) return null;
+                                    return (
+                                      <SelectItem key={`doctor-${doctor.doctorId}`} value={`doctor-${doctor.doctorId}`}>
+                                        👨‍⚕️ {doctor.name} {doctor.boothCode && `(${doctor.boothCode})`}
+                                      </SelectItem>
+                                    );
+                                  })}
                                   
                                   {/* Available technicians */}
-                                  {doctors.filter(d => d.type === 'technician').map(technician => (
-                                    <SelectItem key={`technician-${technician.technicianId}`} value={`technician-${technician.technicianId}`}>
-                                      🔧 {technician.name} {technician.boothCode && `(${technician.boothCode})`}
+                                  {doctors.filter(d => d.type === 'technician').map(technician => {
+                                    // Tránh trùng với người đang thực hiện
+                                    if (ps.technicianId === technician.technicianId) return null;
+                                    return (
+                                      <SelectItem key={`technician-${technician.technicianId}`} value={`technician-${technician.technicianId}`}>
+                                        🔧 {technician.name} {technician.boothCode && `(${technician.boothCode})`}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                  
+                                  {/* Hiển thị thông báo nếu không có available doctors và không có người đang thực hiện */}
+                                  {doctors.length === 0 && !ps.doctorId && !ps.technicianId && (
+                                    <SelectItem value="none" disabled>
+                                      Không có người thực hiện khả dụng
                                     </SelectItem>
-                                  ))}
+                                  )}
                                 </>
                               )}
                             </SelectContent>
