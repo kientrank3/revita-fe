@@ -19,6 +19,7 @@ import {
 	ConciergeBell,
 	Contact,
 	Settings,
+	Backpack,
 } from "lucide-react";
 
 import {
@@ -99,6 +100,14 @@ const getMenuItems = () => {
 			color: "text-primary",
 			bgColor: "bg-primary/10",
 			roles: ["DOCTOR", "TECHNICIAN"],
+		},
+		{
+			title: "Quản lý lịch hẹn",
+			url: "/appointment-booking",
+			icon: Backpack,
+			color: "text-primary",
+			bgColor: "bg-primary/10",
+			roles: [ "DOCTOR"],
 		},
 		{
 			title: "Màn hình tiếp nhận",
