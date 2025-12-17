@@ -139,7 +139,7 @@ class MedicalRecordService {
   }
 
   // Get all templates (from templates endpoint) with pagination
-  async getAllTemplates(limit: number = 10, offset: number = 0): Promise<{ data: Template[]; meta?: any }> {
+  async getAllTemplates(limit: number = 10, offset: number = 0): Promise<{ data: Template[]; meta?: { page: number; limit: number; total: number; totalPages: number } }> {
     const response = await api.get('/templates', {
       params: {
         limit,

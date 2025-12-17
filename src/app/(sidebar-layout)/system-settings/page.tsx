@@ -21,7 +21,7 @@ export default function SystemSettingsPage() {
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
   const [limit] = useState(10);
-  const [total, setTotal] = useState(0);
+  // const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
   // Check if user is ADMIN
@@ -32,12 +32,6 @@ export default function SystemSettingsPage() {
     }
   }, [user, router]);
 
-  useEffect(() => {
-    if (user?.role === 'ADMIN') {
-      loadTemplates();
-    }
-  }, [user, currentPage]);
-
   const loadTemplates = async () => {
     try {
       setIsLoading(true);
@@ -47,7 +41,7 @@ export default function SystemSettingsPage() {
       setTemplates(templatesData);
       
       if (response.meta) {
-        setTotal(response.meta.total || 0);
+        // setTotal(response.meta.total || 0);
         setTotalPages(response.meta.totalPages || 0);
       }
     } catch (error) {
@@ -57,6 +51,13 @@ export default function SystemSettingsPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      loadTemplates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentPage]);
 
   const handleToggleAutoDiagnosis = async (templateId: string, currentValue: boolean) => {
     try {

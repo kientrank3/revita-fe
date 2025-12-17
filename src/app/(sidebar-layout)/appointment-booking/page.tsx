@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
   Calendar, 
-  User, 
   Phone, 
   Clock, 
   Stethoscope,
@@ -35,12 +34,6 @@ export default function MyAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (user?.role === 'DOCTOR') {
-      loadAppointments();
-    }
-  }, [user, currentPage]);
-
   const loadAppointments = async () => {
     try {
       setIsLoading(true);
@@ -56,6 +49,13 @@ export default function MyAppointmentsPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user?.role === 'DOCTOR') {
+      loadAppointments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentPage]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -64,7 +64,7 @@ class AppointmentBookingService {
     offset: number = 0,
     filters?: AppointmentFilters,
   ): Promise<DoctorAppointmentsResponse> {
-    const params: any = {
+    const params: Record<string, string | number> = {
       limit,
       offset,
     };

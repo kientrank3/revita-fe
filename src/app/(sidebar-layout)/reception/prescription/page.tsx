@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,7 +125,8 @@ interface AppointmentLookup {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
-export default function ReceptionCreatePrescriptionPage() {
+
+function ReceptionCreatePrescriptionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'create' | 'prescriptions'>('create');
@@ -1278,7 +1279,7 @@ export default function ReceptionCreatePrescriptionPage() {
         // Transform data to simple format
         const doctorsList: Array<{ id: string; name: string; doctorCode?: string }> = [];
         if (Array.isArray(data)) {
-          data.forEach((item: any) => {
+          data.forEach((item: { id?: string; name?: string; doctor?: { id?: string; doctorCode?: string } }) => {
             if (item.id && item.name && item.doctor?.id) {
               doctorsList.push({ 
                 id: item.doctor.id, 
@@ -2808,4 +2809,17 @@ function UpdatePrescriptionForm({
   );
 }
 
-
+export default function ReceptionCreatePrescriptionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <ReceptionCreatePrescriptionPageContent />
+    </Suspense>
+  );
+}
