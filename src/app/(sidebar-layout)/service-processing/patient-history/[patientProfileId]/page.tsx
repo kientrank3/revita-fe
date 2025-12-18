@@ -39,6 +39,59 @@ import { toast } from 'sonner';
 import { useMemo } from 'react';
 import { FilePreviewDialog } from '@/components/common/FilePreviewDialog';
 
+// Service History Types
+interface Specialty {
+  id: string;
+  name: string;
+}
+
+interface ServiceWithSpecialty {
+  id: string;
+  serviceCode: string;
+  name: string;
+  price: number;
+  description: string;
+  timePerPatient: number;
+  specialty?: Specialty;
+}
+
+interface DoctorInfo {
+  id: string;
+  auth?: {
+    name: string;
+  };
+}
+
+interface TechnicianInfo {
+  id: string;
+  auth?: {
+    name: string;
+  };
+}
+
+interface PrescriptionInfo {
+  id: string;
+  prescriptionCode: string;
+}
+
+interface ServiceHistoryItem {
+  id: string;
+  service?: ServiceWithSpecialty;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  note?: string | null;
+  results?: string[];
+  doctor?: DoctorInfo;
+  technician?: TechnicianInfo;
+  prescription?: PrescriptionInfo;
+}
+
+// Filter option types (extracted from service history)
+interface FilterOption {
+  id: string;
+  name: string;
+}
+
 export default function PatientHistoryPage() {
   const params = useParams();
   const router = useRouter();
@@ -62,7 +115,7 @@ export default function PatientHistoryPage() {
   const [timeFilter, setTimeFilter] = useState<string>('all');
 
   // Service history states
-  const [serviceHistory, setServiceHistory] = useState<any[]>([]);
+  const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
   const [isLoadingServiceHistory, setIsLoadingServiceHistory] = useState(false);
   const [serviceHistoryFilters, setServiceHistoryFilters] = useState({
     specialtyId: '',
@@ -75,9 +128,9 @@ export default function PatientHistoryPage() {
     offset: 0,
     hasMore: false,
   });
-  const [specialties, setSpecialties] = useState<any[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [doctors, setDoctors] = useState<FilterOption[]>([]);
+  const [technicians, setTechnicians] = useState<FilterOption[]>([]);
 
   // File preview states
   const [previewFileUrl, setPreviewFileUrl] = useState<string | null>(null);
@@ -220,7 +273,7 @@ export default function PatientHistoryPage() {
         const doctorSet = new Set<string>();
         const technicianSet = new Set<string>();
 
-        response.data.data.services?.forEach((service: any) => {
+        response.data.data.services?.forEach((service: ServiceHistoryItem) => {
           if (service.service?.specialty) {
             specialtySet.add(JSON.stringify({
               id: service.service.specialty.id,
