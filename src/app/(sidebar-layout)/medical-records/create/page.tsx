@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { PatientSearch } from '@/components/medical-records/PatientSearch';
 import { DynamicMedicalRecordForm } from '@/components/medical-records/DynamicMedicalRecordForm';
 import { PatientProfile } from '@/lib/types/user';
+import { patientProfileService } from '@/lib/services/patient-profile.service';
 import { CreatePrescriptionDialog } from '@/components/medication-prescriptions/CreatePrescriptionDialog';
 import { medicationPrescriptionApi, appointmentBookingApi } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -95,6 +96,30 @@ function CreateMedicalRecordPageContent() {
 
     loadTemplates();
   }, []);
+
+  // Auto-load patient profile when patientId is provided in query params
+  useEffect(() => {
+    const loadPatientProfile = async () => {
+      if (patientProfileId) {
+        // Only load if no patient is selected or selected patient is different
+        if (!selectedPatientProfile || selectedPatientProfile.id !== patientProfileId) {
+          try {
+            setIsLoading(true);
+            const profile = await patientProfileService.getById(patientProfileId);
+            handlePatientProfileSelect(profile as unknown as PatientProfile);
+          } catch (error) {
+            console.error('Error loading patient profile:', error);
+            toast.error('Không thể tải thông tin bệnh nhân');
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      }
+    };
+
+    loadPatientProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientProfileId]);
 
   // Update selected template when templateId changes
   useEffect(() => {

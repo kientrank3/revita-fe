@@ -20,7 +20,10 @@ import {
   ChevronLeft,
   Link2,
   QrCode,
-  CameraOff
+  CameraOff,
+  Image as ImageIcon,
+  File,
+  Plus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import api from '@/lib/config';
@@ -34,6 +37,7 @@ import { MedicalRecord, Template } from '@/lib/types/medical-record';
 import { PatientProfile } from '@/lib/api';
 import { toast } from 'sonner';
 import { useMemo } from 'react';
+import { FilePreviewDialog } from '@/components/common/FilePreviewDialog';
 
 export default function PatientHistoryPage() {
   const params = useParams();
@@ -51,11 +55,34 @@ export default function PatientHistoryPage() {
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
   
-  // Filter states
+  // Filter states for medical records
   const [searchTerm, setSearchTerm] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<string>('all');
+
+  // Service history states
+  const [serviceHistory, setServiceHistory] = useState<any[]>([]);
+  const [isLoadingServiceHistory, setIsLoadingServiceHistory] = useState(false);
+  const [serviceHistoryFilters, setServiceHistoryFilters] = useState({
+    specialtyId: '',
+    doctorId: '',
+    technicianId: '',
+  });
+  const [serviceHistoryPagination, setServiceHistoryPagination] = useState({
+    total: 0,
+    limit: 20,
+    offset: 0,
+    hasMore: false,
+  });
+  const [specialties, setSpecialties] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
+
+  // File preview states
+  const [previewFileUrl, setPreviewFileUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string>('');
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   
   // Link prescription states
   const [selectedRecordForLink, setSelectedRecordForLink] = useState<string | null>(null);
@@ -102,6 +129,20 @@ export default function PatientHistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientProfileId]);
 
+  useEffect(() => {
+    if (activeTab === 'service-history' && patientProfileId) {
+      // Reset pagination when filters change
+      setServiceHistoryPagination({
+        total: 0,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
+      });
+      loadServiceHistory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, patientProfileId, serviceHistoryFilters]);
+
   const loadPatientData = async () => {
     setIsLoadingProfile(true);
     setIsLoadingRecords(true);
@@ -140,6 +181,75 @@ export default function PatientHistoryPage() {
       toast.error('Không thể tải lịch sử bệnh án');
     } finally {
       setIsLoadingRecords(false);
+    }
+  };
+
+  const loadServiceHistory = async () => {
+    setIsLoadingServiceHistory(true);
+    try {
+      const params = new URLSearchParams();
+      if (serviceHistoryFilters.specialtyId) {
+        params.append('specialtyId', serviceHistoryFilters.specialtyId);
+      }
+      if (serviceHistoryFilters.doctorId) {
+        params.append('doctorId', serviceHistoryFilters.doctorId);
+      }
+      if (serviceHistoryFilters.technicianId) {
+        params.append('technicianId', serviceHistoryFilters.technicianId);
+      }
+      const currentLimit = serviceHistoryPagination.limit || 20;
+      const currentOffset = serviceHistoryPagination.offset || 0;
+      params.append('limit', currentLimit.toString());
+      params.append('offset', currentOffset.toString());
+
+      const response = await api.get(
+        `/services/patient-history/${patientProfileId}?${params.toString()}`
+      );
+
+      if (response.data?.success && response.data?.data) {
+        setServiceHistory(response.data.data.services || []);
+        setServiceHistoryPagination(response.data.data.pagination || {
+          total: 0,
+          limit: 20,
+          offset: 0,
+          hasMore: false,
+        });
+
+        // Extract unique specialties, doctors, technicians from the results
+        const specialtySet = new Set<string>();
+        const doctorSet = new Set<string>();
+        const technicianSet = new Set<string>();
+
+        response.data.data.services?.forEach((service: any) => {
+          if (service.service?.specialty) {
+            specialtySet.add(JSON.stringify({
+              id: service.service.specialty.id,
+              name: service.service.specialty.name,
+            }));
+          }
+          if (service.doctor) {
+            doctorSet.add(JSON.stringify({
+              id: service.doctor.id,
+              name: service.doctor.auth?.name || '',
+            }));
+          }
+          if (service.technician) {
+            technicianSet.add(JSON.stringify({
+              id: service.technician.id,
+              name: service.technician.auth?.name || '',
+            }));
+          }
+        });
+
+        setSpecialties(Array.from(specialtySet).map(s => JSON.parse(s)));
+        setDoctors(Array.from(doctorSet).map(d => JSON.parse(d)));
+        setTechnicians(Array.from(technicianSet).map(t => JSON.parse(t)));
+      }
+    } catch (error) {
+      console.error('Error loading service history:', error);
+      toast.error('Không thể tải lịch sử khám bệnh');
+    } finally {
+      setIsLoadingServiceHistory(false);
     }
   };
 
@@ -190,8 +300,8 @@ export default function PatientHistoryPage() {
     return null;
   };
 
-  // Get unique specialties from templates
-  const specialties = useMemo(() => {
+  // Get unique specialties from templates (for medical records filter)
+  const medicalRecordSpecialties = useMemo(() => {
     const specialtySet = new Set<string>();
     medicalRecords.forEach(record => {
       if (record.templateId) {
@@ -797,14 +907,18 @@ export default function PatientHistoryPage() {
 
       {/* Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Thông tin bệnh nhân
           </TabsTrigger>
           <TabsTrigger value="records" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Bệnh án ({filteredRecords.length}/{medicalRecords.length})
+            Bệnh án
+          </TabsTrigger>
+          <TabsTrigger value="service-history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Lịch sử khám bệnh 
           </TabsTrigger>
         </TabsList>
 
@@ -833,6 +947,19 @@ export default function PatientHistoryPage() {
         </TabsContent>
 
         <TabsContent value="records" className="mt-6 space-y-4">
+          {/* Create Medical Record Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={() => {
+                router.push(`/medical-records/create?patientId=${patientProfileId}`);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Tạo bệnh án
+            </Button>
+          </div>
+
           {/* Filters */}
           <Card>
             <CardHeader>
@@ -866,7 +993,7 @@ export default function PatientHistoryPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tất cả khoa</SelectItem>
-                      {specialties.map((specialty) => (
+                      {medicalRecordSpecialties.map((specialty) => (
                         <SelectItem key={specialty} value={specialty}>
                           {specialty}
                         </SelectItem>
@@ -1120,6 +1247,247 @@ export default function PatientHistoryPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="service-history" className="mt-6 space-y-4">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Filter className="h-5 w-5" />
+                Tìm kiếm & Lọc
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                {/* Specialty Filter */}
+                <div className="space-y-2 w-full">
+                  <label className="text-sm font-medium block">Khoa</label>
+                  <Select
+                    value={serviceHistoryFilters.specialtyId || 'all'}
+                    onValueChange={(value) =>
+                      setServiceHistoryFilters({
+                        ...serviceHistoryFilters,
+                        specialtyId: value === 'all' ? '' : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Tất cả khoa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả khoa</SelectItem>
+                      {specialties.map((specialty) => (
+                        <SelectItem key={specialty.id} value={specialty.id}>
+                          {specialty.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Doctor Filter */}
+                <div className="space-y-2 w-full">
+                  <label className="text-sm font-medium block">Bác sĩ</label>
+                  <Select
+                    value={serviceHistoryFilters.doctorId || 'all'}
+                    onValueChange={(value) =>
+                      setServiceHistoryFilters({
+                        ...serviceHistoryFilters,
+                        doctorId: value === 'all' ? '' : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Tất cả bác sĩ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả bác sĩ</SelectItem>
+                      {doctors.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          {doctor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Technician Filter */}
+                <div className="space-y-2 w-full">
+                  <label className="text-sm font-medium block">Kỹ thuật viên</label>
+                  <Select
+                    value={serviceHistoryFilters.technicianId || 'all'}
+                    onValueChange={(value) =>
+                      setServiceHistoryFilters({
+                        ...serviceHistoryFilters,
+                        technicianId: value === 'all' ? '' : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Tất cả kỹ thuật viên" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả kỹ thuật viên</SelectItem>
+                      {technicians.map((technician) => (
+                        <SelectItem key={technician.id} value={technician.id}>
+                          {technician.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(serviceHistoryFilters.specialtyId ||
+                serviceHistoryFilters.doctorId ||
+                serviceHistoryFilters.technicianId) && (
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setServiceHistoryFilters({
+                        specialtyId: '',
+                        doctorId: '',
+                        technicianId: '',
+                      })
+                    }
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Xóa bộ lọc
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {isLoadingServiceHistory ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-gray-600">Đang tải lịch sử khám bệnh...</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : serviceHistory.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <History className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500">Chưa có lịch sử khám bệnh</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {serviceHistory.map((service) => (
+                <Card key={service.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Stethoscope className="h-5 w-5 text-primary" />
+                          {service.service?.name || 'Dịch vụ không xác định'}
+                        </CardTitle>
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          <Badge className="bg-green-100 text-green-800">
+                            Hoàn thành
+                          </Badge>
+                          {service.startedAt && (
+                            <span className="text-sm text-gray-500">
+                              {formatDate(service.startedAt)}
+                            </span>
+                          )}
+                          {service.completedAt && (
+                            <span className="text-sm text-gray-500">
+                              - {formatDate(service.completedAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {service.service?.specialty && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Khoa:</span>{' '}
+                        {service.service.specialty.name}
+                      </div>
+                    )}
+                    {service.doctor && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Bác sĩ:</span>{' '}
+                        {service.doctor.auth?.name || 'Không xác định'}
+                      </div>
+                    )}
+                    {service.technician && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Kỹ thuật viên:</span>{' '}
+                        {service.technician.auth?.name || 'Không xác định'}
+                      </div>
+                    )}
+                    {service.prescription && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Mã phiếu chỉ định:</span>{' '}
+                        {service.prescription.prescriptionCode}
+                      </div>
+                    )}
+                    {service.note && (
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Ghi chú:</span> {service.note}
+                      </div>
+                    )}
+                    {service.results && service.results.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Kết quả ({service.results.length}):</p>
+                        <div className="flex flex-wrap gap-2">
+                          {service.results.map((result: string, idx: number) => {
+                            const fileName = result.split('/').pop() || `Kết quả ${idx + 1}`;
+                            const extension = fileName.split('.').pop()?.toLowerCase() || '';
+                            const getFileIcon = () => {
+                              if (['pdf'].includes(extension)) {
+                                return <FileText className="h-5 w-5 text-red-500" />;
+                              }
+                              if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+                                return <ImageIcon className="h-5 w-5 text-green-500" />;
+                              }
+                              if (['doc', 'docx'].includes(extension)) {
+                                return <FileText className="h-5 w-5 text-blue-500" />;
+                              }
+                              if (['xls', 'xlsx'].includes(extension)) {
+                                return <FileText className="h-5 w-5 text-green-600" />;
+                              }
+                              return <File className="h-5 w-5 text-gray-500" />;
+                            };
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setPreviewFileUrl(result);
+                                  setPreviewFileName(fileName);
+                                  setIsPreviewDialogOpen(true);
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                                title={fileName}
+                              >
+                                {getFileIcon()}
+                                <span className="text-sm text-gray-700 truncate max-w-[150px]">
+                                  {fileName}
+                                </span>
+                                <Eye className="h-4 w-4 text-gray-400" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Link Prescription Dialog */}
@@ -1257,6 +1625,16 @@ export default function PatientHistoryPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* File Preview Dialog */}
+      {previewFileUrl && (
+        <FilePreviewDialog
+          open={isPreviewDialogOpen}
+          onOpenChange={setIsPreviewDialogOpen}
+          fileUrl={previewFileUrl}
+          fileName={previewFileName}
+        />
+      )}
     </div>
   );
 }
